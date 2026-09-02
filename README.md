@@ -79,6 +79,10 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 # 패키지 설치
 pip install -r requirements.txt
 
+# uv
+uv sync
+uv run uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+
 # DB 시드 데이터 초기화
 python -m backend.app.seed
 
