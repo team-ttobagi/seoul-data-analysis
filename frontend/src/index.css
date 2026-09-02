@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: #f5f5f0;
+    --foreground: #000000;
+    --accent-lime: #d4ff00;
+    --accent-lime-hover: #c2ec00;
+    --muted: #e5e5de;
+    --muted-foreground: #555550;
+    --danger: #ff3333;
+    --danger-muted: #ffe8e8;
+    --border: #000000;
+    --card-dark: #121212;
+  }
+
+  body {
+    font-family: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+    background-color: var(--background);
+    color: var(--foreground);
+    margin: 0;
+    padding: 0;
+  }
+
+  .font-mono-data {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  .font-display {
+    font-family: "Space Grotesk", "Pretendard", sans-serif;
+  }
+}
+
+/* Geometric Balance Grid & Clean Precision Lines */
+.brutalist-border {
+  border-color: #000000;
+}
+
+.bg-lime-accent {
+  background-color: #d4ff00;
+}
+
+.text-lime-accent {
+  color: #d4ff00;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #eeede6;
+}
+::-webkit-scrollbar-thumb {
+  background: #000000;
+}
+

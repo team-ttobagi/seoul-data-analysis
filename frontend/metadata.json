@@ -1,0 +1,6 @@
+{
+  "name": "SEOUL DATA PLAYGROUND",
+  "description": "A data-driven commercial district exploration service for aspiring entrepreneurs in Seoul.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
