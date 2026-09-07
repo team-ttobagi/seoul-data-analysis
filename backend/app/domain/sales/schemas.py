@@ -40,8 +40,6 @@ class SalesByAgeGenderSchema(BaseModel):
 
 
 class StoreSummarySchema(BaseModel):
-    store_count: int
-    store_count_change: int
     competition_level: str
     sales_level: str
     volume_level: str
