@@ -97,7 +97,6 @@ class DistrictPatternsResponse(BaseModel):
 
 class DistrictCompetitionResponse(BaseModel):
     trade_area_code: str
-    qoq_store_change: int
     competition_level: str
     sales_level: str
     volume_level: str
