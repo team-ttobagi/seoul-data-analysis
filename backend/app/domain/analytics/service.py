@@ -68,7 +68,11 @@ class AnalyticsService:
                 "comp_val": 134,
                 "comp_norm": 62,
                 "comp_percentile": 88,
-                "signals": {"growth": "high", "transaction": "high", "competition": "high"},
+                "signals": {
+                    "growth": "high",
+                    "transaction": "high",
+                    "competition": "high",
+                },
                 "insight": "성장성과 거래 활성도가 높지만 경쟁도 강합니다.",
                 "warning": "동일 업종 134개로 공급 집중 심화",
             },
@@ -86,7 +90,11 @@ class AnalyticsService:
                 "comp_val": 182,
                 "comp_norm": 52,
                 "comp_percentile": 95,
-                "signals": {"growth": "medium", "transaction": "high", "competition": "high"},
+                "signals": {
+                    "growth": "medium",
+                    "transaction": "high",
+                    "competition": "high",
+                },
                 "insight": "서울 최대 거래량을 자랑하지만 동일 업종 진입 밀도가 최상위권입니다.",
                 "warning": "임대료 및 과밀 경쟁 유의",
             },
@@ -104,7 +112,11 @@ class AnalyticsService:
                 "comp_val": 58,
                 "comp_norm": 82,
                 "comp_percentile": 45,
-                "signals": {"growth": "high", "transaction": "medium", "competition": "low"},
+                "signals": {
+                    "growth": "high",
+                    "transaction": "medium",
+                    "competition": "low",
+                },
                 "insight": "1인 청년 가구의 소비 증가세가 뚜렷하며 상대적 경쟁 부담이 낮습니다.",
                 "warning": None,
             },
@@ -122,7 +134,11 @@ class AnalyticsService:
                 "comp_val": 96,
                 "comp_norm": 69,
                 "comp_percentile": 65,
-                "signals": {"growth": "medium", "transaction": "medium", "competition": "medium"},
+                "signals": {
+                    "growth": "medium",
+                    "transaction": "medium",
+                    "competition": "medium",
+                },
                 "insight": "안정적인 대학생 배후 수요를 기반으로 꾸준한 소비 흐름을 보입니다.",
                 "warning": None,
             },
@@ -140,7 +156,11 @@ class AnalyticsService:
                 "comp_val": 240,
                 "comp_norm": 42,
                 "comp_percentile": 99,
-                "signals": {"growth": "low", "transaction": "high", "competition": "high"},
+                "signals": {
+                    "growth": "low",
+                    "transaction": "high",
+                    "competition": "high",
+                },
                 "insight": "거래 규모는 서울 최고이나 성장 정체와 초대형 프랜차이즈 과밀 상태입니다.",
                 "warning": "초기 고정비 및 포화 경쟁 경계",
             },
@@ -189,7 +209,10 @@ class AnalyticsService:
         return results
 
     async def get_overview(
-        self, trade_area_code: str, industry_code: str = "CS100010", quarter: str = "2026 Q2"
+        self,
+        trade_area_code: str,
+        industry_code: str = "CS100010",
+        quarter: str = "2026 Q2",
     ) -> DistrictOverviewResponse:
         code = trade_area_code.upper()
         trade_area = await self.trade_area_repo.get_by_code(code)
@@ -208,8 +231,6 @@ class AnalyticsService:
             qoq_growth_rate=summary["qoq_growth_rate"],
             sales_percentile=summary["sales_percentile"],
             volume_percentile=summary["volume_percentile"],
-            store_count=store["store_count"],
-            store_count_change=store["store_count_change"],
             competition_level=store["competition_level"],
             sales_level=store["sales_level"],
             volume_level=store["volume_level"],
@@ -220,38 +241,177 @@ class AnalyticsService:
             "growth_percentile": summary["sales_percentile"],
             "volume_formatted": summary["transaction_count_formatted"],
             "volume_percentile": summary["volume_percentile"],
-            "store_count": store["store_count"],
             "competition_text": f"경쟁 {store['competition_level']}",
         }
 
         rankings = {
             "by_sales": [
-                DistrictRankingItem(rank=1, trade_area_code="GANGNAM", trade_area_name="강남역", sales_formatted="18.5억", sales_raw=1850000000, is_current=False),
-                DistrictRankingItem(rank=2, trade_area_code="HONGDAE", trade_area_name="홍대입구", sales_formatted="16.2억", sales_raw=1620000000, is_current=(code == "HONGDAE")),
-                DistrictRankingItem(rank=3, trade_area_code="SEONGSU", trade_area_name="성수동", sales_formatted="12.8억", sales_raw=1280000000, is_current=(code == "SEONGSU")),
-                DistrictRankingItem(rank=4, trade_area_code="GAROSU", trade_area_name="가로수길", sales_formatted="11.7억", sales_raw=1170000000, is_current=False),
-                DistrictRankingItem(rank=5, trade_area_code="KONKUK", trade_area_name="건대입구", sales_formatted="8.9억", sales_raw=890000000, is_current=(code == "KONKUK")),
+                DistrictRankingItem(
+                    rank=1,
+                    trade_area_code="GANGNAM",
+                    trade_area_name="강남역",
+                    sales_formatted="18.5억",
+                    sales_raw=1850000000,
+                    is_current=False,
+                ),
+                DistrictRankingItem(
+                    rank=2,
+                    trade_area_code="HONGDAE",
+                    trade_area_name="홍대입구",
+                    sales_formatted="16.2억",
+                    sales_raw=1620000000,
+                    is_current=(code == "HONGDAE"),
+                ),
+                DistrictRankingItem(
+                    rank=3,
+                    trade_area_code="SEONGSU",
+                    trade_area_name="성수동",
+                    sales_formatted="12.8억",
+                    sales_raw=1280000000,
+                    is_current=(code == "SEONGSU"),
+                ),
+                DistrictRankingItem(
+                    rank=4,
+                    trade_area_code="GAROSU",
+                    trade_area_name="가로수길",
+                    sales_formatted="11.7억",
+                    sales_raw=1170000000,
+                    is_current=False,
+                ),
+                DistrictRankingItem(
+                    rank=5,
+                    trade_area_code="KONKUK",
+                    trade_area_name="건대입구",
+                    sales_formatted="8.9억",
+                    sales_raw=890000000,
+                    is_current=(code == "KONKUK"),
+                ),
             ],
             "by_volume": [
-                DistrictRankingItem(rank=1, trade_area_code="GANGNAM", trade_area_name="강남역", sales_formatted="62만", sales_raw=620000, is_current=False),
-                DistrictRankingItem(rank=2, trade_area_code="HONGDAE", trade_area_name="홍대입구", sales_formatted="58만", sales_raw=580000, is_current=(code == "HONGDAE")),
-                DistrictRankingItem(rank=3, trade_area_code="SEONGSU", trade_area_name="성수동", sales_formatted="45만", sales_raw=450000, is_current=(code == "SEONGSU")),
-                DistrictRankingItem(rank=4, trade_area_code="GAROSU", trade_area_name="가로수길", sales_formatted="36만", sales_raw=360000, is_current=False),
-                DistrictRankingItem(rank=5, trade_area_code="KONKUK", trade_area_name="건대입구", sales_formatted="32만", sales_raw=320000, is_current=(code == "KONKUK")),
+                DistrictRankingItem(
+                    rank=1,
+                    trade_area_code="GANGNAM",
+                    trade_area_name="강남역",
+                    sales_formatted="62만",
+                    sales_raw=620000,
+                    is_current=False,
+                ),
+                DistrictRankingItem(
+                    rank=2,
+                    trade_area_code="HONGDAE",
+                    trade_area_name="홍대입구",
+                    sales_formatted="58만",
+                    sales_raw=580000,
+                    is_current=(code == "HONGDAE"),
+                ),
+                DistrictRankingItem(
+                    rank=3,
+                    trade_area_code="SEONGSU",
+                    trade_area_name="성수동",
+                    sales_formatted="45만",
+                    sales_raw=450000,
+                    is_current=(code == "SEONGSU"),
+                ),
+                DistrictRankingItem(
+                    rank=4,
+                    trade_area_code="GAROSU",
+                    trade_area_name="가로수길",
+                    sales_formatted="36만",
+                    sales_raw=360000,
+                    is_current=False,
+                ),
+                DistrictRankingItem(
+                    rank=5,
+                    trade_area_code="KONKUK",
+                    trade_area_name="건대입구",
+                    sales_formatted="32만",
+                    sales_raw=320000,
+                    is_current=(code == "KONKUK"),
+                ),
             ],
             "by_growth": [
-                DistrictRankingItem(rank=1, trade_area_code="SHAROSU", trade_area_name="샤로수길", sales_formatted="+14.1%", sales_raw=14.1, is_current=(code == "SHAROSU")),
-                DistrictRankingItem(rank=2, trade_area_code="SEONGSU", trade_area_name="성수동", sales_formatted="+12.4%", sales_raw=12.4, is_current=(code == "SEONGSU")),
-                DistrictRankingItem(rank=3, trade_area_code="EULJIRO", trade_area_name="을지로3가", sales_formatted="+9.2%", sales_raw=9.2, is_current=False),
-                DistrictRankingItem(rank=4, trade_area_code="HONGDAE", trade_area_name="홍대입구", sales_formatted="+6.8%", sales_raw=6.8, is_current=(code == "HONGDAE")),
-                DistrictRankingItem(rank=5, trade_area_code="KONKUK", trade_area_name="건대입구", sales_formatted="+5.2%", sales_raw=5.2, is_current=(code == "KONKUK")),
+                DistrictRankingItem(
+                    rank=1,
+                    trade_area_code="SHAROSU",
+                    trade_area_name="샤로수길",
+                    sales_formatted="+14.1%",
+                    sales_raw=14.1,
+                    is_current=(code == "SHAROSU"),
+                ),
+                DistrictRankingItem(
+                    rank=2,
+                    trade_area_code="SEONGSU",
+                    trade_area_name="성수동",
+                    sales_formatted="+12.4%",
+                    sales_raw=12.4,
+                    is_current=(code == "SEONGSU"),
+                ),
+                DistrictRankingItem(
+                    rank=3,
+                    trade_area_code="EULJIRO",
+                    trade_area_name="을지로3가",
+                    sales_formatted="+9.2%",
+                    sales_raw=9.2,
+                    is_current=False,
+                ),
+                DistrictRankingItem(
+                    rank=4,
+                    trade_area_code="HONGDAE",
+                    trade_area_name="홍대입구",
+                    sales_formatted="+6.8%",
+                    sales_raw=6.8,
+                    is_current=(code == "HONGDAE"),
+                ),
+                DistrictRankingItem(
+                    rank=5,
+                    trade_area_code="KONKUK",
+                    trade_area_name="건대입구",
+                    sales_formatted="+5.2%",
+                    sales_raw=5.2,
+                    is_current=(code == "KONKUK"),
+                ),
             ],
             "by_score": [
-                DistrictRankingItem(rank=1, trade_area_code="SEONGSU", trade_area_name="성수동", sales_formatted="82점", sales_raw=82, is_current=(code == "SEONGSU")),
-                DistrictRankingItem(rank=2, trade_area_code="HONGDAE", trade_area_name="홍대입구", sales_formatted="78점", sales_raw=78, is_current=(code == "HONGDAE")),
-                DistrictRankingItem(rank=3, trade_area_code="SHAROSU", trade_area_name="샤로수길", sales_formatted="74점", sales_raw=74, is_current=(code == "SHAROSU")),
-                DistrictRankingItem(rank=4, trade_area_code="KONKUK", trade_area_name="건대입구", sales_formatted="71점", sales_raw=71, is_current=(code == "KONKUK")),
-                DistrictRankingItem(rank=5, trade_area_code="GANGNAM", trade_area_name="강남역", sales_formatted="69점", sales_raw=69, is_current=(code == "GANGNAM")),
+                DistrictRankingItem(
+                    rank=1,
+                    trade_area_code="SEONGSU",
+                    trade_area_name="성수동",
+                    sales_formatted="82점",
+                    sales_raw=82,
+                    is_current=(code == "SEONGSU"),
+                ),
+                DistrictRankingItem(
+                    rank=2,
+                    trade_area_code="HONGDAE",
+                    trade_area_name="홍대입구",
+                    sales_formatted="78점",
+                    sales_raw=78,
+                    is_current=(code == "HONGDAE"),
+                ),
+                DistrictRankingItem(
+                    rank=3,
+                    trade_area_code="SHAROSU",
+                    trade_area_name="샤로수길",
+                    sales_formatted="74점",
+                    sales_raw=74,
+                    is_current=(code == "SHAROSU"),
+                ),
+                DistrictRankingItem(
+                    rank=4,
+                    trade_area_code="KONKUK",
+                    trade_area_name="건대입구",
+                    sales_formatted="71점",
+                    sales_raw=71,
+                    is_current=(code == "KONKUK"),
+                ),
+                DistrictRankingItem(
+                    rank=5,
+                    trade_area_code="GANGNAM",
+                    trade_area_name="강남역",
+                    sales_formatted="69점",
+                    sales_raw=69,
+                    is_current=(code == "GANGNAM"),
+                ),
             ],
         }
 
@@ -279,11 +439,18 @@ class AnalyticsService:
         )
 
     async def get_patterns(
-        self, trade_area_code: str, industry_code: str = "CS100010", quarter: str = "2026 Q2"
+        self,
+        trade_area_code: str,
+        industry_code: str = "CS100010",
+        quarter: str = "2026 Q2",
     ) -> DistrictPatternsResponse:
         code = trade_area_code.upper()
-        time_slots = await self.sales_repo.get_sales_by_time(code, industry_code, quarter)
-        demographics = await self.sales_repo.get_sales_by_age_gender(code, industry_code, quarter)
+        time_slots = await self.sales_repo.get_sales_by_time(
+            code, industry_code, quarter
+        )
+        demographics = await self.sales_repo.get_sales_by_age_gender(
+            code, industry_code, quarter
+        )
         days = await self.sales_repo.get_sales_by_day(code, industry_code, quarter)
 
         when_data = {
@@ -309,14 +476,15 @@ class AnalyticsService:
         return DistrictPatternsResponse(when=when_data, who=who_data, day=day_data)
 
     async def get_competition(
-        self, trade_area_code: str, industry_code: str = "CS100010", quarter: str = "2026 Q2"
+        self,
+        trade_area_code: str,
+        industry_code: str = "CS100010",
+        quarter: str = "2026 Q2",
     ) -> DistrictCompetitionResponse:
         code = trade_area_code.upper()
         store = await self.sales_repo.get_store_summary(code, industry_code, quarter)
         return DistrictCompetitionResponse(
             trade_area_code=code,
-            store_count=store["store_count"],
-            qoq_store_change=store["store_count_change"],
             competition_level=store["competition_level"],
             sales_level=store["sales_level"],
             volume_level=store["volume_level"],
@@ -324,7 +492,10 @@ class AnalyticsService:
         )
 
     async def get_compare(
-        self, trade_area_codes: List[str], industry_code: str = "CS100010", quarter: str = "2026 Q2"
+        self,
+        trade_area_codes: List[str],
+        industry_code: str = "CS100010",
+        quarter: str = "2026 Q2",
     ) -> List[CompareDistrictData]:
         all_districts = {
             "SEONGSU": CompareDistrictData(
@@ -337,8 +508,6 @@ class AnalyticsService:
                 transaction_count_formatted="45만",
                 transaction_count=450000,
                 growth_rate=12.4,
-                store_count=134,
-                store_count_change=12,
                 strongest_age_group="20대 여성 (45%)",
                 strongest_time_period="17–21시 (36%)",
                 strongest_day="금요일 (+21%)",
@@ -355,8 +524,6 @@ class AnalyticsService:
                 transaction_count_formatted="58만",
                 transaction_count=580000,
                 growth_rate=6.8,
-                store_count=182,
-                store_count_change=8,
                 strongest_age_group="20대 남녀 (52%)",
                 strongest_time_period="18–22시 (38%)",
                 strongest_day="토요일 (+34%)",
@@ -373,8 +540,6 @@ class AnalyticsService:
                 transaction_count_formatted="28만",
                 transaction_count=280000,
                 growth_rate=14.1,
-                store_count=58,
-                store_count_change=3,
                 strongest_age_group="20대 1인가구 (48%)",
                 strongest_time_period="18–21시 (32%)",
                 strongest_day="금요일 (+18%)",
@@ -391,8 +556,6 @@ class AnalyticsService:
                 transaction_count_formatted="32만",
                 transaction_count=320000,
                 growth_rate=5.2,
-                store_count=96,
-                store_count_change=5,
                 strongest_age_group="20대 학생 (50%)",
                 strongest_time_period="17–21시 (34%)",
                 strongest_day="금/토 (+16%)",
@@ -409,8 +572,6 @@ class AnalyticsService:
                 transaction_count_formatted="62만",
                 transaction_count=620000,
                 growth_rate=2.1,
-                store_count=240,
-                store_count_change=15,
                 strongest_age_group="30대 직장인 (46%)",
                 strongest_time_period="11–14시 (38%)",
                 strongest_day="목/금 (+14%)",
@@ -419,5 +580,7 @@ class AnalyticsService:
             ),
         }
 
-        codes = trade_area_codes if trade_area_codes else ["SEONGSU", "HONGDAE", "SHAROSU"]
+        codes = (
+            trade_area_codes if trade_area_codes else ["SEONGSU", "HONGDAE", "SHAROSU"]
+        )
         return [all_districts.get(c.upper(), all_districts["SEONGSU"]) for c in codes]
