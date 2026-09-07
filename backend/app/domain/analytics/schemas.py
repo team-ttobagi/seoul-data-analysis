@@ -36,8 +36,6 @@ class DistrictKpis(BaseModel):
     qoq_growth_rate: float
     sales_percentile: int
     volume_percentile: int
-    store_count: int
-    store_count_change: int
     competition_level: str
     sales_level: str
     volume_level: str
@@ -99,7 +97,6 @@ class DistrictPatternsResponse(BaseModel):
 
 class DistrictCompetitionResponse(BaseModel):
     trade_area_code: str
-    store_count: int
     qoq_store_change: int
     competition_level: str
     sales_level: str
@@ -117,8 +114,6 @@ class CompareDistrictData(BaseModel):
     transaction_count_formatted: str
     transaction_count: int
     growth_rate: float
-    store_count: int
-    store_count_change: int
     strongest_age_group: str
     strongest_time_period: str
     strongest_day: str
