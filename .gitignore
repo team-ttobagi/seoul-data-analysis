@@ -13,6 +13,7 @@ frontend/.cache/
 frontend/.env
 frontend/.env.*
 !frontend/.env.example
+*.test.ts
 
 # Backend (Python / FastAPI)
 backend/.venv/
