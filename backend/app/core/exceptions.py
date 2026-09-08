@@ -27,6 +27,15 @@ class IndustryNotFoundException(AppException):
         )
 
 
+class DistrictNotFoundException(AppException):
+    def __init__(self, district_code: str):
+        super().__init__(
+            code="DISTRICT_NOT_FOUND",
+            message=f"District with code '{district_code}' was not found.",
+            status_code=404,
+        )
+
+
 async def app_exception_handler(request: Request, exc: AppException):
     return JSONResponse(
         status_code=exc.status_code,

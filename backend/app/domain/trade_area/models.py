@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.app.core.database import Base
 
 if TYPE_CHECKING:
+    from backend.app.domain.district.models import DistrictModel
     from backend.app.domain.sales.models import SalesDataModel
 
 
@@ -31,6 +32,16 @@ class TradeAreaModel(Base):
         nullable=False,
     )
     trdar_cd_nm: Mapped[str] = mapped_column(String, nullable=False)
+    signgu_cd: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("district.signgu_cd"),
+        nullable=False,
+    )
+
+    district: Mapped["DistrictModel"] = relationship(
+        "DistrictModel",
+        back_populates="trade_areas",
+    )
 
     trade_area_type: Mapped["TradeAreaTypeModel"] = relationship(
         "TradeAreaTypeModel",
