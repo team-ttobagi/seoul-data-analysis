@@ -3,11 +3,11 @@ from pydantic import BaseModel, ConfigDict
 
 
 class TradeAreaBase(BaseModel):
-    code: str
-    name: str
-    district: str
-    type: str
-    description: Optional[str] = None
+    trdar_cd: str
+    trdar_se_cd: str
+    trdar_cd_nm: str
+    signgu_cd: str
+    signgu_cd_nm: Optional[str] = None
 
 
 class TradeAreaResponse(TradeAreaBase):
