@@ -101,6 +101,11 @@ schemas.py   API 요청/응답 계약
 
 | 도메인       | 주요 파일       | 책임                                              |
 | ------------ | --------------- | ------------------------------------------------- |
+| `district`   | `router.py`     | 자치구 목록·코드 단건 조회 API                    |
+|              | `service.py`    | 자치구 조회 업무 흐름                              |
+|              | `repository.py` | `district` 테이블 조회                             |
+|              | `models.py`     | 자치구 테이블 모델                                 |
+|              | `schemas.py`    | 자치구 API 응답 모델                               |
 | `trade_area` | `router.py`     | 상권 목록·기본 정보 API 엔드포인트                |
 |              | `service.py`    | 상권 조회 업무 흐름                               |
 |              | `repository.py` | 상권 데이터 DB 조회                               |
@@ -120,7 +125,7 @@ schemas.py   API 요청/응답 계약
 |              | `service.py`    | 탐색 점수 계산, 추천, 상세 분석, 비교 데이터 조합 |
 |              | `schemas.py`    | 분석 API 응답 계약                                |
 
-`analytics`는 `trade_area`와 `sales` 저장소를 조합하는 상위 업무 도메인입니다. 반대로 repository가 점수를 계산하거나 router가 DB를 직접 조회하지 않도록 유지합니다.
+`analytics`는 `district`, `trade_area`, `sales` 저장소를 조합하는 상위 업무 도메인입니다. 데이터 관계는 `district → trade_area → sales_data`이며, `trade_area.signgu_cd`는 `district.signgu_cd`를 참조합니다. 반대로 repository가 점수를 계산하거나 router가 DB를 직접 조회하지 않도록 유지합니다.
 
 ## 5. 데이터 모델 및 ERD
 
