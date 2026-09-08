@@ -39,8 +39,3 @@ class SalesByAgeGenderSchema(BaseModel):
     is_primary: bool
 
 
-class StoreSummarySchema(BaseModel):
-    competition_level: str
-    sales_level: str
-    volume_level: str
-    warning_text: Optional[str] = None

@@ -25,7 +25,7 @@ def get_analytics_service(db: Optional[AsyncSession] = Depends(get_db)) -> Analy
 @router.get("/analytics/recommendations", response_model=List[RecommendationItemResponse])
 async def get_recommendations(
     industry_code: str = Query("CS100010", description="Industry code, default coffee/beverage"),
-    quarter: str = Query("2026 Q2", description="Quarter"),
+    quarter: str = Query("2025 Q4", description="Quarter"),
     region: Optional[str] = Query("서울 전체", description="Administrative region"),
     service: AnalyticsService = Depends(get_analytics_service),
 ):
@@ -36,7 +36,7 @@ async def get_recommendations(
 async def get_district_overview(
     trade_area_code: str,
     industry_code: str = Query("CS100010", description="Industry code"),
-    quarter: str = Query("2026 Q2", description="Quarter"),
+    quarter: str = Query("2025 Q4", description="Quarter"),
     service: AnalyticsService = Depends(get_analytics_service),
 ):
     return await service.get_overview(trade_area_code, industry_code, quarter)
@@ -46,7 +46,7 @@ async def get_district_overview(
 async def get_district_patterns(
     trade_area_code: str,
     industry_code: str = Query("CS100010", description="Industry code"),
-    quarter: str = Query("2026 Q2", description="Quarter"),
+    quarter: str = Query("2025 Q4", description="Quarter"),
     service: AnalyticsService = Depends(get_analytics_service),
 ):
     return await service.get_patterns(trade_area_code, industry_code, quarter)
@@ -56,7 +56,7 @@ async def get_district_patterns(
 async def get_district_competition(
     trade_area_code: str,
     industry_code: str = Query("CS100010", description="Industry code"),
-    quarter: str = Query("2026 Q2", description="Quarter"),
+    quarter: str = Query("2025 Q4", description="Quarter"),
     service: AnalyticsService = Depends(get_analytics_service),
 ):
     return await service.get_competition(trade_area_code, industry_code, quarter)
@@ -66,7 +66,7 @@ async def get_district_competition(
 async def get_compare_districts(
     trade_area_codes: str = Query(..., description="Comma-separated trade area codes"),
     industry_code: str = Query("CS100010", description="Industry code"),
-    quarter: str = Query("2026 Q2", description="Quarter"),
+    quarter: str = Query("2025 Q4", description="Quarter"),
     service: AnalyticsService = Depends(get_analytics_service),
 ):
     codes = [c.strip() for c in trade_area_codes.split(",") if c.strip()]

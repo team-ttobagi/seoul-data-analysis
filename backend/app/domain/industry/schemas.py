@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict
 class IndustryBase(BaseModel):
     code: str
     name: str
-    category: str
+    category: Optional[str] = None
     description: Optional[str] = None
 
 

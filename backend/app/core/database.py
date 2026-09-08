@@ -25,6 +25,17 @@ class Base(DeclarativeBase):
     pass
 
 
+def _register_all_models() -> None:
+    """Import every domain model module so SQLAlchemy can resolve string-based relationships."""
+    from backend.app.domain.trade_area import models as _trade_area_models  # noqa: F401
+    from backend.app.domain.industry import models as _industry_models  # noqa: F401
+    from backend.app.domain.sales import models as _sales_models  # noqa: F401
+    from backend.app.domain.district import models as _district_models  # noqa: F401
+
+
+_register_all_models()
+
+
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         try:

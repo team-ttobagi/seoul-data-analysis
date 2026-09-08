@@ -9,7 +9,6 @@ from backend.app.domain.sales.schemas import (
     SalesByDaySchema,
     SalesByTimeSchema,
     SalesByAgeGenderSchema,
-    StoreSummarySchema,
 )
 
 router = APIRouter(prefix="/sales", tags=["Sales"])
@@ -24,7 +23,7 @@ def get_sales_service(db: Optional[AsyncSession] = Depends(get_db)) -> SalesServ
 async def get_summary(
     trade_area_code: str = Query(..., description="Trade area code"),
     industry_code: str = Query("CS100010", description="Industry code"),
-    quarter: str = Query("2026 Q2", description="Quarter"),
+    quarter: str = Query("2025 Q4", description="Quarter"),
     service: SalesService = Depends(get_sales_service),
 ):
     return await service.get_summary(trade_area_code, industry_code, quarter)

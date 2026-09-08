@@ -12,6 +12,7 @@ from backend.app.domain.analytics.schemas import (
 )
 from backend.app.domain.trade_area.repository import TradeAreaRepository
 from backend.app.domain.sales.repository import SalesRepository
+from backend.app.core.exceptions import SalesDataNotFoundException
 
 
 class AnalyticsService:
@@ -49,7 +50,7 @@ class AnalyticsService:
     async def get_recommendations(
         self,
         industry_code: str = "CS100010",
-        quarter: str = "2026 Q2",
+        quarter: str = "2025 Q4",
         region: Optional[str] = "서울 전체",
     ) -> List[RecommendationItemResponse]:
         # Pre-calculated deterministic candidates adhering to Seoul Open Data patterns
@@ -212,15 +213,16 @@ class AnalyticsService:
         self,
         trade_area_code: str,
         industry_code: str = "CS100010",
-        quarter: str = "2026 Q2",
+        quarter: str = "2025 Q4",
     ) -> DistrictOverviewResponse:
         code = trade_area_code.upper()
         trade_area = await self.trade_area_repo.get_by_code(code)
-        ta_name = trade_area["name"] if trade_area else "성수동"
-        district_name = trade_area["district"] if trade_area else "성동구"
+        ta_name = trade_area["trdar_cd_nm"] if trade_area else "성수동"
+        district_name = trade_area["signgu_cd_nm"] if trade_area else "성동구"
 
         summary = await self.sales_repo.get_sales_summary(code, industry_code, quarter)
-        store = await self.sales_repo.get_store_summary(code, industry_code, quarter)
+        if not summary:
+            raise SalesDataNotFoundException(code, industry_code, quarter)
 
         kpis = DistrictKpis(
             estimated_sales=summary["estimated_sales"],
@@ -231,9 +233,6 @@ class AnalyticsService:
             qoq_growth_rate=summary["qoq_growth_rate"],
             sales_percentile=summary["sales_percentile"],
             volume_percentile=summary["volume_percentile"],
-            competition_level=store["competition_level"],
-            sales_level=store["sales_level"],
-            volume_level=store["volume_level"],
         )
 
         why_explore = {
@@ -241,7 +240,6 @@ class AnalyticsService:
             "growth_percentile": summary["sales_percentile"],
             "volume_formatted": summary["transaction_count_formatted"],
             "volume_percentile": summary["volume_percentile"],
-            "competition_text": f"경쟁 {store['competition_level']}",
         }
 
         rankings = {
@@ -442,7 +440,7 @@ class AnalyticsService:
         self,
         trade_area_code: str,
         industry_code: str = "CS100010",
-        quarter: str = "2026 Q2",
+        quarter: str = "2025 Q4",
     ) -> DistrictPatternsResponse:
         code = trade_area_code.upper()
         time_slots = await self.sales_repo.get_sales_by_time(
@@ -479,23 +477,16 @@ class AnalyticsService:
         self,
         trade_area_code: str,
         industry_code: str = "CS100010",
-        quarter: str = "2026 Q2",
+        quarter: str = "2025 Q4",
     ) -> DistrictCompetitionResponse:
         code = trade_area_code.upper()
-        store = await self.sales_repo.get_store_summary(code, industry_code, quarter)
-        return DistrictCompetitionResponse(
-            trade_area_code=code,
-            competition_level=store["competition_level"],
-            sales_level=store["sales_level"],
-            volume_level=store["volume_level"],
-            warning_text=store["warning_text"],
-        )
+        return DistrictCompetitionResponse(trade_area_code=code)
 
     async def get_compare(
         self,
         trade_area_codes: List[str],
         industry_code: str = "CS100010",
-        quarter: str = "2026 Q2",
+        quarter: str = "2025 Q4",
     ) -> List[CompareDistrictData]:
         all_districts = {
             "SEONGSU": CompareDistrictData(

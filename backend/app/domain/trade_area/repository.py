@@ -1,7 +1,11 @@
+import logging
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from backend.app.domain.trade_area.models import TradeAreaModel
+
+logger = logging.getLogger(__name__)
 
 
 class TradeAreaRepository:
@@ -9,41 +13,41 @@ class TradeAreaRepository:
         self.session = session
 
     async def get_all(self) -> List[dict]:
-        # If DB session is available, query DB; otherwise use deterministic in-memory store
-        if self.session:
-            try:
-                stmt = select(TradeAreaModel)
-                result = await self.session.execute(stmt)
-                rows = result.scalars().all()
-                if rows:
-                    return [
-                        {
-                            "code": r.code,
-                            "name": r.name,
-                            "district": r.district,
-                            "type": r.trade_type,
-                            "description": r.description,
-                        }
-                        for r in rows
-                    ]
-            except Exception:
-                pass
+        if not self.session:
+            return []
 
-        # In-memory fallback
-        return [
-            {"code": "SEONGSU", "name": "성수동", "district": "성동구", "type": "발달상권", "description": "트렌드 카페 및 복합 문화공간 밀집지"},
-            {"code": "HONGDAE", "name": "홍대입구", "district": "마포구", "type": "발달상권", "description": "청년 문화, 예술 및 유동인구 최대 상권"},
-            {"code": "SHAROSU", "name": "샤로수길", "district": "관악구", "type": "골목상권", "description": "서울대입구 1인 가구 및 청년 밀집 골목상권"},
-            {"code": "KONKUK", "name": "건대입구", "district": "광진구", "type": "발달상권", "description": "대학생 및 동부권 핵심 엔터테인먼트 상권"},
-            {"code": "GANGNAM", "name": "강남역", "district": "강남구", "type": "광역상권", "description": "서울 최대 오피스 직장인 및 교통 요충지"},
-            {"code": "GAROSU", "name": "가로수길", "district": "강남구", "type": "발달상권", "description": "신사동 패션 및 고급 디저트 거리"},
-            {"code": "IKSEON", "name": "익선동", "district": "종로구", "type": "관광특구", "description": "한옥 리모델링 감성 카페거리"},
-            {"code": "EULJIRO", "name": "을지로3가", "district": "중구", "type": "골목상권", "description": "뉴트로 힙지로 문화 및 직장인 상권"},
-        ]
+        try:
+            stmt = select(TradeAreaModel).options(selectinload(TradeAreaModel.district))
+            result = await self.session.execute(stmt)
+            rows = result.scalars().all()
+            return [_to_dict(r) for r in rows]
+        except Exception:
+            logger.exception("Failed to load trade areas from DB")
+            return []
 
     async def get_by_code(self, code: str) -> Optional[dict]:
-        all_items = await self.get_all()
-        for item in all_items:
-            if item["code"].upper() == code.upper():
-                return item
-        return None
+        if not self.session:
+            return None
+
+        try:
+            stmt = (
+                select(TradeAreaModel)
+                .options(selectinload(TradeAreaModel.district))
+                .where(TradeAreaModel.trdar_cd == code)
+            )
+            result = await self.session.execute(stmt)
+            r = result.scalar_one_or_none()
+            return _to_dict(r) if r else None
+        except Exception:
+            logger.exception("Failed to load trade area '%s' from DB", code)
+            return None
+
+
+def _to_dict(r: TradeAreaModel) -> dict:
+    return {
+        "trdar_cd": r.trdar_cd,
+        "trdar_se_cd": r.trdar_se_cd,
+        "trdar_cd_nm": r.trdar_cd_nm,
+        "signgu_cd": r.signgu_cd,
+        "signgu_cd_nm": r.district.signgu_cd_nm if r.district else None,
+    }

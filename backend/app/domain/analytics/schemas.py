@@ -36,9 +36,6 @@ class DistrictKpis(BaseModel):
     qoq_growth_rate: float
     sales_percentile: int
     volume_percentile: int
-    competition_level: str
-    sales_level: str
-    volume_level: str
 
 
 class DistrictRankingItem(BaseModel):
@@ -97,10 +94,10 @@ class DistrictPatternsResponse(BaseModel):
 
 class DistrictCompetitionResponse(BaseModel):
     trade_area_code: str
-    competition_level: str
-    sales_level: str
-    volume_level: str
-    warning_text: str
+    competition_level: Optional[str] = None
+    sales_level: Optional[str] = None
+    volume_level: Optional[str] = None
+    warning_text: Optional[str] = None
 
 
 class CompareDistrictData(BaseModel):
