@@ -20,12 +20,7 @@ class IndustryRepository:
             result = await self.session.execute(stmt)
             rows = result.scalars().all()
             return [
-                {
-                    "code": r.svc_induty_cd,
-                    "name": r.svc_induty_cd_nm,
-                    "category": None,
-                    "description": None,
-                }
+                {"code": r.svc_induty_cd, "name": r.svc_induty_cd_nm}
                 for r in rows
             ]
         except Exception:
@@ -42,12 +37,7 @@ class IndustryRepository:
             r = result.scalar_one_or_none()
             if not r:
                 return None
-            return {
-                "code": r.svc_induty_cd,
-                "name": r.svc_induty_cd_nm,
-                "category": None,
-                "description": None,
-            }
+            return {"code": r.svc_induty_cd, "name": r.svc_induty_cd_nm}
         except Exception:
             logger.exception("Failed to load industry '%s' from DB", code)
             return None
