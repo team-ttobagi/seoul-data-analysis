@@ -128,14 +128,11 @@ class SalesRepository:
     async def get_sales_by_age_gender(
         self, trade_area_code: str, industry_code: str, quarter: str
     ) -> List[dict]:
+        """Age-group sales share only. DB has no age x gender cross data, so gender
+        is reported separately via get_gender_split() rather than combined per group."""
         row = await self._get_raw_row(trade_area_code, industry_code, quarter)
         if not row:
             return []
-
-        total_gender = (row["ml_selng_amt"] + row["fml_selng_amt"]) or 1
-        female_ratio = round(row["fml_selng_amt"] / total_gender * 100)
-        male_ratio = 100 - female_ratio
-        dominant_gender = "female" if female_ratio >= male_ratio else "male"
 
         groups = [
             ("10대", row["agrde_10_selng_amt"]),
@@ -152,13 +149,28 @@ class SalesRepository:
             {
                 "age_group": age_group,
                 "percentage": round(amount / total * 100),
-                "female_ratio": female_ratio,
-                "male_ratio": male_ratio,
-                "dominant_gender": dominant_gender,
                 "is_primary": amount == peak_amount,
             }
             for age_group, amount in groups
         ]
+
+    async def get_gender_split(
+        self, trade_area_code: str, industry_code: str, quarter: str
+    ) -> Optional[dict]:
+        row = await self._get_raw_row(trade_area_code, industry_code, quarter)
+        if not row:
+            return None
+
+        total = (row["ml_selng_amt"] + row["fml_selng_amt"]) or 1
+        female_ratio = round(row["fml_selng_amt"] / total * 100)
+        male_ratio = 100 - female_ratio
+        dominant_gender = "female" if female_ratio >= male_ratio else "male"
+
+        return {
+            "female_ratio": female_ratio,
+            "male_ratio": male_ratio,
+            "dominant_gender": dominant_gender,
+        }
 
     async def get_sales_by_day(
         self, trade_area_code: str, industry_code: str, quarter: str
@@ -189,6 +201,67 @@ class SalesRepository:
             }
             for day, amount in days
         ]
+
+    async def get_metrics_rows(self, quarter: str, industry_code: str) -> List[dict]:
+        """Current + previous quarter sales/transaction per trade area, for the given
+        quarter+industry population. Feeds analytics/scoring.py's score pipeline."""
+        if not self.session:
+            return []
+
+        quarter_code = _normalize_quarter(quarter)
+        prev_quarter_code = _previous_quarter(quarter_code)
+
+        try:
+            stmt = text(
+                """
+                SELECT
+                    cur.trdar_cd AS trdar_cd,
+                    cur.thsmon_selng_amt AS sales,
+                    cur.thsmon_selng_co AS transaction_count,
+                    prev.thsmon_selng_amt AS prev_sales,
+                    prev.thsmon_selng_co AS prev_transaction_count
+                FROM sales_data cur
+                LEFT JOIN sales_data prev
+                    ON prev.trdar_cd = cur.trdar_cd
+                    AND prev.svc_induty_cd = cur.svc_induty_cd
+                    AND prev.stdr_yyqu_cd = :prev_quarter_code
+                WHERE cur.svc_induty_cd = :industry_code AND cur.stdr_yyqu_cd = :quarter_code
+                """
+            )
+            result = await self.session.execute(
+                stmt,
+                {
+                    "prev_quarter_code": prev_quarter_code,
+                    "industry_code": industry_code,
+                    "quarter_code": quarter_code,
+                },
+            )
+            return [dict(row) for row in result.mappings().all()]
+        except Exception:
+            logger.exception("Failed to load sales metrics from DB")
+            return []
+
+    async def get_diversity_rows(self, quarter: str) -> List[dict]:
+        """Every industry's sales per trade area for the quarter (no industry filter),
+        used to compute HHI-based demand diversity independent of the selected industry."""
+        if not self.session:
+            return []
+
+        quarter_code = _normalize_quarter(quarter)
+
+        try:
+            stmt = text(
+                """
+                SELECT trdar_cd, svc_induty_cd, thsmon_selng_amt AS sales
+                FROM sales_data
+                WHERE stdr_yyqu_cd = :quarter_code
+                """
+            )
+            result = await self.session.execute(stmt, {"quarter_code": quarter_code})
+            return [dict(row) for row in result.mappings().all()]
+        except Exception:
+            logger.exception("Failed to load diversity rows from DB")
+            return []
 
     async def _get_raw_row(
         self, trade_area_code: str, industry_code: str, quarter: str

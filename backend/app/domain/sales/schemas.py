@@ -33,9 +33,12 @@ class SalesByTimeSchema(BaseModel):
 class SalesByAgeGenderSchema(BaseModel):
     age_group: str
     percentage: int
+    is_primary: bool
+
+
+class SalesGenderSchema(BaseModel):
     female_ratio: int
     male_ratio: int
     dominant_gender: str
-    is_primary: bool
 
 
