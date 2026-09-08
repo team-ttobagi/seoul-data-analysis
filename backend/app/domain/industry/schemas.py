@@ -3,10 +3,8 @@ from pydantic import BaseModel, ConfigDict
 
 
 class IndustryBase(BaseModel):
-    code: str
-    name: str
-    category: str
-    description: Optional[str] = None
+    svc_induty_cd: str
+    svc_induty_cd_nm: str
 
 
 class IndustryResponse(IndustryBase):
