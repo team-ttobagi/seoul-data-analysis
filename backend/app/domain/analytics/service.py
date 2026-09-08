@@ -46,6 +46,11 @@ def _none_if_nan(value):
     return value
 
 
+def _none_if_nan_round(value) -> Optional[int]:
+    value = _none_if_nan(value)
+    return None if value is None else round(value)
+
+
 def _build_insight(growth_grade: Optional[str], transaction_grade: Optional[str], competition_grade: Optional[str]) -> str:
     parts = []
     if growth_grade:
@@ -103,7 +108,10 @@ class AnalyticsService:
             }
             metrics_df = metrics_df[metrics_df["trdar_cd"].isin(valid_codes)]
 
-        top = metrics_df.sort_values("exploration_score", ascending=False).head(5)
+        # ExplorationScore가 산출 불가(NaN)인 상권은 "낮은 점수"가 아니라 "데이터 부족"이므로
+        # 추천 후보에서 아예 제외한다 (0점으로 강등시키지 않는다).
+        scored = metrics_df.dropna(subset=["exploration_score"])
+        top = scored.sort_values("exploration_score", ascending=False).head(5)
 
         results = []
         for rank, (_, row) in enumerate(top.iterrows(), start=1):
@@ -114,19 +122,19 @@ class AnalyticsService:
 
             components = RecommendationComponents(
                 sales_growth=ScoreComponent(
-                    value=_none_if_nan(row["growth_rate"]) or 0.0,
-                    normalized_score=round(_none_if_nan(row["growth_score"]) or 0),
-                    benchmark_percentile=_none_if_nan(row["growth_percentile"]) and round(row["growth_percentile"]),
+                    value=_none_if_nan(row["growth_rate"]),
+                    normalized_score=_none_if_nan_round(row["growth_score"]),
+                    benchmark_percentile=_none_if_nan_round(row["growth_percentile"]),
                 ),
                 transaction_volume=ScoreComponent(
                     value=row["transaction_count"],
-                    normalized_score=round(_none_if_nan(row["transaction_score"]) or 0),
-                    benchmark_percentile=_none_if_nan(row["volume_percentile"]) and round(row["volume_percentile"]),
+                    normalized_score=_none_if_nan_round(row["transaction_score"]),
+                    benchmark_percentile=_none_if_nan_round(row["volume_percentile"]),
                 ),
                 competition=ScoreComponent(
-                    value=_none_if_nan(row["competition_score"]) or 0.0,
-                    normalized_score=round(_none_if_nan(row["competition_score"]) or 0),
-                    benchmark_percentile=_none_if_nan(row["competition_percentile"]) and round(row["competition_percentile"]),
+                    value=_none_if_nan(row["competition_score"]),
+                    normalized_score=_none_if_nan_round(row["competition_score"]),
+                    benchmark_percentile=_none_if_nan_round(row["competition_percentile"]),
                 ),
             )
 
@@ -182,7 +190,7 @@ class AnalyticsService:
             estimated_sales_formatted=_fmt_amount(row["sales"]),
             transaction_count=int(row["transaction_count"]),
             transaction_count_formatted=_fmt_count(row["transaction_count"]),
-            seoul_rank=int(row["seoul_rank"]),
+            seoul_rank=_none_if_nan_round(row["seoul_rank"]),
             qoq_growth_rate=_none_if_nan(row["growth_rate"]),
             sales_percentile=round(row["sales_percentile"]),
             volume_percentile=round(row["volume_percentile"]),
@@ -206,10 +214,12 @@ class AnalyticsService:
             "by_score": self._ranking_items(metrics_df, "exploration_score", "score", code, lookup),
         }
 
-        exploration_score = round(row["exploration_score"])
+        exploration_score = _none_if_nan_round(row["exploration_score"])
         takeaway = {
+            # ExplorationScore가 산출 불가(NaN)면 0점이 아니라 None + 안내 문구로 표시한다.
             "score": exploration_score,
-            "growth_tag": f"매출 성장률 {kpis.qoq_growth_rate:+.1f}%" if kpis.qoq_growth_rate is not None else "매출 성장률 정보 없음",
+            "score_note": None if exploration_score is not None else "일부 지표 부족으로 탐색 점수를 산출할 수 없습니다.",
+            "growth_tag": f"매출 성장률 {kpis.qoq_growth_rate:+.1f}%" if kpis.qoq_growth_rate is not None else "매출 성장률 산출 불가",
             "volume_tag": f"거래건수 {kpis.transaction_count_formatted}",
             "competition_tag": f"경쟁 여건 {kpis.competition_level or '정보 없음'}",
             "summary": _build_insight(
@@ -242,7 +252,10 @@ class AnalyticsService:
         lookup: Dict[str, dict],
         top_n: int = 5,
     ) -> List[DistrictRankingItem]:
-        top = metrics_df.sort_values(sort_col, ascending=False).head(top_n)
+        # growth_rate/exploration_score가 산출 불가(NaN)인 상권은 0으로 대체하지 않고
+        # 순위 후보에서 제외한다 (데이터 부족과 낮은 성과를 구분).
+        candidates = metrics_df.dropna(subset=[sort_col]) if sort_col in ("growth_rate", "exploration_score") else metrics_df
+        top = candidates.sort_values(sort_col, ascending=False).head(top_n)
         items = []
         for rank, (_, row) in enumerate(top.iterrows(), start=1):
             ta = lookup.get(row["trdar_cd"], {})
@@ -251,7 +264,7 @@ class AnalyticsService:
             elif value_kind == "transaction_count":
                 raw, formatted = row["transaction_count"], _fmt_count(row["transaction_count"])
             elif value_kind == "growth_rate":
-                raw = _none_if_nan(row["growth_rate"]) or 0.0
+                raw = row["growth_rate"]
                 formatted = f"{raw:+.1f}%"
             else:
                 raw = round(row["exploration_score"])
@@ -370,7 +383,7 @@ class AnalyticsService:
                     trade_area_code=code,
                     trade_area_name=ta.get("trdar_cd_nm", code),
                     district=ta.get("signgu_cd_nm") or "-",
-                    exploration_score=round(row["exploration_score"]),
+                    exploration_score=_none_if_nan_round(row["exploration_score"]),
                     estimated_sales_formatted=_fmt_amount(row["sales"]),
                     estimated_sales=int(row["sales"]),
                     transaction_count_formatted=_fmt_count(row["transaction_count"]),

@@ -36,6 +36,8 @@ class SalesRepository:
         quarter_code = _normalize_quarter(quarter)
 
         try:
+            # Percentile = 내림차순 순위 / 비교 대상 수 x 100 (값이 작을수록 상위권).
+            # analytics/scoring.py의 pandas rank(pct=True, ascending=False)와 동일한 정의로 통일.
             stmt = text(
                 """
                 WITH ranked AS (
@@ -44,8 +46,8 @@ class SalesRepository:
                         thsmon_selng_amt,
                         thsmon_selng_co,
                         RANK() OVER (ORDER BY thsmon_selng_amt DESC) AS sales_rank,
-                        PERCENT_RANK() OVER (ORDER BY thsmon_selng_amt DESC) AS sales_pctl,
-                        PERCENT_RANK() OVER (ORDER BY thsmon_selng_co DESC) AS volume_pctl
+                        RANK() OVER (ORDER BY thsmon_selng_co DESC) AS volume_rank,
+                        COUNT(*) OVER () AS total_count
                     FROM sales_data
                     WHERE svc_induty_cd = :industry_code AND stdr_yyqu_cd = :quarter_code
                 )
@@ -60,6 +62,8 @@ class SalesRepository:
             if not row:
                 return None
 
+            # 정확히 직전 분기(quarter_code - 1)와만 비교한다. 데이터가 비어 있는 분기를 건너뛰어
+            # 엉뚱한 두 분기를 QoQ로 비교하는 일이 없도록 quarter 코드로 정확히 매칭한다.
             prev_stmt = text(
                 """
                 SELECT thsmon_selng_amt FROM sales_data
@@ -76,10 +80,13 @@ class SalesRepository:
             )
             prev_amount = prev_result.scalar()
 
-            growth_rate = 0.0
+            # 전분기 데이터가 없거나(prev_amount is None) 전분기 매출이 0이면 성장률은 "산출 불가"
+            # (None)이어야 한다. 0%로 표시하면 데이터 부재와 실제 무성장을 구분할 수 없다.
+            growth_rate = None
             if prev_amount:
                 growth_rate = round((row["thsmon_selng_amt"] - prev_amount) / prev_amount * 100, 1)
 
+            total_count = row["total_count"] or 1
             return {
                 "quarter": quarter,
                 "trade_area_code": code,
@@ -90,8 +97,8 @@ class SalesRepository:
                 "transaction_count_formatted": _format_count(row["thsmon_selng_co"]),
                 "qoq_growth_rate": growth_rate,
                 "seoul_rank": row["sales_rank"],
-                "sales_percentile": round(row["sales_pctl"] * 100),
-                "volume_percentile": round(row["volume_pctl"] * 100),
+                "sales_percentile": round(row["sales_rank"] / total_count * 100),
+                "volume_percentile": round(row["volume_rank"] / total_count * 100),
             }
         except Exception:
             logger.exception("Failed to load sales summary from DB")

@@ -3,8 +3,8 @@ from pydantic import BaseModel
 
 
 class ScoreComponent(BaseModel):
-    value: float
-    normalized_score: int
+    value: Optional[float] = None
+    normalized_score: Optional[int] = None
     unit: Optional[str] = None
     benchmark_percentile: Optional[int] = None
 
@@ -32,7 +32,7 @@ class DistrictKpis(BaseModel):
     estimated_sales_formatted: str
     transaction_count: int
     transaction_count_formatted: str
-    seoul_rank: int
+    seoul_rank: Optional[int] = None
     qoq_growth_rate: Optional[float] = None
     sales_percentile: int
     volume_percentile: int
@@ -110,7 +110,7 @@ class CompareDistrictData(BaseModel):
     trade_area_code: str
     trade_area_name: str
     district: str
-    exploration_score: int
+    exploration_score: Optional[int] = None
     estimated_sales_formatted: str
     estimated_sales: int
     transaction_count_formatted: str

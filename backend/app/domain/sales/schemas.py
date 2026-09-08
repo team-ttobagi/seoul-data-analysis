@@ -10,7 +10,7 @@ class SalesSummarySchema(BaseModel):
     estimated_sales_formatted: str
     transaction_count: int
     transaction_count_formatted: str
-    qoq_growth_rate: float
+    qoq_growth_rate: Optional[float] = None
     seoul_rank: int
     sales_percentile: int
     volume_percentile: int
