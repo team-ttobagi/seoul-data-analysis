@@ -122,7 +122,141 @@ schemas.py   API 요청/응답 계약
 
 `analytics`는 `trade_area`와 `sales` 저장소를 조합하는 상위 업무 도메인입니다. 반대로 repository가 점수를 계산하거나 router가 DB를 직접 조회하지 않도록 유지합니다.
 
-## 5. 주요 API와 화면 매핑
+## 5. 데이터 모델 및 ERD
+
+백엔드의 영속 데이터는 상권, 자치구, 상권 유형, 서비스 업종, 매출 데이터를 중심으로 구성합니다.
+기준 정보는 별도 테이블로 분리하고, `SALES_DATA`가 상권과 서비스 업종을 참조하는 구조입니다.
+
+```mermaid
+erDiagram
+
+    TRADE_AREA_TYPE ||--o{ TRADE_AREA : "분류"
+    DISTRICT ||--o{ TRADE_AREA : "자치구-상권"
+    TRADE_AREA ||--o{ SALES_DATA : "매출"
+    SERVICE_INDUSTRY ||--o{ SALES_DATA : "업종"
+
+    TRADE_AREA_TYPE {
+        varchar trdar_se_cd PK "상권 구분 코드"
+        varchar trdar_se_cd_nm "상권 구분명"
+    }
+
+    DISTRICT {
+        varchar district_cd PK "자치구 코드"
+        varchar district_nm "자치구명"
+    }
+
+    TRADE_AREA {
+        varchar trdar_cd PK "상권 코드"
+        varchar trdar_se_cd FK "상권 구분 코드"
+        varchar district_cd FK "자치구 코드"
+        varchar trdar_cd_nm "상권명"
+    }
+
+    SERVICE_INDUSTRY {
+        varchar svc_induty_cd PK "서비스 업종 코드"
+        varchar svc_induty_cd_nm "서비스 업종명"
+    }
+
+    SALES_DATA {
+        bigint sales_id PK
+        varchar stdr_yyqu_cd "기준 년분기 코드"
+        varchar trdar_cd FK "상권 코드"
+        varchar svc_induty_cd FK "서비스 업종 코드"
+
+        bigint thsmon_selng_amt "당월 매출 금액"
+        bigint thsmon_selng_co "당월 매출 건수"
+
+        bigint mdwk_selng_amt "주중 매출 금액"
+        bigint wkend_selng_amt "주말 매출 금액"
+        bigint mdwk_selng_co "주중 매출 건수"
+        bigint wkend_selng_co "주말 매출 건수"
+
+        bigint mon_selng_amt "월요일 매출 금액"
+        bigint tues_selng_amt "화요일 매출 금액"
+        bigint wed_selng_amt "수요일 매출 금액"
+        bigint thur_selng_amt "목요일 매출 금액"
+        bigint fri_selng_amt "금요일 매출 금액"
+        bigint sat_selng_amt "토요일 매출 금액"
+        bigint sun_selng_amt "일요일 매출 금액"
+
+        bigint mon_selng_co "월요일 매출 건수"
+        bigint tues_selng_co "화요일 매출 건수"
+        bigint wed_selng_co "수요일 매출 건수"
+        bigint thur_selng_co "목요일 매출 건수"
+        bigint fri_selng_co "금요일 매출 건수"
+        bigint sat_selng_co "토요일 매출 건수"
+        bigint sun_selng_co "일요일 매출 건수"
+
+        bigint tmzon_00_06_selng_amt "00-06 매출 금액"
+        bigint tmzon_06_11_selng_amt "06-11 매출 금액"
+        bigint tmzon_11_14_selng_amt "11-14 매출 금액"
+        bigint tmzon_14_17_selng_amt "14-17 매출 금액"
+        bigint tmzon_17_21_selng_amt "17-21 매출 금액"
+        bigint tmzon_21_24_selng_amt "21-24 매출 금액"
+
+        bigint tmzon_00_06_selng_co "00-06 매출 건수"
+        bigint tmzon_06_11_selng_co "06-11 매출 건수"
+        bigint tmzon_11_14_selng_co "11-14 매출 건수"
+        bigint tmzon_14_17_selng_co "14-17 매출 건수"
+        bigint tmzon_17_21_selng_co "17-21 매출 건수"
+        bigint tmzon_21_24_selng_co "21-24 매출 건수"
+
+        bigint ml_selng_amt "남성 매출 금액"
+        bigint fml_selng_amt "여성 매출 금액"
+        bigint ml_selng_co "남성 매출 건수"
+        bigint fml_selng_co "여성 매출 건수"
+
+        bigint agrde_10_selng_amt "10대 매출 금액"
+        bigint agrde_20_selng_amt "20대 매출 금액"
+        bigint agrde_30_selng_amt "30대 매출 금액"
+        bigint agrde_40_selng_amt "40대 매출 금액"
+        bigint agrde_50_selng_amt "50대 매출 금액"
+        bigint agrde_60_above_selng_amt "60대 이상 매출 금액"
+
+        bigint agrde_10_selng_co "10대 매출 건수"
+        bigint agrde_20_selng_co "20대 매출 건수"
+        bigint agrde_30_selng_co "30대 매출 건수"
+        bigint agrde_40_selng_co "40대 매출 건수"
+        bigint agrde_50_selng_co "50대 매출 건수"
+        bigint agrde_60_above_selng_co "60대 이상 매출 건수"
+    }
+```
+
+### 테이블별 역할
+
+| 테이블                | 역할                                        |
+| ------------------ | ----------------------------------------- |
+| `TRADE_AREA_TYPE`  | 골목상권, 발달상권 등 상권의 구분 정보를 관리하는 기준 테이블입니다.   |
+| `DISTRICT`         | 서울시 자치구 코드와 자치구명을 관리하는 기준 테이블입니다.         |
+| `TRADE_AREA`       | 개별 상권의 코드와 이름을 관리하며 상권 유형과 자치구를 참조합니다.    |
+| `SERVICE_INDUSTRY` | 분석 대상이 되는 서비스 업종 코드와 업종명을 관리하는 기준 테이블입니다. |
+| `SALES_DATA`       | 상권·업종·분기 단위의 매출 데이터를 저장하는 핵심 사실 테이블입니다.   |
+
+### 주요 관계
+
+* 하나의 `TRADE_AREA_TYPE`에는 여러 `TRADE_AREA`가 속할 수 있습니다.
+* 하나의 `DISTRICT`에는 여러 `TRADE_AREA`가 속할 수 있습니다.
+* 하나의 `TRADE_AREA`에는 여러 분기·업종의 `SALES_DATA`가 연결됩니다.
+* 하나의 `SERVICE_INDUSTRY`에는 여러 상권·분기의 `SALES_DATA`가 연결됩니다.
+* `SALES_DATA`는 `trdar_cd`와 `svc_induty_cd`를 통해 각각 상권과 서비스 업종을 참조합니다.
+
+### 매출 데이터 구성
+
+`SALES_DATA`는 단순 총매출뿐 아니라 상세 분석 화면에서 바로 활용할 수 있도록 다음 기준의 집계값을 함께 저장합니다.
+
+* **전체 매출**: 당월 매출 금액과 매출 건수
+* **주중·주말**: 주중/주말별 매출 금액과 건수
+* **요일별**: 월요일부터 일요일까지의 매출 금액과 건수
+* **시간대별**: `00-06`, `06-11`, `11-14`, `14-17`, `17-21`, `21-24` 구간별 매출 금액과 건수
+* **성별**: 남성·여성별 매출 금액과 건수
+* **연령대별**: 10대, 20대, 30대, 40대, 50대, 60대 이상 매출 금액과 건수
+
+이 구조를 통해 상세 화면의 소비 패턴과 상권 간 비교에 필요한 데이터를 별도의 추가 집계 테이블 없이 조회할 수 있습니다.
+
+`analytics` 도메인은 별도의 영속 테이블을 소유하지 않습니다. `TRADE_AREA`, `SERVICE_INDUSTRY`, `SALES_DATA` 등의 데이터를 repository를 통해 조회한 뒤 서비스 계층에서 성장성, 거래량, 경쟁도 등의 지표를 계산·조합하여 API 응답을 생성합니다.
+
+
+## 6. 주요 API와 화면 매핑
 
 | 화면 | 프론트 API 함수                | 백엔드 엔드포인트                            |
 | ---- | ------------------------------ | -------------------------------------------- |
@@ -133,7 +267,7 @@ schemas.py   API 요청/응답 계약
 | 상세 | `api.getDistrictCompetition()` | `GET /api/v1/trade-areas/{code}/competition` |
 | 비교 | `api.getCompareData()`         | `GET /api/v1/compare`                        |
 
-## 6. 핵심 업무 규칙
+## 7. 핵심 업무 규칙
 
 탐색 점수는 다음 가중치를 사용합니다.
 
@@ -145,7 +279,7 @@ schemas.py   API 요청/응답 계약
 
 관련 기준은 `backend/app/domain/analytics/service.py`, 프론트 mock 반영값은 `frontend/src/shared/api/mockData.ts`, 공식 지표 정의는 `docs/상권 분석 지표 산출 정의서.md`에 있습니다.
 
-## 7. 변경 시 지켜야 할 의존성 규칙
+## 8. 변경 시 지켜야 할 의존성 규칙
 
 1. API 응답 필드를 바꾸면 백엔드 `schemas.py`, 서비스 반환값, 프론트 `types/index.ts`, `mockData.ts`, 사용 페이지를 함께 확인합니다.
 2. 점수 산식을 바꾸면 실제 서비스 계산과 mock 점수, 문서의 가중치를 함께 바꿉니다.
@@ -154,12 +288,10 @@ schemas.py   API 요청/응답 계약
 5. 공통 UI는 `shared/ui`, 특정 화면에서만 쓰는 UI는 해당 page 폴더에 둡니다.
 6. 경쟁 위험은 디자인 규칙상 빨간색을 사용하고, 일반 강조에는 네온 라임을 사용합니다.
 
-## 8. 현재 구조에서 다음에 개선하기 좋은 지점
+## 9. 현재 구조에서 다음에 개선하기 좋은 지점
 
 - 백엔드 도메인 폴더에 `__init__.py`를 명시해 패키지 경계를 더 분명하게 만들기
 - 프론트 페이지에 섞인 API 쿼리와 화면 표시 로직을 `features/` 또는 페이지별 hooks로 분리하기
 - 백엔드와 프론트의 응답 계약을 OpenAPI 생성 타입 또는 공유 스키마로 자동 동기화하기
 - `analytics/service.py`의 하드코딩 후보 데이터를 repository/분석 파이프라인으로 단계적으로 이동하기
 - CORS의 `allow_origins=["*"]`를 운영 환경 설정값으로 제한하기
-
-위 항목은 현재 동작을 바꾸지 않는 문서화 기준의 개선 후보입니다. 우선순위는 API 계약 자동화 → 분석 데이터 분리 → 프론트 feature 분리 순서가 적절합니다.
