@@ -1,10 +1,32 @@
 import React, { useState } from "react";
-import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom";
+import {
+  useParams,
+  useSearchParams,
+  Link,
+  useNavigate,
+} from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, CheckSquare, Square, Layers, ChevronDown } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckSquare,
+  Square,
+  Layers,
+  ChevronDown,
+} from "lucide-react";
 import { api } from "../../shared/api/client";
-import { RankBarChart, TimeBarChart, AgeGenderBarChart, DayBarChart } from "../../shared/ui/Charts";
+import {
+  RankBarChart,
+  TimeBarChart,
+  AgeGenderBarChart,
+  DayBarChart,
+} from "../../shared/ui/Charts";
 import { useCompareStore } from "../../shared/lib/store";
+
+/* ----------------------------- */
+// Update by SoO 2026.09.07
+//   store_count
+//   store_count_change
+/* ----------------------------- */
 
 export const DistrictDetailPage: React.FC = () => {
   const { tradeAreaCode = "SEONGSU" } = useParams<{ tradeAreaCode: string }>();
@@ -14,24 +36,38 @@ export const DistrictDetailPage: React.FC = () => {
   const industryCode = searchParams.get("industry") || "CS100010";
   const quarter = searchParams.get("quarter") || "2026 Q2";
 
-  const [rankTab, setRankTab] = useState<"sales" | "volume" | "growth" | "score">("sales");
+  const [rankTab, setRankTab] = useState<
+    "sales" | "volume" | "growth" | "score"
+  >("sales");
 
   const { isDistrictSelected, toggleDistrict } = useCompareStore();
   const isChecked = isDistrictSelected(tradeAreaCode);
 
   const { data: overview, isLoading: isOverviewLoading } = useQuery({
     queryKey: ["district-overview", tradeAreaCode, industryCode, quarter],
-    queryFn: () => api.getDistrictOverview(tradeAreaCode, { industry_code: industryCode, quarter }),
+    queryFn: () =>
+      api.getDistrictOverview(tradeAreaCode, {
+        industry_code: industryCode,
+        quarter,
+      }),
   });
 
   const { data: patterns, isLoading: isPatternsLoading } = useQuery({
     queryKey: ["district-patterns", tradeAreaCode, industryCode, quarter],
-    queryFn: () => api.getDistrictPatterns(tradeAreaCode, { industry_code: industryCode, quarter }),
+    queryFn: () =>
+      api.getDistrictPatterns(tradeAreaCode, {
+        industry_code: industryCode,
+        quarter,
+      }),
   });
 
   const { data: competition, isLoading: isCompLoading } = useQuery({
     queryKey: ["district-competition", tradeAreaCode, industryCode, quarter],
-    queryFn: () => api.getDistrictCompetition(tradeAreaCode, { industry_code: industryCode, quarter }),
+    queryFn: () =>
+      api.getDistrictCompetition(tradeAreaCode, {
+        industry_code: industryCode,
+        quarter,
+      }),
   });
 
   const { data: tradeAreas = [] } = useQuery({
@@ -73,7 +109,11 @@ export const DistrictDetailPage: React.FC = () => {
             <div className="relative inline-block">
               <select
                 value={tradeAreaCode.toUpperCase()}
-                onChange={(e) => navigate(`/district/${e.target.value}?industry=${industryCode}&quarter=${encodeURIComponent(quarter)}`)}
+                onChange={(e) =>
+                  navigate(
+                    `/district/${e.target.value}?industry=${industryCode}&quarter=${encodeURIComponent(quarter)}`,
+                  )
+                }
                 className="appearance-none bg-white border border-black px-3 py-1 pr-6 font-bold text-black cursor-pointer hover:bg-[#d4ff00]/20 focus:outline-none"
               >
                 {tradeAreas.map((ta) => (
@@ -116,7 +156,9 @@ export const DistrictDetailPage: React.FC = () => {
           </h1>
 
           <div className="flex items-center gap-2 text-xs sm:text-sm font-mono text-gray-700 pt-1">
-            <span className="font-bold text-black">서울 &gt; {overview.trade_area_name} &gt; {overview.industry_name}</span>
+            <span className="font-bold text-black">
+              서울 &gt; {overview.trade_area_name} &gt; {overview.industry_name}
+            </span>
             <span>|</span>
             <span>{overview.quarter}</span>
           </div>
@@ -187,7 +229,9 @@ export const DistrictDetailPage: React.FC = () => {
                 <button
                   onClick={() => setRankTab("sales")}
                   className={`px-2 py-1 border border-black font-bold transition-colors ${
-                    rankTab === "sales" ? "bg-[#d4ff00] text-black" : "bg-white text-gray-700 hover:bg-gray-100"
+                    rankTab === "sales"
+                      ? "bg-[#d4ff00] text-black"
+                      : "bg-white text-gray-700 hover:bg-gray-100"
                   }`}
                 >
                   [매출]
@@ -195,7 +239,9 @@ export const DistrictDetailPage: React.FC = () => {
                 <button
                   onClick={() => setRankTab("volume")}
                   className={`px-2 py-1 border border-black font-bold transition-colors ${
-                    rankTab === "volume" ? "bg-[#d4ff00] text-black" : "bg-white text-gray-700 hover:bg-gray-100"
+                    rankTab === "volume"
+                      ? "bg-[#d4ff00] text-black"
+                      : "bg-white text-gray-700 hover:bg-gray-100"
                   }`}
                 >
                   거래건수
@@ -203,7 +249,9 @@ export const DistrictDetailPage: React.FC = () => {
                 <button
                   onClick={() => setRankTab("growth")}
                   className={`px-2 py-1 border border-black font-bold transition-colors ${
-                    rankTab === "growth" ? "bg-[#d4ff00] text-black" : "bg-white text-gray-700 hover:bg-gray-100"
+                    rankTab === "growth"
+                      ? "bg-[#d4ff00] text-black"
+                      : "bg-white text-gray-700 hover:bg-gray-100"
                   }`}
                 >
                   성장률
@@ -211,7 +259,9 @@ export const DistrictDetailPage: React.FC = () => {
                 <button
                   onClick={() => setRankTab("score")}
                   className={`px-2 py-1 border border-black font-bold transition-colors ${
-                    rankTab === "score" ? "bg-[#d4ff00] text-black" : "bg-white text-gray-700 hover:bg-gray-100"
+                    rankTab === "score"
+                      ? "bg-[#d4ff00] text-black"
+                      : "bg-white text-gray-700 hover:bg-gray-100"
                   }`}
                 >
                   탐색점수
@@ -226,15 +276,22 @@ export const DistrictDetailPage: React.FC = () => {
                 currentCode={overview.trade_area_code}
                 metricLabel={rankTab}
                 onSelectDistrict={(code) =>
-                  navigate(`/district/${code}?industry=${industryCode}&quarter=${encodeURIComponent(quarter)}`)
+                  navigate(
+                    `/district/${code}?industry=${industryCode}&quarter=${encodeURIComponent(quarter)}`,
+                  )
                 }
               />
             </div>
 
             {/* Footer summary */}
             <div className="border-t border-black pt-3 text-xs font-mono text-gray-700 flex justify-between">
-              <span>{overview.trade_area_name} · 서울 전체 {overview.kpis.seoul_rank}위</span>
-              <span className="text-gray-500">상위 {overview.kpis.sales_percentile}%</span>
+              <span>
+                {overview.trade_area_name} · 서울 전체{" "}
+                {overview.kpis.seoul_rank}위
+              </span>
+              <span className="text-gray-500">
+                상위 {overview.kpis.sales_percentile}%
+              </span>
             </div>
           </div>
 
@@ -261,7 +318,8 @@ export const DistrictDetailPage: React.FC = () => {
 
             {/* Insight quote */}
             <div className="border-l-4 border-[#d4ff00] pl-3 py-1 text-xs sm:text-sm font-medium text-black">
-              {patterns?.when.insight || "저녁 17–21시에 소비가 가장 집중됩니다."}
+              {patterns?.when.insight ||
+                "저녁 17–21시에 소비가 가장 집중됩니다."}
             </div>
           </div>
         </div>
@@ -326,7 +384,8 @@ export const DistrictDetailPage: React.FC = () => {
 
             {/* Insight quote */}
             <div className="border-l-4 border-[#d4ff00] pl-3 py-1 text-xs sm:text-sm font-medium text-black">
-              {patterns?.day.insight || "금요일 매출이 주중 평균보다 21% 높습니다."}
+              {patterns?.day.insight ||
+                "금요일 매출이 주중 평균보다 21% 높습니다."}
             </div>
           </div>
         </div>
@@ -339,8 +398,11 @@ export const DistrictDetailPage: React.FC = () => {
               <h3 className="text-xl sm:text-2xl font-black text-[#d4ff00] tracking-tight">
                 경쟁은 어떨까?
               </h3>
-
-              <div className="mt-4">
+              {/* === Update by SoO 2026.09.07 ===========
+                      2. [fix] 점포 관련 UI 및 데이터 참조 제거
+                        2-1. District 상세 화면의 점포 수 표시 제거
+              */}
+              {/* <div className="mt-4">
                 <span className="block font-mono text-xs text-gray-400 font-medium">동일 업종</span>
                 <div className="flex items-baseline gap-3 mt-1">
                   <span className="text-3xl sm:text-4xl font-black text-white">
@@ -350,7 +412,7 @@ export const DistrictDetailPage: React.FC = () => {
                     전분기 대비 <span className="text-[#d4ff00] font-bold">+{competition?.qoq_store_change || 12}개</span>
                   </span>
                 </div>
-              </div>
+              </div> */}
             </div>
 
             {/* Metric Level List matching Reference 2 */}
@@ -379,7 +441,8 @@ export const DistrictDetailPage: React.FC = () => {
 
             {/* Warning Interpretation */}
             <p className="text-xs text-gray-400 leading-relaxed font-sans">
-              {competition?.warning_text || "수요도 크지만 동일 업종 공급 역시 빠르게 증가하고 있습니다."}
+              {competition?.warning_text ||
+                "수요도 크지만 동일 업종 공급 역시 빠르게 증가하고 있습니다."}
             </p>
           </div>
 
