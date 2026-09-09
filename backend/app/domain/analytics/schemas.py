@@ -35,6 +35,7 @@ class DistrictKpis(BaseModel):
     seoul_rank: Optional[int] = None
     qoq_growth_rate: Optional[float] = None
     sales_percentile: int
+    growth_percentile: Optional[int] = None
     volume_percentile: int
     competition_level: Optional[str] = None
     sales_level: Optional[str] = None

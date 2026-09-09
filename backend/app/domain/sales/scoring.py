@@ -1,9 +1,12 @@
-"""Score calculation pipeline for the analytics domain.
+"""Score calculation pipeline shared by the sales and analytics domains.
 
 Implements the formulas from docs/상권 분석 지표 산출 정의서.md section 4-5 and 12.
 Pure functions only — no DB access. Input is raw per-trade-area rows fetched by
 SalesRepository.get_metrics_rows()/get_diversity_rows(); output is a scored
-pandas.DataFrame consumed by AnalyticsService.
+pandas.DataFrame. SalesRepository.get_metrics_dataframe() is the single entry
+point both SalesRepository (/sales/summary) and AnalyticsService (overview/
+competition/compare/recommendations) call, so every endpoint sees the same
+computed numbers for the same quarter+industry+trade_area.
 """
 
 from typing import Iterable, List, Optional
@@ -140,6 +143,18 @@ def grade_from_score(score: Optional[float]) -> Optional[str]:
     if score >= 40:
         return "보통"
     return "낮음"
+
+
+def none_if_nan(value):
+    """NaN/None -> None, so callers can distinguish '산출 불가' from an actual 0."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+    return value
+
+
+def none_if_nan_round(value) -> Optional[int]:
+    value = none_if_nan(value)
+    return None if value is None else round(value)
 
 
 def signal_from_score(score: Optional[float]) -> Optional[str]:

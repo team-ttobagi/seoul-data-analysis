@@ -1,8 +1,11 @@
 import logging
 import re
 from typing import Optional, List, Dict
+import pandas as pd
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+
+from backend.app.domain.sales import scoring
 
 logger = logging.getLogger(__name__)
 
@@ -29,80 +32,32 @@ class SalesRepository:
     async def get_sales_summary(
         self, trade_area_code: str, industry_code: str, quarter: str
     ) -> Optional[dict]:
-        if not self.session:
-            return None
-
+        """Same composite pipeline as AnalyticsService (get_metrics_dataframe), so
+        seoul_rank/percentiles here match /trade-areas/{code}/overview exactly rather
+        than each endpoint defining its own notion of 'rank'."""
         code = trade_area_code.upper()
-        quarter_code = _normalize_quarter(quarter)
-
-        try:
-            # Percentile = 내림차순 순위 / 비교 대상 수 x 100 (값이 작을수록 상위권).
-            # analytics/scoring.py의 pandas rank(pct=True, ascending=False)와 동일한 정의로 통일.
-            stmt = text(
-                """
-                WITH ranked AS (
-                    SELECT
-                        trdar_cd,
-                        thsmon_selng_amt,
-                        thsmon_selng_co,
-                        RANK() OVER (ORDER BY thsmon_selng_amt DESC) AS sales_rank,
-                        RANK() OVER (ORDER BY thsmon_selng_co DESC) AS volume_rank,
-                        COUNT(*) OVER () AS total_count
-                    FROM sales_data
-                    WHERE svc_induty_cd = :industry_code AND stdr_yyqu_cd = :quarter_code
-                )
-                SELECT * FROM ranked WHERE trdar_cd = :trade_area_code
-                """
-            )
-            result = await self.session.execute(
-                stmt,
-                {"industry_code": industry_code, "quarter_code": quarter_code, "trade_area_code": code},
-            )
-            row = result.mappings().first()
-            if not row:
-                return None
-
-            # 정확히 직전 분기(quarter_code - 1)와만 비교한다. 데이터가 비어 있는 분기를 건너뛰어
-            # 엉뚱한 두 분기를 QoQ로 비교하는 일이 없도록 quarter 코드로 정확히 매칭한다.
-            prev_stmt = text(
-                """
-                SELECT thsmon_selng_amt FROM sales_data
-                WHERE trdar_cd = :trade_area_code AND svc_induty_cd = :industry_code AND stdr_yyqu_cd = :prev_quarter
-                """
-            )
-            prev_result = await self.session.execute(
-                prev_stmt,
-                {
-                    "trade_area_code": code,
-                    "industry_code": industry_code,
-                    "prev_quarter": _previous_quarter(quarter_code),
-                },
-            )
-            prev_amount = prev_result.scalar()
-
-            # 전분기 데이터가 없거나(prev_amount is None) 전분기 매출이 0이면 성장률은 "산출 불가"
-            # (None)이어야 한다. 0%로 표시하면 데이터 부재와 실제 무성장을 구분할 수 없다.
-            growth_rate = None
-            if prev_amount:
-                growth_rate = round((row["thsmon_selng_amt"] - prev_amount) / prev_amount * 100, 1)
-
-            total_count = row["total_count"] or 1
-            return {
-                "quarter": quarter,
-                "trade_area_code": code,
-                "industry_code": industry_code,
-                "estimated_sales": row["thsmon_selng_amt"],
-                "estimated_sales_formatted": _format_amount(row["thsmon_selng_amt"]),
-                "transaction_count": row["thsmon_selng_co"],
-                "transaction_count_formatted": _format_count(row["thsmon_selng_co"]),
-                "qoq_growth_rate": growth_rate,
-                "seoul_rank": row["sales_rank"],
-                "sales_percentile": round(row["sales_rank"] / total_count * 100),
-                "volume_percentile": round(row["volume_rank"] / total_count * 100),
-            }
-        except Exception:
-            logger.exception("Failed to load sales summary from DB")
+        metrics_df = await self.get_metrics_dataframe(quarter, industry_code)
+        if metrics_df.empty:
             return None
+
+        matched = metrics_df[metrics_df["trdar_cd"] == code]
+        if matched.empty:
+            return None
+        row = matched.iloc[0]
+
+        return {
+            "quarter": quarter,
+            "trade_area_code": code,
+            "industry_code": industry_code,
+            "estimated_sales": int(row["sales"]),
+            "estimated_sales_formatted": _format_amount(row["sales"]),
+            "transaction_count": int(row["transaction_count"]),
+            "transaction_count_formatted": _format_count(row["transaction_count"]),
+            "qoq_growth_rate": scoring.none_if_nan(row["growth_rate"]),
+            "seoul_rank": scoring.none_if_nan_round(row["seoul_rank"]),
+            "sales_percentile": round(row["sales_percentile"]),
+            "volume_percentile": round(row["volume_percentile"]),
+        }
 
     async def get_sales_by_time(
         self, trade_area_code: str, industry_code: str, quarter: str
@@ -209,9 +164,18 @@ class SalesRepository:
             for day, amount in days
         ]
 
+    async def get_metrics_dataframe(self, quarter: str, industry_code: str) -> pd.DataFrame:
+        """The single computed score table for a quarter+industry population — every
+        endpoint that needs sales/growth/competition scores for trade areas (get_sales_summary,
+        AnalyticsService.overview/competition/compare/recommendations) calls this, so they
+        all see the same numbers instead of each recomputing rank/percentile independently."""
+        rows = await self.get_metrics_rows(quarter, industry_code)
+        diversity_rows = await self.get_diversity_rows(quarter)
+        return scoring.build_metrics_dataframe(rows, diversity_rows)
+
     async def get_metrics_rows(self, quarter: str, industry_code: str) -> List[dict]:
         """Current + previous quarter sales/transaction per trade area, for the given
-        quarter+industry population. Feeds analytics/scoring.py's score pipeline."""
+        quarter+industry population. Feeds scoring.py's score pipeline."""
         if not self.session:
             return []
 

@@ -13,7 +13,7 @@ from backend.app.domain.analytics.schemas import (
     DistrictKpis,
     DistrictRankingItem,
 )
-from backend.app.domain.analytics import scoring
+from backend.app.domain.sales import scoring
 from backend.app.domain.trade_area.repository import TradeAreaRepository
 from backend.app.domain.sales.repository import SalesRepository
 from backend.app.domain.industry.repository import IndustryRepository
@@ -38,17 +38,6 @@ def _fmt_count(count: Optional[float]) -> str:
     if count >= 10_000:
         return f"{count / 10_000:.0f}만"
     return str(int(count))
-
-
-def _none_if_nan(value):
-    if value is None or (isinstance(value, float) and pd.isna(value)):
-        return None
-    return value
-
-
-def _none_if_nan_round(value) -> Optional[int]:
-    value = _none_if_nan(value)
-    return None if value is None else round(value)
 
 
 def _build_insight(growth_grade: Optional[str], transaction_grade: Optional[str], competition_grade: Optional[str]) -> str:
@@ -122,19 +111,19 @@ class AnalyticsService:
 
             components = RecommendationComponents(
                 sales_growth=ScoreComponent(
-                    value=_none_if_nan(row["growth_rate"]),
-                    normalized_score=_none_if_nan_round(row["growth_score"]),
-                    benchmark_percentile=_none_if_nan_round(row["growth_percentile"]),
+                    value=scoring.none_if_nan(row["growth_rate"]),
+                    normalized_score=scoring.none_if_nan_round(row["growth_score"]),
+                    benchmark_percentile=scoring.none_if_nan_round(row["growth_percentile"]),
                 ),
                 transaction_volume=ScoreComponent(
                     value=row["transaction_count"],
-                    normalized_score=_none_if_nan_round(row["transaction_score"]),
-                    benchmark_percentile=_none_if_nan_round(row["volume_percentile"]),
+                    normalized_score=scoring.none_if_nan_round(row["transaction_score"]),
+                    benchmark_percentile=scoring.none_if_nan_round(row["volume_percentile"]),
                 ),
                 competition=ScoreComponent(
-                    value=_none_if_nan(row["competition_score"]),
-                    normalized_score=_none_if_nan_round(row["competition_score"]),
-                    benchmark_percentile=_none_if_nan_round(row["competition_percentile"]),
+                    value=scoring.none_if_nan(row["competition_score"]),
+                    normalized_score=scoring.none_if_nan_round(row["competition_score"]),
+                    benchmark_percentile=scoring.none_if_nan_round(row["competition_percentile"]),
                 ),
             )
 
@@ -190,9 +179,10 @@ class AnalyticsService:
             estimated_sales_formatted=_fmt_amount(row["sales"]),
             transaction_count=int(row["transaction_count"]),
             transaction_count_formatted=_fmt_count(row["transaction_count"]),
-            seoul_rank=_none_if_nan_round(row["seoul_rank"]),
-            qoq_growth_rate=_none_if_nan(row["growth_rate"]),
+            seoul_rank=scoring.none_if_nan_round(row["seoul_rank"]),
+            qoq_growth_rate=scoring.none_if_nan(row["growth_rate"]),
             sales_percentile=round(row["sales_percentile"]),
+            growth_percentile=scoring.none_if_nan_round(row["growth_percentile"]),
             volume_percentile=round(row["volume_percentile"]),
             competition_level=scoring.grade_from_score(row["competition_score"]),
             sales_level=scoring.grade_from_score(100 - row["sales_percentile"]),
@@ -201,7 +191,7 @@ class AnalyticsService:
 
         why_explore = {
             "growth_rate": kpis.qoq_growth_rate,
-            "growth_percentile": kpis.sales_percentile,
+            "growth_percentile": kpis.growth_percentile,
             "volume_formatted": kpis.transaction_count_formatted,
             "volume_percentile": kpis.volume_percentile,
         }
@@ -214,7 +204,7 @@ class AnalyticsService:
             "by_score": self._ranking_items(metrics_df, "exploration_score", "score", code, lookup),
         }
 
-        exploration_score = _none_if_nan_round(row["exploration_score"])
+        exploration_score = scoring.none_if_nan_round(row["exploration_score"])
         takeaway = {
             # ExplorationScore가 산출 불가(NaN)면 0점이 아니라 None + 안내 문구로 표시한다.
             "score": exploration_score,
@@ -383,12 +373,12 @@ class AnalyticsService:
                     trade_area_code=code,
                     trade_area_name=ta.get("trdar_cd_nm", code),
                     district=ta.get("signgu_cd_nm") or "-",
-                    exploration_score=_none_if_nan_round(row["exploration_score"]),
+                    exploration_score=scoring.none_if_nan_round(row["exploration_score"]),
                     estimated_sales_formatted=_fmt_amount(row["sales"]),
                     estimated_sales=int(row["sales"]),
                     transaction_count_formatted=_fmt_count(row["transaction_count"]),
                     transaction_count=int(row["transaction_count"]),
-                    growth_rate=_none_if_nan(row["growth_rate"]),
+                    growth_rate=scoring.none_if_nan(row["growth_rate"]),
                     strongest_age_group=(
                         f"{primary_age['age_group']} ({primary_age['percentage']}%)" if primary_age else "-"
                     ),
