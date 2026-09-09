@@ -12,14 +12,21 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite+aiosqlite:///./seouldata.db"
     SUPABASE_URL: str = ""
     SUPABASE_KEY: str = ""
-    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000"
+    CORS_ORIGINS: str = (
+        "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000"
+    )
     ENVIRONMENT: str = "development"
+
+    SEOUL_API_KEY: str = ""
+    SEOUL_API_BASE_URL: str = "http://openapi.seoul.go.kr:8088"
 
     model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore")
 
     @property
     def cors_origins_list(self) -> List[str]:
-        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+        return [
+            origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()
+        ]
 
 
 settings = Settings()
