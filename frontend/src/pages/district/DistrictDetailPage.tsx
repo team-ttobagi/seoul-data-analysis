@@ -104,7 +104,7 @@ export const DistrictDetailPage: React.FC = () => {
 
         {/* Quick district selector */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 font-mono text-xs">
+          {/* <div className="flex items-center gap-2 font-mono text-xs">
             <span className="text-gray-500 font-bold">상권 변경:</span>
             <div className="relative inline-block">
               <select
@@ -136,7 +136,7 @@ export const DistrictDetailPage: React.FC = () => {
               <Square className="w-3.5 h-3.5 text-gray-400" />
             )}
             <span>{isChecked ? "비교함 선택됨" : "비교함 담기"}</span>
-          </button>
+          </button> */}
         </div>
       </div>
 
