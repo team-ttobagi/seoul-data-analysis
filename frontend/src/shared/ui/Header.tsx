@@ -23,10 +23,12 @@ export const Header: React.FC = () => {
             className="flex items-center gap-2 text-xl font-extrabold tracking-tight font-display hover:opacity-85 transition-opacity"
           >
             <span className="bg-black text-white px-2 py-0.5 text-xs font-mono tracking-widest mr-1">
-              SDP
+              {/* SDP */}
+              SR
             </span>
             <span className="tracking-tighter font-black text-lg sm:text-xl">
-              SEOUL DATA PLAYGROUND
+              {/* SEOUL DATA PLAYGROUND */}
+              SPOT RADAR
             </span>
           </Link>
 
@@ -198,11 +200,12 @@ export const Footer: React.FC = () => {
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 font-mono text-xs">
         <div className="flex items-center gap-2">
           <span className="font-extrabold text-sm sm:text-base tracking-tighter text-[#d4ff00]">
-            SEOUL DATA PLAYGROUND
+            {/* SEOUL DATA PLAYGROUND */}
+            SPOT RADAR
           </span>
         </div>
         <div className="text-gray-400 text-center md:text-right space-y-1">
-          <p>© 2024–2026 SEOUL DATA PLAYGROUND. DATA-DRIVEN EDITORIAL.</p>
+          <p>© 2024–2026 SPOT RADAR. DATA-DRIVEN EDITORIAL.</p>
           <div className="flex justify-center md:justify-end gap-4 text-[11px] text-gray-500">
             <span className="hover:text-[#d4ff00] cursor-pointer">
               Methodology (가중치 40:35:25)
