@@ -1,0 +1,58 @@
+name: Sync Quarterly Sales
+
+on:
+  workflow_dispatch:
+    inputs:
+      quarter:
+        description: "동기화할 분기 코드 (예: 20262)"
+        required: true
+        default: "20262"
+        type: string
+
+  schedule:
+    - cron: "0 0 11-16 3,6,9,12 *"
+
+jobs:
+  sync-sales:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync
+
+      - name: Resolve quarter
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            QUARTER="${{ inputs.quarter }}"
+          else
+            YEAR=$(date +%Y)
+            MONTH=$(date +%-m)
+            QUARTER_NUMBER=$(( (MONTH - 1) / 3 + 1 ))
+            QUARTER="${YEAR}${QUARTER_NUMBER}"
+          fi
+
+          echo "QUARTER=$QUARTER" >> "$GITHUB_ENV"
+          echo "Target quarter: $QUARTER"
+
+      - name: Sync sales data
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SEOUL_API_KEY: ${{ secrets.SEOUL_API_KEY }}
+        run: |
+          echo "Sync quarter: $QUARTER"
+
+          PYTHONPATH=.. uv run python -m backend.app.scripts.sync_sales \
+            --quarter "$QUARTER"
