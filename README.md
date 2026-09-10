@@ -1,4 +1,4 @@
-# SEOUL DATA PLAYGROUND (서울 상권 데이터 플레이그라운드)
+# SPOT LADER (스팟 레이더)
 
 > **서울시 상권분석 오픈데이터를 기반으로 예비 창업자가 원하는 업종의 유망 상권과 소비 패턴을 직관적으로 탐색할 수 있는 데이터 저널리즘 스타일의 풀스택 상권 분석 서비스**
 
@@ -55,6 +55,7 @@ SEOUL DATA PLAYGROUND는 데이터 저널리즘 에디토리얼 스타일(Swiss 
   - `backend/app/domain/industry`: 업종 도메인
   - `backend/app/domain/sales`: 매출/거래/시간대/요일/연령 도메인
   - `backend/app/domain/analytics`: 탐색 스코어링 알고리즘 및 추천 엔진
+  - `backend/app/domain/district`: 자치구 기본 정보 도메인
 - **Testing**: `pytest` 및 `httpx` 기반 서비스 단위 테스트 및 API 스모크 테스트
 
 ---
@@ -96,6 +97,13 @@ uvicorn backend.app.main:app --reload --port 8000
 ```bash
 cd backend
 pytest
+```
+
+```bash
+uv run --project backend uvicorn backend.app.main:app \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --reload
 ```
 
 ---
