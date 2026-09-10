@@ -28,3 +28,8 @@ packages = ["app"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+
+[dependency-groups]
+dev = [
+    "pytest-asyncio>=1.4.0",
+]

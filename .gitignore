@@ -38,6 +38,8 @@ __pycache__/
 *.sqlite3
 *.db
 *.log
+*.csv
+*/data/*
 
 # Build outputs
 build/
