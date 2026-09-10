@@ -42,6 +42,39 @@ class TradeAreaRepository:
             logger.exception("Failed to load trade area '%s' from DB", code)
             return None
 
+    async def get_by_district(
+        self,
+        signgu_cd: str,
+        keyword: Optional[str] = None,
+    ) -> List[dict]:
+        if not self.session:
+            return []
+
+        try:
+            stmt = (
+                select(TradeAreaModel)
+                .options(selectinload(TradeAreaModel.district))
+                .where(TradeAreaModel.signgu_cd == signgu_cd)
+            )
+
+            if keyword:
+                stmt = stmt.where(TradeAreaModel.trdar_cd_nm.ilike(f"%{keyword}%"))
+
+            stmt = stmt.order_by(TradeAreaModel.trdar_cd_nm)
+
+            result = await self.session.execute(stmt)
+            rows = result.scalars().all()
+
+            return [_to_dict(r) for r in rows]
+
+        except Exception:
+            logger.exception(
+                "Failed to load trade areas by district '%s', keyword='%s'",
+                signgu_cd,
+                keyword,
+            )
+            return []
+
 
 def _to_dict(r: TradeAreaModel) -> dict:
     return {
