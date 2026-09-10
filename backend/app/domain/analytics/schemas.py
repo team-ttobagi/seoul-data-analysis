@@ -3,8 +3,8 @@ from pydantic import BaseModel
 
 
 class ScoreComponent(BaseModel):
-    value: float
-    normalized_score: int
+    value: Optional[float] = None
+    normalized_score: Optional[int] = None
     unit: Optional[str] = None
     benchmark_percentile: Optional[int] = None
 
@@ -32,10 +32,14 @@ class DistrictKpis(BaseModel):
     estimated_sales_formatted: str
     transaction_count: int
     transaction_count_formatted: str
-    seoul_rank: int
-    qoq_growth_rate: float
+    seoul_rank: Optional[int] = None
+    qoq_growth_rate: Optional[float] = None
     sales_percentile: int
+    growth_percentile: Optional[int] = None
     volume_percentile: int
+    competition_level: Optional[str] = None
+    sales_level: Optional[str] = None
+    volume_level: Optional[str] = None
 
 
 class DistrictRankingItem(BaseModel):
@@ -73,10 +77,13 @@ class TimeSlotSales(BaseModel):
 class AgeGenderSales(BaseModel):
     age_group: str
     percentage: int
+    is_primary: bool
+
+
+class GenderSales(BaseModel):
     female_ratio: int
     male_ratio: int
     dominant_gender: str
-    is_primary: bool
 
 
 class DaySales(BaseModel):
@@ -104,14 +111,14 @@ class CompareDistrictData(BaseModel):
     trade_area_code: str
     trade_area_name: str
     district: str
-    exploration_score: int
+    exploration_score: Optional[int] = None
     estimated_sales_formatted: str
     estimated_sales: int
     transaction_count_formatted: str
     transaction_count: int
-    growth_rate: float
+    growth_rate: Optional[float] = None
     strongest_age_group: str
     strongest_time_period: str
     strongest_day: str
-    competition_level: str
+    competition_level: Optional[str] = None
     key_insight: str
