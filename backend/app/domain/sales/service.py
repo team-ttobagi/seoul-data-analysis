@@ -5,6 +5,7 @@ from backend.app.domain.sales.schemas import (
     SalesByDaySchema,
     SalesByTimeSchema,
     SalesByAgeGenderSchema,
+    SalesGenderSchema,
 )
 
 
@@ -31,6 +32,12 @@ class SalesService:
     ) -> List[SalesByAgeGenderSchema]:
         items = await self.repository.get_sales_by_age_gender(trade_area_code, industry_code, quarter)
         return [SalesByAgeGenderSchema(**item) for item in items]
+
+    async def get_gender_split(
+        self, trade_area_code: str, industry_code: str = "CS100010", quarter: str = "2025 Q4"
+    ) -> Optional[SalesGenderSchema]:
+        data = await self.repository.get_gender_split(trade_area_code, industry_code, quarter)
+        return SalesGenderSchema(**data) if data else None
 
     async def get_by_day(
         self, trade_area_code: str, industry_code: str = "CS100010", quarter: str = "2025 Q4"

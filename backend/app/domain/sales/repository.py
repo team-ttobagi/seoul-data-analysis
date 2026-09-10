@@ -1,8 +1,11 @@
 import logging
 import re
 from typing import Optional, List, Dict
+import pandas as pd
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+
+from backend.app.domain.sales import scoring
 
 logger = logging.getLogger(__name__)
 
@@ -29,73 +32,32 @@ class SalesRepository:
     async def get_sales_summary(
         self, trade_area_code: str, industry_code: str, quarter: str
     ) -> Optional[dict]:
-        if not self.session:
-            return None
-
+        """Same composite pipeline as AnalyticsService (get_metrics_dataframe), so
+        seoul_rank/percentiles here match /trade-areas/{code}/overview exactly rather
+        than each endpoint defining its own notion of 'rank'."""
         code = trade_area_code.upper()
-        quarter_code = _normalize_quarter(quarter)
-
-        try:
-            stmt = text(
-                """
-                WITH ranked AS (
-                    SELECT
-                        trdar_cd,
-                        thsmon_selng_amt,
-                        thsmon_selng_co,
-                        RANK() OVER (ORDER BY thsmon_selng_amt DESC) AS sales_rank,
-                        PERCENT_RANK() OVER (ORDER BY thsmon_selng_amt DESC) AS sales_pctl,
-                        PERCENT_RANK() OVER (ORDER BY thsmon_selng_co DESC) AS volume_pctl
-                    FROM sales_data
-                    WHERE svc_induty_cd = :industry_code AND stdr_yyqu_cd = :quarter_code
-                )
-                SELECT * FROM ranked WHERE trdar_cd = :trade_area_code
-                """
-            )
-            result = await self.session.execute(
-                stmt,
-                {"industry_code": industry_code, "quarter_code": quarter_code, "trade_area_code": code},
-            )
-            row = result.mappings().first()
-            if not row:
-                return None
-
-            prev_stmt = text(
-                """
-                SELECT thsmon_selng_amt FROM sales_data
-                WHERE trdar_cd = :trade_area_code AND svc_induty_cd = :industry_code AND stdr_yyqu_cd = :prev_quarter
-                """
-            )
-            prev_result = await self.session.execute(
-                prev_stmt,
-                {
-                    "trade_area_code": code,
-                    "industry_code": industry_code,
-                    "prev_quarter": _previous_quarter(quarter_code),
-                },
-            )
-            prev_amount = prev_result.scalar()
-
-            growth_rate = 0.0
-            if prev_amount:
-                growth_rate = round((row["thsmon_selng_amt"] - prev_amount) / prev_amount * 100, 1)
-
-            return {
-                "quarter": quarter,
-                "trade_area_code": code,
-                "industry_code": industry_code,
-                "estimated_sales": row["thsmon_selng_amt"],
-                "estimated_sales_formatted": _format_amount(row["thsmon_selng_amt"]),
-                "transaction_count": row["thsmon_selng_co"],
-                "transaction_count_formatted": _format_count(row["thsmon_selng_co"]),
-                "qoq_growth_rate": growth_rate,
-                "seoul_rank": row["sales_rank"],
-                "sales_percentile": round(row["sales_pctl"] * 100),
-                "volume_percentile": round(row["volume_pctl"] * 100),
-            }
-        except Exception:
-            logger.exception("Failed to load sales summary from DB")
+        metrics_df = await self.get_metrics_dataframe(quarter, industry_code)
+        if metrics_df.empty:
             return None
+
+        matched = metrics_df[metrics_df["trdar_cd"] == code]
+        if matched.empty:
+            return None
+        row = matched.iloc[0]
+
+        return {
+            "quarter": quarter,
+            "trade_area_code": code,
+            "industry_code": industry_code,
+            "estimated_sales": int(row["sales"]),
+            "estimated_sales_formatted": _format_amount(row["sales"]),
+            "transaction_count": int(row["transaction_count"]),
+            "transaction_count_formatted": _format_count(row["transaction_count"]),
+            "qoq_growth_rate": scoring.none_if_nan(row["growth_rate"]),
+            "seoul_rank": scoring.none_if_nan_round(row["seoul_rank"]),
+            "sales_percentile": round(row["sales_percentile"]),
+            "volume_percentile": round(row["volume_percentile"]),
+        }
 
     async def get_sales_by_time(
         self, trade_area_code: str, industry_code: str, quarter: str
@@ -128,14 +90,11 @@ class SalesRepository:
     async def get_sales_by_age_gender(
         self, trade_area_code: str, industry_code: str, quarter: str
     ) -> List[dict]:
+        """Age-group sales share only. DB has no age x gender cross data, so gender
+        is reported separately via get_gender_split() rather than combined per group."""
         row = await self._get_raw_row(trade_area_code, industry_code, quarter)
         if not row:
             return []
-
-        total_gender = (row["ml_selng_amt"] + row["fml_selng_amt"]) or 1
-        female_ratio = round(row["fml_selng_amt"] / total_gender * 100)
-        male_ratio = 100 - female_ratio
-        dominant_gender = "female" if female_ratio >= male_ratio else "male"
 
         groups = [
             ("10대", row["agrde_10_selng_amt"]),
@@ -152,13 +111,28 @@ class SalesRepository:
             {
                 "age_group": age_group,
                 "percentage": round(amount / total * 100),
-                "female_ratio": female_ratio,
-                "male_ratio": male_ratio,
-                "dominant_gender": dominant_gender,
                 "is_primary": amount == peak_amount,
             }
             for age_group, amount in groups
         ]
+
+    async def get_gender_split(
+        self, trade_area_code: str, industry_code: str, quarter: str
+    ) -> Optional[dict]:
+        row = await self._get_raw_row(trade_area_code, industry_code, quarter)
+        if not row:
+            return None
+
+        total = (row["ml_selng_amt"] + row["fml_selng_amt"]) or 1
+        female_ratio = round(row["fml_selng_amt"] / total * 100)
+        male_ratio = 100 - female_ratio
+        dominant_gender = "female" if female_ratio >= male_ratio else "male"
+
+        return {
+            "female_ratio": female_ratio,
+            "male_ratio": male_ratio,
+            "dominant_gender": dominant_gender,
+        }
 
     async def get_sales_by_day(
         self, trade_area_code: str, industry_code: str, quarter: str
@@ -189,6 +163,76 @@ class SalesRepository:
             }
             for day, amount in days
         ]
+
+    async def get_metrics_dataframe(self, quarter: str, industry_code: str) -> pd.DataFrame:
+        """The single computed score table for a quarter+industry population — every
+        endpoint that needs sales/growth/competition scores for trade areas (get_sales_summary,
+        AnalyticsService.overview/competition/compare/recommendations) calls this, so they
+        all see the same numbers instead of each recomputing rank/percentile independently."""
+        rows = await self.get_metrics_rows(quarter, industry_code)
+        diversity_rows = await self.get_diversity_rows(quarter)
+        return scoring.build_metrics_dataframe(rows, diversity_rows)
+
+    async def get_metrics_rows(self, quarter: str, industry_code: str) -> List[dict]:
+        """Current + previous quarter sales/transaction per trade area, for the given
+        quarter+industry population. Feeds scoring.py's score pipeline."""
+        if not self.session:
+            return []
+
+        quarter_code = _normalize_quarter(quarter)
+        prev_quarter_code = _previous_quarter(quarter_code)
+
+        try:
+            stmt = text(
+                """
+                SELECT
+                    cur.trdar_cd AS trdar_cd,
+                    cur.thsmon_selng_amt AS sales,
+                    cur.thsmon_selng_co AS transaction_count,
+                    prev.thsmon_selng_amt AS prev_sales,
+                    prev.thsmon_selng_co AS prev_transaction_count
+                FROM sales_data cur
+                LEFT JOIN sales_data prev
+                    ON prev.trdar_cd = cur.trdar_cd
+                    AND prev.svc_induty_cd = cur.svc_induty_cd
+                    AND prev.stdr_yyqu_cd = :prev_quarter_code
+                WHERE cur.svc_induty_cd = :industry_code AND cur.stdr_yyqu_cd = :quarter_code
+                """
+            )
+            result = await self.session.execute(
+                stmt,
+                {
+                    "prev_quarter_code": prev_quarter_code,
+                    "industry_code": industry_code,
+                    "quarter_code": quarter_code,
+                },
+            )
+            return [dict(row) for row in result.mappings().all()]
+        except Exception:
+            logger.exception("Failed to load sales metrics from DB")
+            return []
+
+    async def get_diversity_rows(self, quarter: str) -> List[dict]:
+        """Every industry's sales per trade area for the quarter (no industry filter),
+        used to compute HHI-based demand diversity independent of the selected industry."""
+        if not self.session:
+            return []
+
+        quarter_code = _normalize_quarter(quarter)
+
+        try:
+            stmt = text(
+                """
+                SELECT trdar_cd, svc_induty_cd, thsmon_selng_amt AS sales
+                FROM sales_data
+                WHERE stdr_yyqu_cd = :quarter_code
+                """
+            )
+            result = await self.session.execute(stmt, {"quarter_code": quarter_code})
+            return [dict(row) for row in result.mappings().all()]
+        except Exception:
+            logger.exception("Failed to load diversity rows from DB")
+            return []
 
     async def _get_raw_row(
         self, trade_area_code: str, industry_code: str, quarter: str

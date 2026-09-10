@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.core.database import get_db
 from backend.app.domain.trade_area.repository import TradeAreaRepository
 from backend.app.domain.sales.repository import SalesRepository
+from backend.app.domain.industry.repository import IndustryRepository
 from backend.app.domain.analytics.service import AnalyticsService
 from backend.app.domain.analytics.schemas import (
     RecommendationItemResponse,
@@ -19,7 +20,10 @@ router = APIRouter(tags=["Analytics"])
 def get_analytics_service(db: Optional[AsyncSession] = Depends(get_db)) -> AnalyticsService:
     trade_area_repo = TradeAreaRepository(session=db)
     sales_repo = SalesRepository(session=db)
-    return AnalyticsService(trade_area_repo=trade_area_repo, sales_repo=sales_repo)
+    industry_repo = IndustryRepository(session=db)
+    return AnalyticsService(
+        trade_area_repo=trade_area_repo, sales_repo=sales_repo, industry_repo=industry_repo
+    )
 
 
 @router.get("/analytics/recommendations", response_model=List[RecommendationItemResponse])

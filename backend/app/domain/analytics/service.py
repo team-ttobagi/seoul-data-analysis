@@ -1,4 +1,7 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Optional
+
+import pandas as pd
+
 from backend.app.domain.analytics.schemas import (
     RecommendationItemResponse,
     DistrictOverviewResponse,
@@ -10,9 +13,50 @@ from backend.app.domain.analytics.schemas import (
     DistrictKpis,
     DistrictRankingItem,
 )
+from backend.app.domain.sales import scoring
 from backend.app.domain.trade_area.repository import TradeAreaRepository
 from backend.app.domain.sales.repository import SalesRepository
+from backend.app.domain.industry.repository import IndustryRepository
 from backend.app.core.exceptions import SalesDataNotFoundException
+
+
+def _fmt_amount(amount: Optional[float]) -> str:
+    if amount is None or pd.isna(amount):
+        return "-"
+    amount = float(amount)
+    if amount >= 100_000_000:
+        return f"{amount / 100_000_000:.1f}억"
+    if amount >= 10_000:
+        return f"{amount / 10_000:.0f}만"
+    return str(int(amount))
+
+
+def _fmt_count(count: Optional[float]) -> str:
+    if count is None or pd.isna(count):
+        return "-"
+    count = float(count)
+    if count >= 10_000:
+        return f"{count / 10_000:.0f}만"
+    return str(int(count))
+
+
+def _build_insight(growth_grade: Optional[str], transaction_grade: Optional[str], competition_grade: Optional[str]) -> str:
+    parts = []
+    if growth_grade:
+        parts.append(f"성장성 {growth_grade}")
+    if transaction_grade:
+        parts.append(f"거래 활성도 {transaction_grade}")
+    if competition_grade:
+        parts.append(f"경쟁 여건 {competition_grade}")
+    if not parts:
+        return "데이터가 충분하지 않아 판단이 어렵습니다."
+    return ", ".join(parts) + " 수준의 상권입니다."
+
+
+def _build_warning(competition_grade: Optional[str]) -> Optional[str]:
+    if competition_grade == "낮음":
+        return "동일 업종 경쟁 압박이 상대적으로 높은 상권입니다."
+    return None
 
 
 class AnalyticsService:
@@ -20,32 +64,20 @@ class AnalyticsService:
         self,
         trade_area_repo: TradeAreaRepository,
         sales_repo: SalesRepository,
+        industry_repo: Optional[IndustryRepository] = None,
     ):
         self.trade_area_repo = trade_area_repo
         self.sales_repo = sales_repo
+        self.industry_repo = industry_repo
 
-    def calculate_exploration_score(
-        self,
-        sales_growth_norm: int,
-        transaction_volume_norm: int,
-        competition_norm: int,
-    ) -> int:
-        """
-        Exploration Score formula:
-        sales_growth_weight = 0.40
-        transaction_volume_weight = 0.35
-        competition_weight = 0.25 (competition contributes inversely or normalized appropriately)
-        """
-        sales_growth_weight = 0.40
-        transaction_volume_weight = 0.35
-        competition_weight = 0.25
+    async def _compute_metrics(self, quarter: str, industry_code: str) -> pd.DataFrame:
+        rows = await self.sales_repo.get_metrics_rows(quarter, industry_code)
+        diversity_rows = await self.sales_repo.get_diversity_rows(quarter)
+        return scoring.build_metrics_dataframe(rows, diversity_rows)
 
-        raw_score = (
-            sales_growth_weight * sales_growth_norm
-            + transaction_volume_weight * transaction_volume_norm
-            + competition_weight * competition_norm
-        )
-        return int(round(raw_score))
+    async def _trade_area_lookup(self) -> Dict[str, dict]:
+        trade_areas = await self.trade_area_repo.get_all()
+        return {ta["trdar_cd"]: ta for ta in trade_areas}
 
     async def get_recommendations(
         self,
@@ -53,157 +85,67 @@ class AnalyticsService:
         quarter: str = "2025 Q4",
         region: Optional[str] = "서울 전체",
     ) -> List[RecommendationItemResponse]:
-        # Pre-calculated deterministic candidates adhering to Seoul Open Data patterns
-        data = [
-            {
-                "rank": 1,
-                "trade_area_code": "SEONGSU",
-                "trade_area_name": "성수동",
-                "district": "성동구",
-                "growth_val": 12.4,
-                "growth_norm": 91,
-                "growth_percentile": 18,
-                "volume_val": 450000,
-                "volume_norm": 85,
-                "volume_percentile": 12,
-                "comp_val": 134,
-                "comp_norm": 62,
-                "comp_percentile": 88,
-                "signals": {
-                    "growth": "high",
-                    "transaction": "high",
-                    "competition": "high",
-                },
-                "insight": "성장성과 거래 활성도가 높지만 경쟁도 강합니다.",
-                "warning": "동일 업종 134개로 공급 집중 심화",
-            },
-            {
-                "rank": 2,
-                "trade_area_code": "HONGDAE",
-                "trade_area_name": "홍대입구",
-                "district": "마포구",
-                "growth_val": 6.8,
-                "growth_norm": 76,
-                "growth_percentile": 25,
-                "volume_val": 580000,
-                "volume_norm": 94,
-                "volume_percentile": 5,
-                "comp_val": 182,
-                "comp_norm": 52,
-                "comp_percentile": 95,
-                "signals": {
-                    "growth": "medium",
-                    "transaction": "high",
-                    "competition": "high",
-                },
-                "insight": "서울 최대 거래량을 자랑하지만 동일 업종 진입 밀도가 최상위권입니다.",
-                "warning": "임대료 및 과밀 경쟁 유의",
-            },
-            {
-                "rank": 3,
-                "trade_area_code": "SHAROSU",
-                "trade_area_name": "샤로수길",
-                "district": "관악구",
-                "growth_val": 14.1,
-                "growth_norm": 95,
-                "growth_percentile": 9,
-                "volume_val": 280000,
-                "volume_norm": 68,
-                "volume_percentile": 38,
-                "comp_val": 58,
-                "comp_norm": 82,
-                "comp_percentile": 45,
-                "signals": {
-                    "growth": "high",
-                    "transaction": "medium",
-                    "competition": "low",
-                },
-                "insight": "1인 청년 가구의 소비 증가세가 뚜렷하며 상대적 경쟁 부담이 낮습니다.",
-                "warning": None,
-            },
-            {
-                "rank": 4,
-                "trade_area_code": "KONKUK",
-                "trade_area_name": "건대입구",
-                "district": "광진구",
-                "growth_val": 5.2,
-                "growth_norm": 70,
-                "growth_percentile": 34,
-                "volume_val": 320000,
-                "volume_norm": 74,
-                "volume_percentile": 30,
-                "comp_val": 96,
-                "comp_norm": 69,
-                "comp_percentile": 65,
-                "signals": {
-                    "growth": "medium",
-                    "transaction": "medium",
-                    "competition": "medium",
-                },
-                "insight": "안정적인 대학생 배후 수요를 기반으로 꾸준한 소비 흐름을 보입니다.",
-                "warning": None,
-            },
-            {
-                "rank": 5,
-                "trade_area_code": "GANGNAM",
-                "trade_area_name": "강남역",
-                "district": "강남구",
-                "growth_val": 2.1,
-                "growth_norm": 55,
-                "growth_percentile": 62,
-                "volume_val": 620000,
-                "volume_norm": 98,
-                "volume_percentile": 2,
-                "comp_val": 240,
-                "comp_norm": 42,
-                "comp_percentile": 99,
-                "signals": {
-                    "growth": "low",
-                    "transaction": "high",
-                    "competition": "high",
-                },
-                "insight": "거래 규모는 서울 최고이나 성장 정체와 초대형 프랜차이즈 과밀 상태입니다.",
-                "warning": "초기 고정비 및 포화 경쟁 경계",
-            },
-        ]
+        metrics_df = await self._compute_metrics(quarter, industry_code)
+        if metrics_df.empty:
+            return []
+
+        lookup = await self._trade_area_lookup()
+
+        if region and region != "서울 전체":
+            valid_codes = {
+                code for code, ta in lookup.items() if ta.get("signgu_cd_nm") == region
+            }
+            metrics_df = metrics_df[metrics_df["trdar_cd"].isin(valid_codes)]
+
+        # ExplorationScore가 산출 불가(NaN)인 상권은 "낮은 점수"가 아니라 "데이터 부족"이므로
+        # 추천 후보에서 아예 제외한다 (0점으로 강등시키지 않는다).
+        scored = metrics_df.dropna(subset=["exploration_score"])
+        top = scored.sort_values("exploration_score", ascending=False).head(5)
 
         results = []
-        for d in data:
-            calc_score = self.calculate_exploration_score(
-                sales_growth_norm=d["growth_norm"],
-                transaction_volume_norm=d["volume_norm"],
-                competition_norm=d["comp_norm"],
-            )
+        for rank, (_, row) in enumerate(top.iterrows(), start=1):
+            ta = lookup.get(row["trdar_cd"], {})
+            growth_grade = scoring.signal_from_score(row["growth_score"])
+            transaction_grade = scoring.signal_from_score(row["transaction_score"])
+            competition_grade = scoring.signal_from_score(row["competition_score"])
 
             components = RecommendationComponents(
                 sales_growth=ScoreComponent(
-                    value=d["growth_val"],
-                    normalized_score=d["growth_norm"],
-                    benchmark_percentile=d["growth_percentile"],
+                    value=scoring.none_if_nan(row["growth_rate"]),
+                    normalized_score=scoring.none_if_nan_round(row["growth_score"]),
+                    benchmark_percentile=scoring.none_if_nan_round(row["growth_percentile"]),
                 ),
                 transaction_volume=ScoreComponent(
-                    value=d["volume_val"],
-                    normalized_score=d["volume_norm"],
-                    benchmark_percentile=d["volume_percentile"],
+                    value=row["transaction_count"],
+                    normalized_score=scoring.none_if_nan_round(row["transaction_score"]),
+                    benchmark_percentile=scoring.none_if_nan_round(row["volume_percentile"]),
                 ),
                 competition=ScoreComponent(
-                    value=d["comp_val"],
-                    normalized_score=d["comp_norm"],
-                    benchmark_percentile=d["comp_percentile"],
+                    value=scoring.none_if_nan(row["competition_score"]),
+                    normalized_score=scoring.none_if_nan_round(row["competition_score"]),
+                    benchmark_percentile=scoring.none_if_nan_round(row["competition_percentile"]),
                 ),
             )
 
             results.append(
                 RecommendationItemResponse(
-                    rank=d["rank"],
-                    trade_area_code=d["trade_area_code"],
-                    trade_area_name=d["trade_area_name"],
-                    district=d["district"],
-                    score=calc_score,
-                    signals=d["signals"],
+                    rank=rank,
+                    trade_area_code=row["trdar_cd"],
+                    trade_area_name=ta.get("trdar_cd_nm", row["trdar_cd"]),
+                    district=ta.get("signgu_cd_nm") or "-",
+                    score=round(row["exploration_score"]),
+                    signals={
+                        "growth": growth_grade or "medium",
+                        "transaction": transaction_grade or "medium",
+                        "competition": competition_grade or "medium",
+                    },
                     components=components,
-                    insight=d["insight"],
-                    warning=d["warning"],
+                    insight=_build_insight(
+                        scoring.grade_from_score(row["growth_score"]),
+                        scoring.grade_from_score(row["transaction_score"]),
+                        scoring.grade_from_score(row["competition_score"]),
+                    ),
+                    warning=_build_warning(scoring.grade_from_score(row["competition_score"])),
                 )
             )
 
@@ -217,209 +159,64 @@ class AnalyticsService:
     ) -> DistrictOverviewResponse:
         code = trade_area_code.upper()
         trade_area = await self.trade_area_repo.get_by_code(code)
-        ta_name = trade_area["trdar_cd_nm"] if trade_area else "성수동"
-        district_name = trade_area["signgu_cd_nm"] if trade_area else "성동구"
+        ta_name = trade_area["trdar_cd_nm"] if trade_area else code
+        district_name = trade_area["signgu_cd_nm"] if trade_area else "-"
 
-        summary = await self.sales_repo.get_sales_summary(code, industry_code, quarter)
-        if not summary:
+        industry_name = industry_code
+        if self.industry_repo:
+            industry = await self.industry_repo.get_by_code(industry_code)
+            if industry:
+                industry_name = industry["name"]
+
+        metrics_df = await self._compute_metrics(quarter, industry_code)
+        matched = metrics_df[metrics_df["trdar_cd"] == code] if not metrics_df.empty else metrics_df
+        if matched.empty:
             raise SalesDataNotFoundException(code, industry_code, quarter)
+        row = matched.iloc[0]
 
         kpis = DistrictKpis(
-            estimated_sales=summary["estimated_sales"],
-            estimated_sales_formatted=summary["estimated_sales_formatted"],
-            transaction_count=summary["transaction_count"],
-            transaction_count_formatted=summary["transaction_count_formatted"],
-            seoul_rank=summary["seoul_rank"],
-            qoq_growth_rate=summary["qoq_growth_rate"],
-            sales_percentile=summary["sales_percentile"],
-            volume_percentile=summary["volume_percentile"],
+            estimated_sales=int(row["sales"]),
+            estimated_sales_formatted=_fmt_amount(row["sales"]),
+            transaction_count=int(row["transaction_count"]),
+            transaction_count_formatted=_fmt_count(row["transaction_count"]),
+            seoul_rank=scoring.none_if_nan_round(row["seoul_rank"]),
+            qoq_growth_rate=scoring.none_if_nan(row["growth_rate"]),
+            sales_percentile=round(row["sales_percentile"]),
+            growth_percentile=scoring.none_if_nan_round(row["growth_percentile"]),
+            volume_percentile=round(row["volume_percentile"]),
+            competition_level=scoring.grade_from_score(row["competition_score"]),
+            sales_level=scoring.grade_from_score(100 - row["sales_percentile"]),
+            volume_level=scoring.grade_from_score(100 - row["volume_percentile"]),
         )
 
         why_explore = {
-            "growth_rate": summary["qoq_growth_rate"],
-            "growth_percentile": summary["sales_percentile"],
-            "volume_formatted": summary["transaction_count_formatted"],
-            "volume_percentile": summary["volume_percentile"],
+            "growth_rate": kpis.qoq_growth_rate,
+            "growth_percentile": kpis.growth_percentile,
+            "volume_formatted": kpis.transaction_count_formatted,
+            "volume_percentile": kpis.volume_percentile,
         }
 
+        lookup = await self._trade_area_lookup()
         rankings = {
-            "by_sales": [
-                DistrictRankingItem(
-                    rank=1,
-                    trade_area_code="GANGNAM",
-                    trade_area_name="강남역",
-                    sales_formatted="18.5억",
-                    sales_raw=1850000000,
-                    is_current=False,
-                ),
-                DistrictRankingItem(
-                    rank=2,
-                    trade_area_code="HONGDAE",
-                    trade_area_name="홍대입구",
-                    sales_formatted="16.2억",
-                    sales_raw=1620000000,
-                    is_current=(code == "HONGDAE"),
-                ),
-                DistrictRankingItem(
-                    rank=3,
-                    trade_area_code="SEONGSU",
-                    trade_area_name="성수동",
-                    sales_formatted="12.8억",
-                    sales_raw=1280000000,
-                    is_current=(code == "SEONGSU"),
-                ),
-                DistrictRankingItem(
-                    rank=4,
-                    trade_area_code="GAROSU",
-                    trade_area_name="가로수길",
-                    sales_formatted="11.7억",
-                    sales_raw=1170000000,
-                    is_current=False,
-                ),
-                DistrictRankingItem(
-                    rank=5,
-                    trade_area_code="KONKUK",
-                    trade_area_name="건대입구",
-                    sales_formatted="8.9억",
-                    sales_raw=890000000,
-                    is_current=(code == "KONKUK"),
-                ),
-            ],
-            "by_volume": [
-                DistrictRankingItem(
-                    rank=1,
-                    trade_area_code="GANGNAM",
-                    trade_area_name="강남역",
-                    sales_formatted="62만",
-                    sales_raw=620000,
-                    is_current=False,
-                ),
-                DistrictRankingItem(
-                    rank=2,
-                    trade_area_code="HONGDAE",
-                    trade_area_name="홍대입구",
-                    sales_formatted="58만",
-                    sales_raw=580000,
-                    is_current=(code == "HONGDAE"),
-                ),
-                DistrictRankingItem(
-                    rank=3,
-                    trade_area_code="SEONGSU",
-                    trade_area_name="성수동",
-                    sales_formatted="45만",
-                    sales_raw=450000,
-                    is_current=(code == "SEONGSU"),
-                ),
-                DistrictRankingItem(
-                    rank=4,
-                    trade_area_code="GAROSU",
-                    trade_area_name="가로수길",
-                    sales_formatted="36만",
-                    sales_raw=360000,
-                    is_current=False,
-                ),
-                DistrictRankingItem(
-                    rank=5,
-                    trade_area_code="KONKUK",
-                    trade_area_name="건대입구",
-                    sales_formatted="32만",
-                    sales_raw=320000,
-                    is_current=(code == "KONKUK"),
-                ),
-            ],
-            "by_growth": [
-                DistrictRankingItem(
-                    rank=1,
-                    trade_area_code="SHAROSU",
-                    trade_area_name="샤로수길",
-                    sales_formatted="+14.1%",
-                    sales_raw=14.1,
-                    is_current=(code == "SHAROSU"),
-                ),
-                DistrictRankingItem(
-                    rank=2,
-                    trade_area_code="SEONGSU",
-                    trade_area_name="성수동",
-                    sales_formatted="+12.4%",
-                    sales_raw=12.4,
-                    is_current=(code == "SEONGSU"),
-                ),
-                DistrictRankingItem(
-                    rank=3,
-                    trade_area_code="EULJIRO",
-                    trade_area_name="을지로3가",
-                    sales_formatted="+9.2%",
-                    sales_raw=9.2,
-                    is_current=False,
-                ),
-                DistrictRankingItem(
-                    rank=4,
-                    trade_area_code="HONGDAE",
-                    trade_area_name="홍대입구",
-                    sales_formatted="+6.8%",
-                    sales_raw=6.8,
-                    is_current=(code == "HONGDAE"),
-                ),
-                DistrictRankingItem(
-                    rank=5,
-                    trade_area_code="KONKUK",
-                    trade_area_name="건대입구",
-                    sales_formatted="+5.2%",
-                    sales_raw=5.2,
-                    is_current=(code == "KONKUK"),
-                ),
-            ],
-            "by_score": [
-                DistrictRankingItem(
-                    rank=1,
-                    trade_area_code="SEONGSU",
-                    trade_area_name="성수동",
-                    sales_formatted="82점",
-                    sales_raw=82,
-                    is_current=(code == "SEONGSU"),
-                ),
-                DistrictRankingItem(
-                    rank=2,
-                    trade_area_code="HONGDAE",
-                    trade_area_name="홍대입구",
-                    sales_formatted="78점",
-                    sales_raw=78,
-                    is_current=(code == "HONGDAE"),
-                ),
-                DistrictRankingItem(
-                    rank=3,
-                    trade_area_code="SHAROSU",
-                    trade_area_name="샤로수길",
-                    sales_formatted="74점",
-                    sales_raw=74,
-                    is_current=(code == "SHAROSU"),
-                ),
-                DistrictRankingItem(
-                    rank=4,
-                    trade_area_code="KONKUK",
-                    trade_area_name="건대입구",
-                    sales_formatted="71점",
-                    sales_raw=71,
-                    is_current=(code == "KONKUK"),
-                ),
-                DistrictRankingItem(
-                    rank=5,
-                    trade_area_code="GANGNAM",
-                    trade_area_name="강남역",
-                    sales_formatted="69점",
-                    sales_raw=69,
-                    is_current=(code == "GANGNAM"),
-                ),
-            ],
+            "by_sales": self._ranking_items(metrics_df, "sales", "sales", code, lookup),
+            "by_volume": self._ranking_items(metrics_df, "transaction_count", "transaction_count", code, lookup),
+            "by_growth": self._ranking_items(metrics_df, "growth_rate", "growth_rate", code, lookup),
+            "by_score": self._ranking_items(metrics_df, "exploration_score", "score", code, lookup),
         }
 
-        score = 82 if code == "SEONGSU" else (78 if code == "HONGDAE" else 74)
+        exploration_score = scoring.none_if_nan_round(row["exploration_score"])
         takeaway = {
-            "score": score,
-            "growth_tag": "매출 증가율 +++",
-            "volume_tag": "거래건수 +++",
-            "competition_tag": "경쟁 강도 -",
-            "summary": f"{ta_name}은 거래량과 매출 성장성은 높은 편이지만 동일 업종 경쟁도 강합니다.",
+            # ExplorationScore가 산출 불가(NaN)면 0점이 아니라 None + 안내 문구로 표시한다.
+            "score": exploration_score,
+            "score_note": None if exploration_score is not None else "일부 지표 부족으로 탐색 점수를 산출할 수 없습니다.",
+            "growth_tag": f"매출 성장률 {kpis.qoq_growth_rate:+.1f}%" if kpis.qoq_growth_rate is not None else "매출 성장률 산출 불가",
+            "volume_tag": f"거래건수 {kpis.transaction_count_formatted}",
+            "competition_tag": f"경쟁 여건 {kpis.competition_level or '정보 없음'}",
+            "summary": _build_insight(
+                scoring.grade_from_score(row["growth_score"]),
+                scoring.grade_from_score(row["transaction_score"]),
+                scoring.grade_from_score(row["competition_score"]),
+            ),
             "disclaimer": "실제 창업 성공 가능성을 의미하지 않는 데이터 기반 탐색 지표입니다.",
         }
 
@@ -428,13 +225,52 @@ class AnalyticsService:
             trade_area_name=ta_name,
             district=district_name,
             industry_code=industry_code,
-            industry_name="커피·음료",
+            industry_name=industry_name,
             quarter=quarter,
             kpis=kpis,
             why_explore=why_explore,
             rankings=rankings,
             takeaway=takeaway,
         )
+
+    def _ranking_items(
+        self,
+        metrics_df: pd.DataFrame,
+        sort_col: str,
+        value_kind: str,
+        current_code: str,
+        lookup: Dict[str, dict],
+        top_n: int = 5,
+    ) -> List[DistrictRankingItem]:
+        # growth_rate/exploration_score가 산출 불가(NaN)인 상권은 0으로 대체하지 않고
+        # 순위 후보에서 제외한다 (데이터 부족과 낮은 성과를 구분).
+        candidates = metrics_df.dropna(subset=[sort_col]) if sort_col in ("growth_rate", "exploration_score") else metrics_df
+        top = candidates.sort_values(sort_col, ascending=False).head(top_n)
+        items = []
+        for rank, (_, row) in enumerate(top.iterrows(), start=1):
+            ta = lookup.get(row["trdar_cd"], {})
+            if value_kind == "sales":
+                raw, formatted = row["sales"], _fmt_amount(row["sales"])
+            elif value_kind == "transaction_count":
+                raw, formatted = row["transaction_count"], _fmt_count(row["transaction_count"])
+            elif value_kind == "growth_rate":
+                raw = row["growth_rate"]
+                formatted = f"{raw:+.1f}%"
+            else:
+                raw = round(row["exploration_score"])
+                formatted = f"{raw}점"
+
+            items.append(
+                DistrictRankingItem(
+                    rank=rank,
+                    trade_area_code=row["trdar_cd"],
+                    trade_area_name=ta.get("trdar_cd_nm", row["trdar_cd"]),
+                    sales_formatted=formatted,
+                    sales_raw=float(raw),
+                    is_current=(row["trdar_cd"] == current_code),
+                )
+            )
+        return items
 
     async def get_patterns(
         self,
@@ -443,31 +279,38 @@ class AnalyticsService:
         quarter: str = "2025 Q4",
     ) -> DistrictPatternsResponse:
         code = trade_area_code.upper()
-        time_slots = await self.sales_repo.get_sales_by_time(
-            code, industry_code, quarter
-        )
-        demographics = await self.sales_repo.get_sales_by_age_gender(
-            code, industry_code, quarter
-        )
+        time_slots = await self.sales_repo.get_sales_by_time(code, industry_code, quarter)
+        demographics = await self.sales_repo.get_sales_by_age_gender(code, industry_code, quarter)
+        gender = await self.sales_repo.get_gender_split(code, industry_code, quarter)
         days = await self.sales_repo.get_sales_by_day(code, industry_code, quarter)
 
+        peak_slot = next((s["slot"] for s in time_slots if s["is_peak"]), None)
         when_data = {
-            "peak_slot": "17–21시",
-            "insight": "저녁 17–21시에 소비가 가장 집중됩니다.",
+            "peak_slot": peak_slot,
+            "insight": f"{peak_slot}에 소비가 가장 집중됩니다." if peak_slot else "시간대 데이터가 없습니다.",
             "slots": time_slots,
         }
 
+        primary_age = next((d for d in demographics if d["is_primary"]), None)
         who_data = {
-            "primary_target": "20대 여성",
-            "target_badge": "주요 고객층",
-            "insight": "20대 여성 소비 비중이 가장 높습니다.",
+            "primary_age_group": primary_age["age_group"] if primary_age else None,
+            "primary_age_percentage": primary_age["percentage"] if primary_age else None,
+            "gender": gender,
+            "insight": (
+                f"{primary_age['age_group']} 소비 비중이 가장 높습니다." if primary_age else "연령대 데이터가 없습니다."
+            ),
             "demographics": demographics,
         }
 
+        peak_day = next((d for d in days if d["is_peak"]), None)
         day_data = {
-            "peak_day": "금요일",
-            "peak_diff_badge": "+21%",
-            "insight": "금요일 매출이 주중 평균보다 21% 높습니다.",
+            "peak_day": peak_day["day"] if peak_day else None,
+            "peak_diff_badge": f"{peak_day['diff_from_average']:+d}%" if peak_day else None,
+            "insight": (
+                f"{peak_day['day']}요일 매출이 주중 평균보다 {peak_day['diff_from_average']:+d}% 높습니다."
+                if peak_day
+                else "요일 데이터가 없습니다."
+            ),
             "days": days,
         }
 
@@ -480,7 +323,20 @@ class AnalyticsService:
         quarter: str = "2025 Q4",
     ) -> DistrictCompetitionResponse:
         code = trade_area_code.upper()
-        return DistrictCompetitionResponse(trade_area_code=code)
+        metrics_df = await self._compute_metrics(quarter, industry_code)
+        matched = metrics_df[metrics_df["trdar_cd"] == code] if not metrics_df.empty else metrics_df
+        if matched.empty:
+            return DistrictCompetitionResponse(trade_area_code=code)
+
+        row = matched.iloc[0]
+        competition_grade = scoring.grade_from_score(row["competition_score"])
+        return DistrictCompetitionResponse(
+            trade_area_code=code,
+            competition_level=competition_grade,
+            sales_level=scoring.grade_from_score(100 - row["sales_percentile"]),
+            volume_level=scoring.grade_from_score(100 - row["volume_percentile"]),
+            warning_text=_build_warning(competition_grade),
+        )
 
     async def get_compare(
         self,
@@ -488,90 +344,57 @@ class AnalyticsService:
         industry_code: str = "CS100010",
         quarter: str = "2025 Q4",
     ) -> List[CompareDistrictData]:
-        all_districts = {
-            "SEONGSU": CompareDistrictData(
-                trade_area_code="SEONGSU",
-                trade_area_name="성수동",
-                district="성동구",
-                exploration_score=82,
-                estimated_sales_formatted="12.8억",
-                estimated_sales=1280000000,
-                transaction_count_formatted="45만",
-                transaction_count=450000,
-                growth_rate=12.4,
-                strongest_age_group="20대 여성 (45%)",
-                strongest_time_period="17–21시 (36%)",
-                strongest_day="금요일 (+21%)",
-                competition_level="매우 높음",
-                key_insight="트렌드 리딩 및 높은 매출 성장, 출점 과밀 주의",
-            ),
-            "HONGDAE": CompareDistrictData(
-                trade_area_code="HONGDAE",
-                trade_area_name="홍대입구",
-                district="마포구",
-                exploration_score=78,
-                estimated_sales_formatted="16.2억",
-                estimated_sales=1620000000,
-                transaction_count_formatted="58만",
-                transaction_count=580000,
-                growth_rate=6.8,
-                strongest_age_group="20대 남녀 (52%)",
-                strongest_time_period="18–22시 (38%)",
-                strongest_day="토요일 (+34%)",
-                competition_level="매우 높음",
-                key_insight="압도적 유동 거래량, 심야 및 주말 집중",
-            ),
-            "SHAROSU": CompareDistrictData(
-                trade_area_code="SHAROSU",
-                trade_area_name="샤로수길",
-                district="관악구",
-                exploration_score=74,
-                estimated_sales_formatted="7.4억",
-                estimated_sales=740000000,
-                transaction_count_formatted="28만",
-                transaction_count=280000,
-                growth_rate=14.1,
-                strongest_age_group="20대 1인가구 (48%)",
-                strongest_time_period="18–21시 (32%)",
-                strongest_day="금요일 (+18%)",
-                competition_level="보통",
-                key_insight="가장 높은 성장률(+14.1%), 상대적 경쟁 부담 완만",
-            ),
-            "KONKUK": CompareDistrictData(
-                trade_area_code="KONKUK",
-                trade_area_name="건대입구",
-                district="광진구",
-                exploration_score=71,
-                estimated_sales_formatted="8.9억",
-                estimated_sales=890000000,
-                transaction_count_formatted="32만",
-                transaction_count=320000,
-                growth_rate=5.2,
-                strongest_age_group="20대 학생 (50%)",
-                strongest_time_period="17–21시 (34%)",
-                strongest_day="금/토 (+16%)",
-                competition_level="높음",
-                key_insight="대학생 배후 수요 안정적, 저녁 시간대 집중",
-            ),
-            "GANGNAM": CompareDistrictData(
-                trade_area_code="GANGNAM",
-                trade_area_name="강남역",
-                district="강남구",
-                exploration_score=69,
-                estimated_sales_formatted="18.5억",
-                estimated_sales=1850000000,
-                transaction_count_formatted="62만",
-                transaction_count=620000,
-                growth_rate=2.1,
-                strongest_age_group="30대 직장인 (46%)",
-                strongest_time_period="11–14시 (38%)",
-                strongest_day="목/금 (+14%)",
-                competition_level="매우 높음",
-                key_insight="서울 최대 거래 규모이나 대형 프랜차이즈 과밀",
-            ),
-        }
+        codes = [c.upper() for c in trade_area_codes] if trade_area_codes else []
+        if not codes:
+            return []
 
-        codes = (
-            trade_area_codes if trade_area_codes else ["SEONGSU", "HONGDAE", "SHAROSU"]
-        )
-        return [all_districts.get(c.upper(), all_districts["SEONGSU"]) for c in codes]
+        metrics_df = await self._compute_metrics(quarter, industry_code)
+        lookup = await self._trade_area_lookup()
+
+        results = []
+        for code in codes:
+            matched = metrics_df[metrics_df["trdar_cd"] == code] if not metrics_df.empty else metrics_df
+            if matched.empty:
+                continue
+            row = matched.iloc[0]
+            ta = lookup.get(code, {})
+
+            demographics = await self.sales_repo.get_sales_by_age_gender(code, industry_code, quarter)
+            primary_age = next((d for d in demographics if d["is_primary"]), None)
+            time_slots = await self.sales_repo.get_sales_by_time(code, industry_code, quarter)
+            peak_slot = next((s for s in time_slots if s["is_peak"]), None)
+            days = await self.sales_repo.get_sales_by_day(code, industry_code, quarter)
+            peak_day = next((d for d in days if d["is_peak"]), None)
+
+            competition_grade = scoring.grade_from_score(row["competition_score"])
+
+            results.append(
+                CompareDistrictData(
+                    trade_area_code=code,
+                    trade_area_name=ta.get("trdar_cd_nm", code),
+                    district=ta.get("signgu_cd_nm") or "-",
+                    exploration_score=scoring.none_if_nan_round(row["exploration_score"]),
+                    estimated_sales_formatted=_fmt_amount(row["sales"]),
+                    estimated_sales=int(row["sales"]),
+                    transaction_count_formatted=_fmt_count(row["transaction_count"]),
+                    transaction_count=int(row["transaction_count"]),
+                    growth_rate=scoring.none_if_nan(row["growth_rate"]),
+                    strongest_age_group=(
+                        f"{primary_age['age_group']} ({primary_age['percentage']}%)" if primary_age else "-"
+                    ),
+                    strongest_time_period=(
+                        f"{peak_slot['slot']} ({peak_slot['percentage']}%)" if peak_slot else "-"
+                    ),
+                    strongest_day=(
+                        f"{peak_day['day']} ({peak_day['diff_from_average']:+d}%)" if peak_day else "-"
+                    ),
+                    competition_level=competition_grade,
+                    key_insight=_build_insight(
+                        scoring.grade_from_score(row["growth_score"]),
+                        scoring.grade_from_score(row["transaction_score"]),
+                        competition_grade,
+                    ),
+                )
+            )
+
+        return results
