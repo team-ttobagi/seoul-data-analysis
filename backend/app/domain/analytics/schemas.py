@@ -51,7 +51,7 @@ class RecommendationComponents(BaseModel):
 
 
 class RecommendationItemResponse(BaseModel):
-    rank: int = Field(description="선택 지역의 추천 목록에서 ExplorationScore 내림차순으로 부여한 1부터 시작하는 표시 순번. 최대 5개이며 동점에도 연속 순번을 부여한다.")
+    rank: int = Field(description="선택 지역·검색어 조건의 추천 목록에서 ExplorationScore 내림차순으로 부여한 1부터 시작하는 표시 순번. 최대 100개이며 동점에도 연속 순번을 부여한다.")
     trade_area_code: str = Field(description="추천 상권 코드. 상권 상세 조회와 비교 API의 trade_area_code로 사용한다.")
     trade_area_name: str = Field(description="추천 카드에 표시할 상권명. 상권 메타데이터가 없으면 상권 코드를 표시한다.")
     district: str = Field(description="상권이 속한 서울 자치구명. 자치구 정보가 없으면 '-'를 반환한다.")
