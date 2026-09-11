@@ -31,6 +31,7 @@ def _register_all_models() -> None:
     from backend.app.domain.industry import models as _industry_models  # noqa: F401
     from backend.app.domain.sales import models as _sales_models  # noqa: F401
     from backend.app.domain.district import models as _district_models  # noqa: F401
+    from backend.app.domain.store import models as _store_models  # noqa: F401
 
 
 _register_all_models()

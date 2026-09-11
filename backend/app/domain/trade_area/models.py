@@ -8,6 +8,7 @@ from backend.app.core.database import Base
 if TYPE_CHECKING:
     from backend.app.domain.district.models import DistrictModel
     from backend.app.domain.sales.models import SalesDataModel
+    from backend.app.domain.store.models import StoreModel
 
 
 class TradeAreaTypeModel(Base):
@@ -49,5 +50,9 @@ class TradeAreaModel(Base):
     )
     sales_data: Mapped[List["SalesDataModel"]] = relationship(
         "SalesDataModel",
+        back_populates="trade_area",
+    )
+    store_data: Mapped[List["StoreModel"]] = relationship(
+        "StoreModel",
         back_populates="trade_area",
     )

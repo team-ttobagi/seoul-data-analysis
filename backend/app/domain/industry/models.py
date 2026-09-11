@@ -7,6 +7,7 @@ from backend.app.core.database import Base
 
 if TYPE_CHECKING:
     from backend.app.domain.sales.models import SalesDataModel
+    from backend.app.domain.store.models import StoreModel
 
 
 class ServiceIndustryModel(Base):
@@ -17,5 +18,9 @@ class ServiceIndustryModel(Base):
 
     sales_data: Mapped[List["SalesDataModel"]] = relationship(
         "SalesDataModel",
+        back_populates="service_industry",
+    )
+    store_data: Mapped[List["StoreModel"]] = relationship(
+        "StoreModel",
         back_populates="service_industry",
     )
