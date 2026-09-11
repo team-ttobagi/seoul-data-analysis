@@ -40,14 +40,23 @@ async def get_recommendations(
         "서울 전체", description="추천 후보를 제한할 자치구명. 자치구명과 완전히 일치해야 하며 서울 전체 또는 빈 문자열이면 지역을 제한하지 않습니다. 점수 산출 기준은 서울 전체입니다.",
         examples=["서울 전체", "성동구"],
     ),
+    keyword: Optional[str] = Query(
+        None, description="상권명 부분 검색어. 값이 있으면 상권명(trdar_cd_nm)에 대소문자 구분 없이 일부라도 포함된 상권만 후보로 남깁니다. region 필터와 함께 적용됩니다.",
+        examples=["역", "시장"],
+    ),
     service: AnalyticsService = Depends(get_analytics_service),
 ):
-    """선택한 업종·분기·지역에서 ExplorationScore가 높은 상권을 최대 5개 반환합니다.
+    """선택한 업종·분기·지역·검색어에서 ExplorationScore가 높은 상권을 최대 100개 반환합니다.
 
-    메인 탐색 화면의 '먼저 살펴볼 상권' 카드에 순위, 점수, 지표별 신호,
-    근거 지표와 인사이트를 제공합니다. 동일 분기·동일 업종의 서울 전체 상권으로
-    점수와 Benchmark Percentile을 산출한 후 자치구명으로 후보를 제한합니다.
-    지역을 바꾸어도 해당 지역만으로 점수를 다시 정규화하지 않습니다.
+    메인 탐색 화면의 '먼저 살펴볼 상권' 카드(장바구니에 담을 후보 목록)에
+    순위, 점수, 지표별 신호, 근거 지표와 인사이트를 제공합니다. 동일 분기·동일
+    업종의 서울 전체 상권으로 점수와 Benchmark Percentile을 산출한 후 자치구명과
+    검색어로 후보를 제한합니다. 지역이나 검색어를 바꾸어도 해당 후보만으로
+    점수를 다시 정규화하지 않습니다.
+
+    keyword는 상권명(trdar_cd_nm)에 대소문자 구분 없이 일부라도 포함되면 매치되는
+    부분일치 검색입니다. 값을 생략하면 검색어 조건 없이 region 기준 후보 전체를
+    반환합니다.
 
     ExplorationScore는 `GrowthScore × 0.40 + TransactionScore × 0.35 + CompetitionScore × 0.25`이며,
     높을수록 탐색 우선순위가 높습니다.
@@ -56,11 +65,12 @@ async def get_recommendations(
     CompetitionScore는 매출·거래 기반의 경쟁 환경 Proxy로, 높을수록 긍정적입니다.
 
     ExplorationScore를 산출할 수 없는 상권은 후보에서 제외하고, 산출 가능한
-    점수의 내림차순으로 순위를 부여합니다. 조회된 데이터나 조건에 맞는 후보가
-    없으면 404 대신 빈 목록을 반환합니다. warning은 경쟁 여건이 '낮음'일 때만
-    제공하며 그 외에는 null입니다. 점수는 실제 창업 성공 가능성을 의미하지 않습니다.
+    점수의 내림차순으로 순위(1부터 시작)를 부여합니다. 상위 100개를 넘는 후보는
+    잘라내며, 조회된 데이터나 조건에 맞는 후보가 없으면 404 대신 빈 목록을
+    반환합니다. warning은 경쟁 여건이 '낮음'일 때만 제공하며 그 외에는 null입니다.
+    점수는 실제 창업 성공 가능성을 의미하지 않습니다.
     """
-    return await service.get_recommendations(industry_code, quarter, region)
+    return await service.get_recommendations(industry_code, quarter, region, keyword)
 
 
 @router.get("/trade-areas/{trade_area_code}/overview", response_model=DistrictOverviewResponse)

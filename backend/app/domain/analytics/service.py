@@ -84,6 +84,7 @@ class AnalyticsService:
         industry_code: str = "CS100010",
         quarter: str = "2025 Q4",
         region: Optional[str] = "서울 전체",
+        keyword: Optional[str] = None,
     ) -> List[RecommendationItemResponse]:
         metrics_df = await self._compute_metrics(quarter, industry_code)
         if metrics_df.empty:
@@ -97,10 +98,19 @@ class AnalyticsService:
             }
             metrics_df = metrics_df[metrics_df["trdar_cd"].isin(valid_codes)]
 
+        if keyword:
+            needle = keyword.strip().lower()
+            matching_codes = {
+                code
+                for code, ta in lookup.items()
+                if needle in (ta.get("trdar_cd_nm") or "").lower()
+            }
+            metrics_df = metrics_df[metrics_df["trdar_cd"].isin(matching_codes)]
+
         # ExplorationScore가 산출 불가(NaN)인 상권은 "낮은 점수"가 아니라 "데이터 부족"이므로
         # 추천 후보에서 아예 제외한다 (0점으로 강등시키지 않는다).
         scored = metrics_df.dropna(subset=["exploration_score"])
-        top = scored.sort_values("exploration_score", ascending=False).head(5)
+        top = scored.sort_values("exploration_score", ascending=False).head(100)
 
         results = []
         for rank, (_, row) in enumerate(top.iterrows(), start=1):
