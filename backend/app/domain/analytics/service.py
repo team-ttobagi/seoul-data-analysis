@@ -102,9 +102,13 @@ class AnalyticsService:
         )
 
     async def _compute_metrics(self, quarter: str, industry_code: str) -> pd.DataFrame:
-        rows = await self.sales_repo.get_metrics_rows(quarter, industry_code)
-        diversity_rows = await self.sales_repo.get_diversity_rows(quarter)
-        return scoring.build_metrics_dataframe(rows, diversity_rows)
+        """모든 분석 화면에서 SalesRepository의 통합 점수 집단을 재사용한다.
+
+        계산을 이 저장소 경계 안에서 처리하면 overview, competition, compare,
+        recommendations가 /sales/summary에서 사용하는 CompetitionScore와 달라지는
+        문제를 방지할 수 있다.
+        """
+        return await self.sales_repo.get_metrics_dataframe(quarter, industry_code)
 
     async def _trade_area_lookup(self) -> Dict[str, dict]:
         trade_areas = await self.trade_area_repo.get_all()

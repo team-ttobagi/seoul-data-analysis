@@ -68,7 +68,9 @@ async def get_recommendations(
     높을수록 탐색 우선순위가 높습니다.
     GrowthScore는 QoQ 매출 성장률을 P5~P95로 제한한 뒤 정규화한 점수,
     TransactionScore는 현재 거래건수에 로그 변환과 정규화를 적용한 점수입니다.
-    CompetitionScore는 매출·거래 기반의 경쟁 환경 Proxy로, 높을수록 긍정적입니다.
+    CompetitionScore는 점포 수 50% + 점포당 거래건수 30% + 폐업률 20%로,
+    동일 분기·업종의 서울 상권 집단 내에서 Min-Max 정규화합니다. 같은 업종 점포가
+    적고, 점포당 거래건수가 많으며, 폐업률이 낮을수록 경쟁 여건 점수가 높습니다.
 
     ExplorationScore를 산출할 수 없는 상권은 후보에서 제외하고, 산출 가능한
     점수의 내림차순으로 순위(1부터 시작)를 부여합니다. 상위 100개를 넘는 후보는
@@ -113,7 +115,7 @@ async def get_district_overview(
     takeaway.score는 `GrowthScore × 0.40 + TransactionScore × 0.35 + CompetitionScore × 0.25`인
     ExplorationScore를 반올림한 값입니다.
     구성 점수가 부족하면 null이며 score_note로 산출 불가 사유를 안내합니다.
-    CompetitionScore는 실제 점포 수 대신 경쟁 환경을 간접 추정한 Proxy입니다.
+    CompetitionScore는 점포 수·점포당 거래건수·폐업률을 동일 분기·업종 상권 간에 비교한 상대 점수입니다.
     """
     return await service.get_overview(trade_area_code, industry_code, quarter)
 
@@ -160,7 +162,7 @@ async def get_district_competition(
         examples=["CS100010"],
     ),
     quarter: str = Query(
-        "2025 Q4", description="경쟁 여건 분석 분기. YYYY Qn 형식이며 성장 균형 계산에는 직전 분기의 매출·거래 데이터도 필요합니다.",
+        "2025 Q4", description="경쟁 여건 분석 분기. YYYY Qn 형식이며 해당 분기의 매출 거래건수와 점포 데이터를 사용합니다.",
         examples=["2025 Q4"],
     ),
     service: AnalyticsService = Depends(get_analytics_service),
@@ -169,10 +171,9 @@ async def get_district_competition(
 
     선택한 상권·업종·분기의 CompetitionScore를 같은 분기·같은 업종의 서울
     전체 상권과 비교해 산출합니다. CompetitionScore는
-    `TicketScore × 0.50 + GrowthBalanceScore × 0.30 + DemandDiversityScore × 0.20`으로 계산하는
-    경쟁 환경 Proxy입니다. DemandDiversityScore에는 해당 분기의 상권별 전체
-    업종 매출 분포를 사용합니다. 실제 경쟁 점포 수를 의미하지 않으며,
-    '높음'일수록 경쟁 여건이 상대적으로 긍정적입니다.
+    `StoreCountScore × 0.50 + DemandPerStoreScore × 0.30 + ClosingRateScore × 0.20`으로
+    계산합니다. 점포 수와 폐업률은 역 Min-Max, 점포당 거래건수는 정 Min-Max하며,
+    같은 업종 점포가 적고 점포당 거래건수가 많으며 폐업률이 낮을수록 점수가 높습니다.
 
     competition_level은 CompetitionScore가 70 이상이면 '높음',
     40 이상 70 미만이면 '보통', 40 미만이면 '낮음'입니다.
@@ -181,8 +182,8 @@ async def get_district_competition(
     warning_text는 competition_level이 '낮음'일 때만 제공하고 그 외에는 null입니다.
 
     매출 데이터가 조회되지 않으면 404 대신 상권 코드와 나머지 필드가 null인
-    객체를 반환합니다. 매출은 있어도 전분기 데이터 부재, 거래건수 0 또는
-    구성 지표 부족으로 CompetitionScore를 산출할 수 없으면 competition_level은 null입니다.
+    객체를 반환합니다. 매출은 있어도 점포 데이터·폐업률이 없거나 점포 수가 0 이하여
+    CompetitionScore를 산출할 수 없으면 competition_level은 null입니다.
     현재 분기 점포 데이터가 없으면 store_count를 null로, 직전 분기 점포 데이터가 없으면
     qoq_store_change를 null로 반환합니다.
     """
@@ -211,15 +212,16 @@ async def get_compare_districts(
     공통 적용합니다. 점수는 선택 목록 내부가 아니라 동일 분기·동일 업종의
     서울 전체 상권을 기준으로 계산합니다. exploration_score는
     GrowthScore × 0.40 + TransactionScore × 0.35 + CompetitionScore × 0.25인
-    ExplorationScore의 반올림 값이며, CompetitionScore는 경쟁 환경 Proxy입니다.
+    ExplorationScore의 반올림 값입니다. CompetitionScore는 점포 수 50% + 점포당
+    거래건수 30% + 폐업률 20%로 계산한 동일 분기·업종 내 상대 점수입니다.
 
     상권 코드는 쉼표로 분리한 뒤 앞뒤 공백과 빈 항목을 제거하고 대문자로 조회합니다.
     입력 순서를 유지하며 중복 코드는 중복 결과로 반환합니다. 해당 업종·분기의
     매출 데이터가 없는 코드는 404 대신 목록에서 제외하고, 조회 가능한 코드가
     없으면 빈 목록을 반환합니다. 현재 서버는 비교 상권 수를 제한하지 않습니다.
 
-    전분기 매출이 없거나 0 이하이면 growth_rate는 null이며, 구성 지표가
-    부족하면 exploration_score와 competition_level은 null일 수 있습니다.
+    전분기 매출이 없거나 0 이하이면 growth_rate는 null이며, 점포 데이터·폐업률이
+    없거나 점포 수가 0 이하이면 exploration_score와 competition_level은 null일 수 있습니다.
     주요 연령대·시간대·요일을 찾을 수 없는 경우 해당 표시 문자열은 '-'입니다.
     매출 데이터가 있는 비교 대상 중 현재 분기 점포 데이터가 없으면 store_count를 null로,
     직전 분기 점포 데이터가 없으면 store_count_change를 null로 반환합니다.
