@@ -104,6 +104,14 @@ class DistrictKpis(BaseModel):
         ),
     )
     volume_percentile: int = Field(description="동일 분기·업종의 서울 상권 중 거래건수 기준 상위 N%. 내림차순 최소 순위 / 비교 대상 수 × 100을 반올림하며 작을수록 거래건수 상위권이다.")
+    store_count: Optional[int] = Field(
+        default=None,
+        description="선택한 분기·상권·업종의 현재 분기 동일 업종 점포 수(개). 현재 분기 점포 데이터가 없으면 null이다.",
+    )
+    store_count_change: Optional[int] = Field(
+        default=None,
+        description="동일 업종 점포 수의 전분기 대비 증감 수(개). 현재 또는 직전 분기 점포 데이터가 없으면 null이다.",
+    )
     competition_level: Optional[str] = Field(
         default=None,
         description=(
@@ -160,6 +168,7 @@ class DistrictOverviewResponse(BaseModel):
         description=(
             "상세 화면의 탐색 이유. growth_rate는 QoQ 매출 성장률(%), growth_percentile은 성장률 상위 N%, "
             "volume_formatted는 축약한 거래건수, volume_percentile은 거래건수 상위 N%이며 kpis와 같은 값이다. "
+            "store_count는 동일 업종 점포 수(개), competition_text는 경쟁 여건 등급 표시 문구이다. "
             "직전 분기 데이터가 없거나 매출이 0 이하이면 growth_rate와 growth_percentile은 null이다."
         ),
     )
@@ -247,6 +256,14 @@ class DistrictPatternsResponse(BaseModel):
 
 class DistrictCompetitionResponse(BaseModel):
     trade_area_code: str = Field(description="경쟁 여건 분석 대상 상권 코드. 분석 데이터가 없어도 요청 코드를 대문자로 반환한다.")
+    store_count: Optional[int] = Field(
+        default=None,
+        description="선택한 분기·상권·업종의 현재 분기 동일 업종 점포 수(개). 현재 분기 점포 데이터가 없으면 null이다.",
+    )
+    qoq_store_change: Optional[int] = Field(
+        default=None,
+        description="동일 업종 점포 수의 전분기 대비 증감 수(개). 현재 또는 직전 분기 점포 데이터가 없으면 null이다.",
+    )
     competition_level: Optional[str] = Field(
         default=None,
         description=(
@@ -289,6 +306,14 @@ class CompareDistrictData(BaseModel):
     growth_rate: Optional[float] = Field(
         default=None,
         description="QoQ 매출 성장률(%). overview의 kpis.qoq_growth_rate와 같은 계산값이며, 직전 분기 데이터가 없거나 매출이 0 이하이면 null이다.",
+    )
+    store_count: Optional[int] = Field(
+        default=None,
+        description="비교 대상 상권의 현재 분기·업종별 동일 업종 점포 수(개). 현재 분기 점포 데이터가 없으면 null이다.",
+    )
+    store_count_change: Optional[int] = Field(
+        default=None,
+        description="비교 대상 상권의 동일 업종 점포 수 전분기 대비 증감 수(개). 현재 또는 직전 분기 점포 데이터가 없으면 null이다.",
     )
     strongest_age_group: str = Field(description="최대 매출 연령대와 AgeShare를 '20대 (45%)'처럼 표시한 값. 동률이면 연령대 순서상 첫 항목이며, 연령대 데이터를 조회할 수 없으면 '-'이다.")
     strongest_time_period: str = Field(description="최대 매출 시간대(PeakTime)와 TimeShare를 '17-21시 (36%)'처럼 표시한 값. 동률이면 시간대 순서상 첫 항목이며, 시간대 데이터를 조회할 수 없으면 '-'이다.")
