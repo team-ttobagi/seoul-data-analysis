@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def _normalize_quarter(quarter: str) -> str:
-    """Convert 'YYYY Q#' (API-facing) into the DB's 'YYYYQ#' code, e.g. '2025 Q4' -> '20254'."""
+    """API에서 사용하는 'YYYY Q#' 형식을 DB의 'YYYYQ#' 분기 코드로 변환한다. 예: '2025 Q4' -> '20254'."""
     match = re.match(r"\s*(\d{4})\s*[Qq]?\s*(\d)\s*$", quarter)
     if match:
         return f"{match.group(1)}{match.group(2)}"
@@ -32,9 +32,11 @@ class SalesRepository:
     async def get_sales_summary(
         self, trade_area_code: str, industry_code: str, quarter: str
     ) -> Optional[dict]:
-        """Same composite pipeline as AnalyticsService (get_metrics_dataframe), so
-        seoul_rank/percentiles here match /trade-areas/{code}/overview exactly rather
-        than each endpoint defining its own notion of 'rank'."""
+        """AnalyticsService와 동일한 통합 점수 파이프라인을 사용한다.
+
+        따라서 이 메서드의 seoul_rank와 percentile은 /trade-areas/{code}/overview와
+        동일하며, 엔드포인트마다 순위 정의를 별도로 계산하지 않는다.
+        """
         code = trade_area_code.upper()
         metrics_df = await self.get_metrics_dataframe(quarter, industry_code)
         if metrics_df.empty:
@@ -90,8 +92,7 @@ class SalesRepository:
     async def get_sales_by_age_gender(
         self, trade_area_code: str, industry_code: str, quarter: str
     ) -> List[dict]:
-        """Age-group sales share only. DB has no age x gender cross data, so gender
-        is reported separately via get_gender_split() rather than combined per group."""
+        """연령대별 매출 비중만 계산한다."""
         row = await self._get_raw_row(trade_area_code, industry_code, quarter)
         if not row:
             return []
@@ -158,24 +159,35 @@ class SalesRepository:
             {
                 "day": day,
                 "percentage": round(amount / total * 100),
-                "diff_from_average": round((amount - average) / average * 100) if average else 0,
+                "diff_from_average": (
+                    round((amount - average) / average * 100) if average else 0
+                ),
                 "is_peak": amount == peak_amount,
             }
             for day, amount in days
         ]
 
-    async def get_metrics_dataframe(self, quarter: str, industry_code: str) -> pd.DataFrame:
-        """The single computed score table for a quarter+industry population — every
-        endpoint that needs sales/growth/competition scores for trade areas (get_sales_summary,
-        AnalyticsService.overview/competition/compare/recommendations) calls this, so they
-        all see the same numbers instead of each recomputing rank/percentile independently."""
+    async def get_metrics_dataframe(
+        self, quarter: str, industry_code: str
+    ) -> pd.DataFrame:
+        """분기·업종 비교 집단의 통합 점수 테이블을 계산한다.
+
+        매출·성장·경쟁 점수가 필요한 모든 엔드포인트(get_sales_summary,
+        AnalyticsService의 overview/competition/compare/recommendations)가 이 메서드를
+        호출하므로, 엔드포인트마다 순위와 percentile을 재계산하지 않고 동일한 결과를
+        사용한다.
+        """
         rows = await self.get_metrics_rows(quarter, industry_code)
-        diversity_rows = await self.get_diversity_rows(quarter)
-        return scoring.build_metrics_dataframe(rows, diversity_rows)
+        return scoring.build_metrics_dataframe(rows)
 
     async def get_metrics_rows(self, quarter: str, industry_code: str) -> List[dict]:
-        """Current + previous quarter sales/transaction per trade area, for the given
-        quarter+industry population. Feeds scoring.py's score pipeline."""
+        """점수 계산에 사용하는 동일 분기·업종 전체 상권 집단을 조회한다.
+
+        현재 분기 매출 행에 직전 분기 매출과 현재 분기 점포 데이터를 LEFT JOIN한다.
+        LEFT JOIN을 사용해 점포 데이터가 없는 상권도 유지하며, 점수 계산에서 해당
+        상권의 CompetitionScore를 0점으로 바꾸거나 조용히 제외하지 않고 NaN으로
+        처리할 수 있게 한다.
+        """
         if not self.session:
             return []
 
@@ -183,22 +195,26 @@ class SalesRepository:
         prev_quarter_code = _previous_quarter(quarter_code)
 
         try:
-            stmt = text(
-                """
+            stmt = text("""
                 SELECT
                     cur.trdar_cd AS trdar_cd,
                     cur.thsmon_selng_amt AS sales,
                     cur.thsmon_selng_co AS transaction_count,
                     prev.thsmon_selng_amt AS prev_sales,
-                    prev.thsmon_selng_co AS prev_transaction_count
+                    prev.thsmon_selng_co AS prev_transaction_count,
+                    stores.similr_induty_stor_co AS store_count,
+                    stores.clsbiz_rt AS closing_rate
                 FROM sales_data cur
                 LEFT JOIN sales_data prev
                     ON prev.trdar_cd = cur.trdar_cd
                     AND prev.svc_induty_cd = cur.svc_induty_cd
                     AND prev.stdr_yyqu_cd = :prev_quarter_code
+                LEFT JOIN store_data stores
+                    ON stores.trdar_cd = cur.trdar_cd
+                    AND stores.svc_induty_cd = cur.svc_induty_cd
+                    AND stores.stdr_yyqu_cd = cur.stdr_yyqu_cd
                 WHERE cur.svc_induty_cd = :industry_code AND cur.stdr_yyqu_cd = :quarter_code
-                """
-            )
+                """)
             result = await self.session.execute(
                 stmt,
                 {
@@ -212,28 +228,6 @@ class SalesRepository:
             logger.exception("Failed to load sales metrics from DB")
             return []
 
-    async def get_diversity_rows(self, quarter: str) -> List[dict]:
-        """Every industry's sales per trade area for the quarter (no industry filter),
-        used to compute HHI-based demand diversity independent of the selected industry."""
-        if not self.session:
-            return []
-
-        quarter_code = _normalize_quarter(quarter)
-
-        try:
-            stmt = text(
-                """
-                SELECT trdar_cd, svc_induty_cd, thsmon_selng_amt AS sales
-                FROM sales_data
-                WHERE stdr_yyqu_cd = :quarter_code
-                """
-            )
-            result = await self.session.execute(stmt, {"quarter_code": quarter_code})
-            return [dict(row) for row in result.mappings().all()]
-        except Exception:
-            logger.exception("Failed to load diversity rows from DB")
-            return []
-
     async def _get_raw_row(
         self, trade_area_code: str, industry_code: str, quarter: str
     ) -> Optional[Dict]:
@@ -241,12 +235,10 @@ class SalesRepository:
             return None
 
         try:
-            stmt = text(
-                """
+            stmt = text("""
                 SELECT * FROM sales_data
                 WHERE trdar_cd = :trade_area_code AND svc_induty_cd = :industry_code AND stdr_yyqu_cd = :quarter_code
-                """
-            )
+                """)
             result = await self.session.execute(
                 stmt,
                 {

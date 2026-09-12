@@ -31,8 +31,16 @@ class SalesDataModel(Base):
         back_populates="sales_data",
     )
 
-    thsmon_selng_amt: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    thsmon_selng_co: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    thsmon_selng_amt: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+        comment="원천 필드명은 당월 매출 금액이나 실제 값은 분기당 매출 금액",
+    )
+    thsmon_selng_co: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+        comment="원천 필드명은 당월 매출 건수이나 실제 값은 분기당 매출 거래건수",
+    )
     mdwk_selng_amt: Mapped[int] = mapped_column(BigInteger, nullable=False)
     wkend_selng_amt: Mapped[int] = mapped_column(BigInteger, nullable=False)
     mdwk_selng_co: Mapped[int] = mapped_column(BigInteger, nullable=False)

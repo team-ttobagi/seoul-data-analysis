@@ -7,13 +7,13 @@ class SalesSummarySchema(BaseModel):
     trade_area_code: str = Field(description="매출을 조회한 상권 코드. 요청값의 영문을 대문자로 변환한 값입니다.")
     industry_code: str = Field(description="매출을 조회한 서비스 업종 코드(svc_induty_cd).")
     estimated_sales: int = Field(
-        description="선택한 분기·상권·업종의 추정 매출액(원). 원천 데이터의 thsmon_selng_amt입니다.",
+        description="선택한 분기·상권·업종의 분기 추정 매출액(원). 원천 필드명은 thsmon_selng_amt이며, 실제 의미는 분기당 매출 금액입니다.",
     )
     estimated_sales_formatted: str = Field(
         description="매출액 표시 문자열. 1억 원 이상은 억, 1만 원 이상은 만 단위로 축약하며 원 접미사는 포함하지 않습니다.",
     )
     transaction_count: int = Field(
-        description="선택한 분기·상권·업종의 거래건수(건). 원천 데이터의 thsmon_selng_co입니다.",
+        description="선택한 분기·상권·업종의 분기 거래건수(건). 원천 필드명은 thsmon_selng_co이며, 실제 의미는 분기당 매출 거래건수입니다.",
     )
     transaction_count_formatted: str = Field(
         description="거래건수 표시 문자열. 1만 건 이상은 만 단위로 축약하며 건 접미사는 포함하지 않습니다.",
@@ -30,7 +30,7 @@ class SalesSummarySchema(BaseModel):
         description=(
             "동일 분기·동일 업종의 서울 종합 순위. 매출·성장·거래건수·CompetitionScore의 "
             "4개 Benchmark Percentile 평균이 낮을수록 상위이며 동점은 같은 순위입니다. "
-            "전분기 매출·거래건수 부재 또는 0 이하, 현재 거래건수 0 이하, 업종별 매출 분포 부재 등으로 "
+            "전분기 매출 부재 또는 0 이하, 점포 데이터·폐업률 부재, 점포 수 0 이하 등으로 "
             "필요한 Percentile을 산출하지 못하면 null입니다."
         ),
     )
