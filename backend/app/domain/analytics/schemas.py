@@ -8,7 +8,7 @@ class ScoreComponent(BaseModel):
         description=(
             "구성 지표의 값. sales_growth는 QoQ 매출 성장률(%), transaction_volume은 거래건수(건), "
             "competition은 CompetitionScore(점)이다. 전분기 매출이 없거나 0 이하이면 성장률이, "
-            "객단가·성장 균형·수요 다양성 중 필요한 값이 없으면 CompetitionScore가 null이다. "
+            "점포 데이터·폐업률이 없거나 점포 수가 0 이하이면 CompetitionScore가 null이다. "
             "현재 추천 API는 ExplorationScore 산출이 가능한 상권만 반환한다."
         ),
     )
@@ -16,7 +16,8 @@ class ScoreComponent(BaseModel):
         default=None,
         description=(
             "구성 지표의 0~100점 점수를 반올림한 값. sales_growth는 GrowthScore, "
-            "transaction_volume은 TransactionScore, competition은 CompetitionScore이며 높을수록 긍정적이다. "
+            "transaction_volume은 TransactionScore, competition은 CompetitionScore이며, 각 점수가 높을수록 "
+            "각각 성장성·거래 활성도·경쟁 여건이 상대적으로 우수하다는 의미다. "
             "성장률·거래건수 또는 경쟁 점수 구성 지표가 부족해 해당 점수를 산출할 수 없으면 null이다."
         ),
     )
@@ -43,9 +44,10 @@ class RecommendationComponents(BaseModel):
     )
     competition: ScoreComponent = Field(
         description=(
-            "CompetitionScore와 해당 Benchmark Percentile. TicketScore × 0.50 + GrowthBalanceScore × 0.30 "
-            "+ DemandDiversityScore × 0.20으로 산출하는 경쟁 환경 Proxy이며 실제 경쟁 점포 수가 아니다. "
-            "높을수록 경쟁 여건이 상대적으로 긍정적이다."
+            "CompetitionScore와 해당 Benchmark Percentile. StoreCountScore × 0.50 + "
+            "DemandPerStoreScore × 0.30 + ClosingRateScore × 0.20으로 산출하며, "
+            "동일 분기·업종에서 점포 수와 폐업률은 역 Min-Max, 점포당 거래건수는 정 Min-Max한다. "
+            "같은 업종 점포가 적고 점포당 거래건수가 많으며 폐업률이 낮을수록 점수가 높다."
         ),
     )
 
@@ -66,7 +68,7 @@ class RecommendationItemResponse(BaseModel):
         description=(
             "추천 카드의 세 가지 신호. growth는 GrowthScore, transaction은 TransactionScore, "
             "competition은 CompetitionScore의 등급이며 70 이상 high, 40 이상 70 미만 medium, 40 미만 low이다. "
-            "competition의 high는 경쟁 여건이 상대적으로 긍정적이라는 뜻이다."
+            "competition의 high는 같은 업종 점포 수·점포당 거래건수·폐업률을 종합한 경쟁 여건이 상대적으로 우수하다는 뜻이다."
         ),
     )
     components: RecommendationComponents = Field(description="추천 점수의 근거인 성장성·거래 활성도·경쟁 여건별 원본 값, 정규화 점수, 서울 비교 집단 내 상위 비율.")
@@ -78,9 +80,9 @@ class RecommendationItemResponse(BaseModel):
 
 
 class DistrictKpis(BaseModel):
-    estimated_sales: int = Field(description="선택한 분기·상권·업종의 추정 매출액(원). 원천 데이터 thsmon_selng_amt에 해당한다.")
+    estimated_sales: int = Field(description="선택한 분기·상권·업종의 분기 추정 매출액(원). 원천 필드명은 thsmon_selng_amt이며, 실제 의미는 분기당 매출 금액이다.")
     estimated_sales_formatted: str = Field(description="상세 화면 KPI에 표시할 추정 매출액. 1억 원 이상은 '12.8억', 1만 원 이상은 '8500만'처럼 축약한다.")
-    transaction_count: int = Field(description="선택한 분기·상권·업종의 거래건수(건). 원천 데이터 thsmon_selng_co에 해당한다.")
+    transaction_count: int = Field(description="선택한 분기·상권·업종의 분기 거래건수(건). 원천 필드명은 thsmon_selng_co이며, 실제 의미는 분기당 매출 거래건수이다.")
     transaction_count_formatted: str = Field(description="상세 화면 KPI에 표시할 거래건수. 1만 건 이상은 '45만'처럼 축약한다.")
     seoul_rank: Optional[int] = Field(
         default=None,
@@ -116,9 +118,8 @@ class DistrictKpis(BaseModel):
         default=None,
         description=(
             "CompetitionScore 기준 경쟁 여건 등급. 70 이상 높음, 40 이상 70 미만 보통, 40 미만 낮음이며 "
-            "높음은 상대적으로 긍정적인 경쟁 여건을 뜻한다. 실제 경쟁 점포 수가 아닌 Proxy이다. "
-            "현재 거래건수 또는 전분기 매출·거래건수가 없거나 0 이하인 경우, 상권 업종별 매출 분포가 없는 경우 "
-            "등으로 구성 점수를 구할 수 없으면 null이다."
+            "높음은 상대적으로 점포 수·폐업률이 낮고 점포당 거래건수가 높은 여건을 뜻한다. "
+            "점포 데이터·폐업률이 없거나 점포 수가 0 이하이면 null이다."
         ),
     )
     sales_level: Optional[str] = Field(
@@ -184,7 +185,7 @@ class DistrictOverviewResponse(BaseModel):
         description=(
             "상세 화면 종합 인사이트. score는 반올림한 ExplorationScore "
             "(GrowthScore × 0.40 + TransactionScore × 0.35 + CompetitionScore × 0.25)이며 "
-            "전분기 자료·현재 거래건수·수요 다양성 등 구성 지표가 부족하면 null이다. "
+            "전분기 매출 또는 점포 수·폐업률 등 구성 지표가 부족하면 null이다. "
             "score_note는 점수 산출 불가 안내이며 점수를 구할 수 있으면 null이다. "
             "growth_tag는 매출 성장률 또는 산출 불가 문구, volume_tag는 거래건수, competition_tag는 경쟁 여건, "
             "summary는 점수 등급을 조합한 요약, disclaimer는 탐색 지표가 실제 창업 성공 가능성을 뜻하지 않는다는 안내이다."
@@ -267,10 +268,10 @@ class DistrictCompetitionResponse(BaseModel):
     competition_level: Optional[str] = Field(
         default=None,
         description=(
-            "CompetitionScore 기준 경쟁 여건. 70 이상 높음, 40 이상 70 미만 보통, 40 미만 낮음이며 높을수록 긍정적이다. "
-            "실제 경쟁 점포 수가 아닌 매출·거래 기반 Proxy이다. 해당 분기·상권·업종의 분석 데이터가 없거나, "
-            "현재 거래건수·직전 분기 매출·거래건수가 없거나 0 이하인 경우 또는 수요 다양성 자료 부족 등으로 "
-            "CompetitionScore를 산출할 수 없으면 null이다."
+            "CompetitionScore 기준 경쟁 여건. 70 이상 높음, 40 이상 70 미만 보통, 40 미만 낮음이다. "
+            "같은 업종 점포가 적고 점포당 거래건수가 많으며 폐업률이 낮을수록 점수가 높다. "
+            "동일 분기·업종 상권의 점포 수·점포당 거래건수·폐업률을 Min-Max 비교한 상대 점수이다. "
+            "해당 분기·상권·업종의 점포 데이터·폐업률이 없거나 점포 수가 0 이하이면 null이다."
         ),
     )
     sales_level: Optional[str] = Field(
@@ -295,14 +296,14 @@ class CompareDistrictData(BaseModel):
         default=None,
         description=(
             "비교표의 ExplorationScore(0~100점)를 반올림한 값. GrowthScore × 0.40 + TransactionScore × 0.35 "
-            "+ CompetitionScore × 0.25이며 높을수록 탐색 우선순위가 높다. 직전 분기 매출·거래건수가 없거나 "
-            "0 이하인 경우, 현재 거래건수가 0 이하인 경우, 수요 다양성 자료 부족 등으로 구성 점수를 구할 수 없으면 null이다."
+            "+ CompetitionScore × 0.25이며 높을수록 탐색 우선순위가 높다. 직전 분기 매출이 없거나 "
+            "0 이하인 경우, 점포 데이터·폐업률이 없거나 점포 수가 0 이하인 경우 구성 점수를 구할 수 없으면 null이다."
         ),
     )
     estimated_sales_formatted: str = Field(description="비교표에 표시할 분기 추정 매출액. '12.8억', '8500만'처럼 축약한 문자열이다.")
-    estimated_sales: int = Field(description="선택 분기·상권·업종의 추정 매출액(원). 원천 데이터 thsmon_selng_amt에 해당한다.")
+    estimated_sales: int = Field(description="선택 분기·상권·업종의 분기 추정 매출액(원). 원천 필드명은 thsmon_selng_amt이며, 실제 의미는 분기당 매출 금액이다.")
     transaction_count_formatted: str = Field(description="비교표에 표시할 분기 거래건수. 1만 건 이상은 '45만'처럼 축약한다.")
-    transaction_count: int = Field(description="선택 분기·상권·업종의 거래건수(건). 원천 데이터 thsmon_selng_co에 해당한다.")
+    transaction_count: int = Field(description="선택 분기·상권·업종의 분기 거래건수(건). 원천 필드명은 thsmon_selng_co이며, 실제 의미는 분기당 매출 거래건수이다.")
     growth_rate: Optional[float] = Field(
         default=None,
         description="QoQ 매출 성장률(%). overview의 kpis.qoq_growth_rate와 같은 계산값이며, 직전 분기 데이터가 없거나 매출이 0 이하이면 null이다.",
@@ -322,9 +323,8 @@ class CompareDistrictData(BaseModel):
         default=None,
         description=(
             "CompetitionScore 기준 경쟁 여건 등급. 70 이상 높음, 40 이상 70 미만 보통, 40 미만 낮음이며 "
-            "높음은 상대적으로 긍정적인 여건을 뜻하는 Proxy이고 실제 경쟁 점포 수가 아니다. "
-            "현재 거래건수·직전 분기 매출·거래건수가 없거나 0 이하인 경우, 수요 다양성 자료 부족 등으로 "
-            "CompetitionScore를 산출할 수 없으면 null이다."
+            "높음은 점포 수·폐업률이 상대적으로 낮고 점포당 거래건수가 높은 여건을 뜻한다. "
+            "점포 데이터·폐업률이 없거나 점포 수가 0 이하이면 CompetitionScore를 산출할 수 없어 null이다."
         ),
     )
     key_insight: str = Field(description="비교표의 상권별 핵심 요약. GrowthScore·TransactionScore·CompetitionScore 중 산출 가능한 지표의 높음/보통/낮음 등급을 조합한 문장이다.")
