@@ -7,6 +7,8 @@
 /* ----------------------------- */
 import {
   TradeArea,
+  TradeAreaResponse,
+  District,
   Industry,
   RecommendationItem,
   DistrictOverview,
@@ -14,6 +16,34 @@ import {
   DistrictCompetition,
   CompareDistrictData,
 } from "../types";
+
+export const MOCK_DISTRICTS: District[] = [
+  { signgu_cd: "11110", signgu_cd_nm: "종로구" },
+  { signgu_cd: "11140", signgu_cd_nm: "중구" },
+  { signgu_cd: "11170", signgu_cd_nm: "용산구" },
+  { signgu_cd: "11200", signgu_cd_nm: "성동구" },
+  { signgu_cd: "11215", signgu_cd_nm: "광진구" },
+  { signgu_cd: "11230", signgu_cd_nm: "동대문구" },
+  { signgu_cd: "11260", signgu_cd_nm: "중랑구" },
+  { signgu_cd: "11290", signgu_cd_nm: "성북구" },
+  { signgu_cd: "11305", signgu_cd_nm: "강북구" },
+  { signgu_cd: "11320", signgu_cd_nm: "도봉구" },
+  { signgu_cd: "11350", signgu_cd_nm: "노원구" },
+  { signgu_cd: "11380", signgu_cd_nm: "은평구" },
+  { signgu_cd: "11410", signgu_cd_nm: "서대문구" },
+  { signgu_cd: "11440", signgu_cd_nm: "마포구" },
+  { signgu_cd: "11470", signgu_cd_nm: "양천구" },
+  { signgu_cd: "11500", signgu_cd_nm: "강서구" },
+  { signgu_cd: "11530", signgu_cd_nm: "구로구" },
+  { signgu_cd: "11545", signgu_cd_nm: "금천구" },
+  { signgu_cd: "11560", signgu_cd_nm: "영등포구" },
+  { signgu_cd: "11590", signgu_cd_nm: "동작구" },
+  { signgu_cd: "11620", signgu_cd_nm: "관악구" },
+  { signgu_cd: "11650", signgu_cd_nm: "서초구" },
+  { signgu_cd: "11680", signgu_cd_nm: "강남구" },
+  { signgu_cd: "11710", signgu_cd_nm: "송파구" },
+  { signgu_cd: "11740", signgu_cd_nm: "강동구" },
+];
 
 export const MOCK_INDUSTRIES: Industry[] = [
   {
@@ -58,60 +88,63 @@ export const MOCK_TRADE_AREAS: TradeArea[] = [
   {
     code: "SEONGSU",
     name: "성수동",
-    district: "성동구",
-    type: "발달상권",
-    description: "트렌드 카페 및 복합 문화공간 밀집지",
+    district_code: "11200",
+    district_name: "성동구",
   },
   {
     code: "HONGDAE",
     name: "홍대입구",
-    district: "마포구",
-    type: "발달상권",
-    description: "청년 문화, 예술 및 유동인구 최대 상권",
+    district_code: "11440",
+    district_name: "마포구",
   },
   {
     code: "SHAROSU",
     name: "샤로수길",
-    district: "관악구",
-    type: "골목상권",
-    description: "서울대입구 1인 가구 및 청년 밀집 골목상권",
+    district_code: "11620",
+    district_name: "관악구",
   },
   {
     code: "KONKUK",
     name: "건대입구",
-    district: "광진구",
-    type: "발달상권",
-    description: "대학생 및 동부권 핵심 엔터테인먼트 상권",
+    district_code: "11215",
+    district_name: "광진구",
   },
   {
     code: "GANGNAM",
     name: "강남역",
-    district: "강남구",
-    type: "광역상권",
-    description: "서울 최대 오피스 직장인 및 교통 요충지",
+    district_code: "11680",
+    district_name: "강남구",
   },
   {
     code: "GAROSU",
     name: "가로수길",
-    district: "강남구",
-    type: "발달상권",
-    description: "신사동 패션 및 고급 디저트 거리",
+    district_code: "11680",
+    district_name: "강남구",
   },
   {
     code: "IKSEON",
     name: "익선동",
-    district: "종로구",
-    type: "관광특구",
-    description: "한옥 리모델링 감성 카페거리",
+    district_code: "11110",
+    district_name: "종로구",
   },
   {
     code: "EULJIRO",
     name: "을지로3가",
-    district: "중구",
-    type: "골목상권",
-    description: "뉴트로 힙지로 문화 및 직장인 상권",
+    district_code: "11140",
+    district_name: "중구",
   },
 ];
+
+// 전체 상권 API 응답 형태의 개발용 Mock 데이터
+export const MOCK_TRADE_AREA_RESPONSES: TradeAreaResponse[] =
+  MOCK_TRADE_AREAS.map((area) => ({
+    trdar_cd: area.code,
+    // 개발용 고정값이며 실제 상권 유형을 의미하지 않습니다.
+    trdar_se_cd: "A",
+    trdar_cd_nm: area.name,
+    signgu_cd: area.district_code,
+    signgu_cd_nm: area.district_name,
+  }));
 
 // Calculation of deterministic exploration scores:
 // sales_growth_weight = 0.40, transaction_volume_weight = 0.35, competition_weight = 0.25 (inverse)
@@ -1173,6 +1206,54 @@ export function getMockCompareData(
   tradeAreaCodes: string[],
 ): CompareDistrictData[] {
   const allDistricts: Record<string, CompareDistrictData> = {
+    GAROSU: {
+      trade_area_code: "GAROSU",
+      trade_area_name: "가로수길",
+      district: "강남구",
+      exploration_score: 50,
+      estimated_sales_formatted: "1억",
+      estimated_sales: 100000000,
+      transaction_count_formatted: "1만",
+      transaction_count: 10000,
+      growth_rate: 5,
+      strongest_age_group: "테스트 데이터",
+      strongest_time_period: "테스트 데이터",
+      strongest_day: "테스트 데이터",
+      competition_level: "보통",
+      key_insight: "화면 검증용 가상 데이터입니다. 실제 상권 통계가 아닙니다.",
+    },
+    IKSEON: {
+      trade_area_code: "IKSEON",
+      trade_area_name: "익선동",
+      district: "종로구",
+      exploration_score: 50,
+      estimated_sales_formatted: "1억",
+      estimated_sales: 100000000,
+      transaction_count_formatted: "1만",
+      transaction_count: 10000,
+      growth_rate: 5,
+      strongest_age_group: "테스트 데이터",
+      strongest_time_period: "테스트 데이터",
+      strongest_day: "테스트 데이터",
+      competition_level: "보통",
+      key_insight: "화면 검증용 가상 데이터입니다. 실제 상권 통계가 아닙니다.",
+    },
+    EULJIRO: {
+      trade_area_code: "EULJIRO",
+      trade_area_name: "을지로3가",
+      district: "중구",
+      exploration_score: 50,
+      estimated_sales_formatted: "1억",
+      estimated_sales: 100000000,
+      transaction_count_formatted: "1만",
+      transaction_count: 10000,
+      growth_rate: 5,
+      strongest_age_group: "테스트 데이터",
+      strongest_time_period: "테스트 데이터",
+      strongest_day: "테스트 데이터",
+      competition_level: "보통",
+      key_insight: "화면 검증용 가상 데이터입니다. 실제 상권 통계가 아닙니다.",
+    },
     SEONGSU: {
       trade_area_code: "SEONGSU",
       trade_area_name: "성수동",
@@ -1265,11 +1346,13 @@ export function getMockCompareData(
     },
   };
 
-  const codes =
-    tradeAreaCodes.length > 0
-      ? tradeAreaCodes
-      : ["SEONGSU", "HONGDAE", "SHAROSU"];
-  return codes.map(
-    (code) => allDistricts[code.toUpperCase()] || allDistricts["SEONGSU"],
-  );
+  return tradeAreaCodes.map((code) => {
+    const result = allDistricts[code.toUpperCase()];
+
+    if (!result) {
+      throw new Error(`비교용 Mock 데이터가 없습니다: ${code}`);
+    }
+
+    return result;
+  });
 }

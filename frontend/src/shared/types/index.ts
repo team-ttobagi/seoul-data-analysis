@@ -3,9 +3,27 @@
 export interface TradeArea {
   code: string;
   name: string;
-  district: string; // e.g. 성동구, 마포구, 강남구
-  type: string; // 발달상권, 골목상권, 관광특구 등
-  description?: string;
+  district_code: string;
+  district_name: string | null;
+}
+
+// 전체 상권 목록 API: GET /trade-areas
+export interface TradeAreaResponse {
+  trdar_cd: string;
+  trdar_se_cd: string;
+  trdar_cd_nm: string;
+  signgu_cd: string;
+  signgu_cd_nm: string | null;
+}
+
+export interface District {
+  signgu_cd: string;
+  signgu_cd_nm: string;
+}
+
+export interface TradeAreaSearchParams {
+  signgu_cd?: string;
+  keyword?: string;
 }
 
 export interface Industry {
@@ -53,8 +71,6 @@ export interface DistrictKpis {
   qoq_growth_rate: number; // e.g. +8.2
   sales_percentile: number; // e.g. 18 (상위 18%)
   volume_percentile: number; // e.g. 12 (상위 12%)
-  store_count: number; // e.g. 134
-  store_count_change: number; // e.g. +12
   competition_level: "매우 높음" | "높음" | "보통" | "낮음";
   sales_level: "매우 높음" | "높음" | "보통" | "낮음";
   volume_level: "매우 높음" | "높음" | "보통" | "낮음";
@@ -128,7 +144,6 @@ export interface DistrictOverview {
     growth_percentile: number;
     volume_formatted: string;
     volume_percentile: number;
-    store_count: number;
     competition_text: string;
   };
   rankings: {
@@ -149,8 +164,6 @@ export interface DistrictOverview {
 
 export interface DistrictCompetition {
   trade_area_code: string;
-  store_count: number;
-  qoq_store_change: number;
   competition_level: string;
   sales_level: string;
   volume_level: string;
@@ -167,8 +180,6 @@ export interface CompareDistrictData {
   transaction_count_formatted: string;
   transaction_count: number;
   growth_rate: number;
-  store_count: number;
-  store_count_change: number;
   strongest_age_group: string;
   strongest_time_period: string;
   strongest_day: string;
