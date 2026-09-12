@@ -5,6 +5,8 @@ from backend.app.core.database import get_db
 from backend.app.domain.trade_area.repository import TradeAreaRepository
 from backend.app.domain.sales.repository import SalesRepository
 from backend.app.domain.industry.repository import IndustryRepository
+from backend.app.domain.store.repository import StoreRepository
+from backend.app.domain.store.service import StoreService
 from backend.app.domain.analytics.service import AnalyticsService
 from backend.app.domain.analytics.schemas import (
     RecommendationItemResponse,
@@ -17,12 +19,16 @@ from backend.app.domain.analytics.schemas import (
 router = APIRouter(tags=["Analytics"])
 
 
-def get_analytics_service(db: Optional[AsyncSession] = Depends(get_db)) -> AnalyticsService:
+def get_analytics_service(db: AsyncSession = Depends(get_db)) -> AnalyticsService:
     trade_area_repo = TradeAreaRepository(session=db)
     sales_repo = SalesRepository(session=db)
     industry_repo = IndustryRepository(session=db)
+    store_service = StoreService(repository=StoreRepository(session=db))
     return AnalyticsService(
-        trade_area_repo=trade_area_repo, sales_repo=sales_repo, industry_repo=industry_repo
+        trade_area_repo=trade_area_repo,
+        sales_repo=sales_repo,
+        industry_repo=industry_repo,
+        store_service=store_service,
     )
 
 
@@ -81,6 +87,8 @@ async def get_district_overview(
     상권 코드와 선택한 업종·분기로 매출을 조회합니다. 해당 조합의 매출 데이터가
     조회되지 않으면 404(SALES_DATA_NOT_FOUND)를 반환합니다. 상권명·업종명은
     메타데이터를 사용하며 조회되지 않는 이름은 해당 코드로 대신 표시합니다.
+    현재 분기 점포 데이터가 없으면 store_count를 null로, 직전 분기 점포 데이터가 없으면
+    store_count_change를 null로 반환합니다.
 
     GrowthRate는 직전 분기 대비 매출 증감률(%)입니다. 전분기 매출이 없거나
     0 이하이면 qoq_growth_rate와 growth_percentile은 null입니다. seoul_rank는
@@ -165,6 +173,8 @@ async def get_district_competition(
     매출 데이터가 조회되지 않으면 404 대신 상권 코드와 나머지 필드가 null인
     객체를 반환합니다. 매출은 있어도 전분기 데이터 부재, 거래건수 0 또는
     구성 지표 부족으로 CompetitionScore를 산출할 수 없으면 competition_level은 null입니다.
+    현재 분기 점포 데이터가 없으면 store_count를 null로, 직전 분기 점포 데이터가 없으면
+    qoq_store_change를 null로 반환합니다.
     """
     return await service.get_competition(trade_area_code, industry_code, quarter)
 
@@ -201,6 +211,8 @@ async def get_compare_districts(
     전분기 매출이 없거나 0 이하이면 growth_rate는 null이며, 구성 지표가
     부족하면 exploration_score와 competition_level은 null일 수 있습니다.
     주요 연령대·시간대·요일을 찾을 수 없는 경우 해당 표시 문자열은 '-'입니다.
+    매출 데이터가 있는 비교 대상 중 현재 분기 점포 데이터가 없으면 store_count를 null로,
+    직전 분기 점포 데이터가 없으면 store_count_change를 null로 반환합니다.
     이 API는 비교함의 선택 상태를 저장하지 않으므로 선택 변경 시 다시 조회해야 합니다.
     """
     codes = [c.strip() for c in trade_area_codes.split(",") if c.strip()]

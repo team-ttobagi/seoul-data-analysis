@@ -17,6 +17,8 @@ from backend.app.domain.sales import scoring
 from backend.app.domain.trade_area.repository import TradeAreaRepository
 from backend.app.domain.sales.repository import SalesRepository
 from backend.app.domain.industry.repository import IndustryRepository
+from backend.app.domain.store.service import StoreService
+from backend.app.domain.store.schemas import StoreTrendSchema
 from backend.app.core.exceptions import SalesDataNotFoundException
 
 
@@ -65,10 +67,39 @@ class AnalyticsService:
         trade_area_repo: TradeAreaRepository,
         sales_repo: SalesRepository,
         industry_repo: Optional[IndustryRepository] = None,
+        *,
+        store_service: StoreService,
     ):
         self.trade_area_repo = trade_area_repo
         self.sales_repo = sales_repo
         self.industry_repo = industry_repo
+        self.store_service = store_service
+
+    async def _get_store_trend(
+        self,
+        trade_area_code: str,
+        industry_code: str,
+        quarter: str,
+    ) -> Optional[StoreTrendSchema]:
+        """점포 추이를 조회하며 현재·직전 분기 데이터가 없으면 None을 반환합니다."""
+        return await self.store_service.get_store_trend(
+            trade_area_code=trade_area_code,
+            industry_code=industry_code,
+            quarter=quarter,
+        )
+
+    async def _get_store_trends(
+        self,
+        trade_area_codes: List[str],
+        industry_code: str,
+        quarter: str,
+    ) -> Dict[str, StoreTrendSchema]:
+        """비교 대상 상권들의 점포 추이를 한 번의 저장소 호출로 조회합니다."""
+        return await self.store_service.get_store_trends(
+            trade_area_codes=trade_area_codes,
+            industry_code=industry_code,
+            quarter=quarter,
+        )
 
     async def _compute_metrics(self, quarter: str, industry_code: str) -> pd.DataFrame:
         rows = await self.sales_repo.get_metrics_rows(quarter, industry_code)
@@ -173,6 +204,7 @@ class AnalyticsService:
         if matched.empty:
             raise SalesDataNotFoundException(code, industry_code, quarter)
         row = matched.iloc[0]
+        store_trend = await self._get_store_trend(code, industry_code, quarter)
 
         kpis = DistrictKpis(
             estimated_sales=int(row["sales"]),
@@ -184,6 +216,8 @@ class AnalyticsService:
             sales_percentile=round(row["sales_percentile"]),
             growth_percentile=scoring.none_if_nan_round(row["growth_percentile"]),
             volume_percentile=round(row["volume_percentile"]),
+            store_count=store_trend.store_count if store_trend else None,
+            store_count_change=store_trend.store_count_change if store_trend else None,
             competition_level=scoring.grade_from_score(row["competition_score"]),
             sales_level=scoring.grade_from_score(100 - row["sales_percentile"]),
             volume_level=scoring.grade_from_score(100 - row["volume_percentile"]),
@@ -194,6 +228,8 @@ class AnalyticsService:
             "growth_percentile": kpis.growth_percentile,
             "volume_formatted": kpis.transaction_count_formatted,
             "volume_percentile": kpis.volume_percentile,
+            "store_count": kpis.store_count,
+            "competition_text": f"경쟁 {kpis.competition_level or '정보 없음'}",
         }
 
         lookup = await self._trade_area_lookup()
@@ -325,13 +361,20 @@ class AnalyticsService:
         code = trade_area_code.upper()
         metrics_df = await self._compute_metrics(quarter, industry_code)
         matched = metrics_df[metrics_df["trdar_cd"] == code] if not metrics_df.empty else metrics_df
+        store_trend = await self._get_store_trend(code, industry_code, quarter)
         if matched.empty:
-            return DistrictCompetitionResponse(trade_area_code=code)
+            return DistrictCompetitionResponse(
+                trade_area_code=code,
+                store_count=store_trend.store_count if store_trend else None,
+                qoq_store_change=store_trend.store_count_change if store_trend else None,
+            )
 
         row = matched.iloc[0]
         competition_grade = scoring.grade_from_score(row["competition_score"])
         return DistrictCompetitionResponse(
             trade_area_code=code,
+            store_count=store_trend.store_count if store_trend else None,
+            qoq_store_change=store_trend.store_count_change if store_trend else None,
             competition_level=competition_grade,
             sales_level=scoring.grade_from_score(100 - row["sales_percentile"]),
             volume_level=scoring.grade_from_score(100 - row["volume_percentile"]),
@@ -350,6 +393,7 @@ class AnalyticsService:
 
         metrics_df = await self._compute_metrics(quarter, industry_code)
         lookup = await self._trade_area_lookup()
+        store_trends = await self._get_store_trends(codes, industry_code, quarter)
 
         results = []
         for code in codes:
@@ -358,6 +402,7 @@ class AnalyticsService:
                 continue
             row = matched.iloc[0]
             ta = lookup.get(code, {})
+            store_trend = store_trends.get(code)
 
             demographics = await self.sales_repo.get_sales_by_age_gender(code, industry_code, quarter)
             primary_age = next((d for d in demographics if d["is_primary"]), None)
@@ -379,6 +424,8 @@ class AnalyticsService:
                     transaction_count_formatted=_fmt_count(row["transaction_count"]),
                     transaction_count=int(row["transaction_count"]),
                     growth_rate=scoring.none_if_nan(row["growth_rate"]),
+                    store_count=store_trend.store_count if store_trend else None,
+                    store_count_change=store_trend.store_count_change if store_trend else None,
                     strongest_age_group=(
                         f"{primary_age['age_group']} ({primary_age['percentage']}%)" if primary_age else "-"
                     ),
