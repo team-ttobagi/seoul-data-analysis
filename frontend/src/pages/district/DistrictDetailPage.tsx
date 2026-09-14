@@ -72,7 +72,7 @@ export const DistrictDetailPage: React.FC = () => {
 
   const { data: tradeAreas = [] } = useQuery({
     queryKey: ["trade-areas"],
-    queryFn: api.getTradeAreas,
+    queryFn: ({ signal }) => api.getTradeAreas({}, signal),
   });
 
   if (isOverviewLoading || !overview) {
@@ -117,8 +117,8 @@ export const DistrictDetailPage: React.FC = () => {
                 className="appearance-none bg-white border border-black px-3 py-1 pr-6 font-bold text-black cursor-pointer hover:bg-[#d4ff00]/20 focus:outline-none"
               >
                 {tradeAreas.map((ta) => (
-                  <option key={ta.code} value={ta.code}>
-                    {ta.name} ({ta.district})
+                  <option key={ta.trdar_cd} value={ta.trdar_cd}>
+                    {ta.trdar_cd_nm} ({ta.signgu_cd_nm ?? "자치구 정보 없음"})
                   </option>
                 ))}
               </select>

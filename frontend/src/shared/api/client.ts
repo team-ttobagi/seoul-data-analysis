@@ -2,6 +2,9 @@ import axios from "axios";
 
 import {
   TradeArea,
+  TradeAreaResponse,
+  TradeAreaSearchParams,
+  District,
   Industry,
   RecommendationItem,
   DistrictOverview,
@@ -11,7 +14,9 @@ import {
 } from "../types";
 
 import {
+  MOCK_DISTRICTS,
   MOCK_INDUSTRIES,
+  MOCK_TRADE_AREA_RESPONSES,
   MOCK_TRADE_AREAS,
   getMockRecommendations,
   getMockDistrictOverview,
@@ -77,14 +82,65 @@ apiClient.interceptors.response.use(
 
 export const api = {
   /**
-   * 상권 목록
+   * 선택한 자치구의 상권 목록 및 검색
    */
-  getTradeAreas: async (): Promise<TradeArea[]> => {
+  searchTradeAreas: async (
+    params: TradeAreaSearchParams & { signgu_cd: string },
+    signal?: AbortSignal,
+  ): Promise<TradeArea[]> => {
+    const keyword = params.keyword?.trim() || undefined;
+
     if (USE_MOCK) {
-      return MOCK_TRADE_AREAS;
+      return MOCK_TRADE_AREAS.filter(
+        (area) => area.district_code === params.signgu_cd,
+      )
+        .filter(
+          (area) =>
+            !keyword || area.name.toLowerCase().includes(keyword.toLowerCase()),
+        )
+        .sort(
+          (a, b) =>
+            a.name.localeCompare(b.name, "ko") || a.code.localeCompare(b.code),
+        );
     }
 
-    const response = await apiClient.get<TradeArea[]>("/trade-areas");
+    const response = await apiClient.get<TradeArea[]>("/trade-areas/search", {
+      params: {
+        signgu_cd: params.signgu_cd,
+        keyword,
+      },
+      signal,
+    });
+
+    return response.data;
+  },
+  /**
+   * 자치구 목록 조회
+   */
+  getDistricts: async (): Promise<District[]> => {
+    if (USE_MOCK) {
+      return MOCK_DISTRICTS;
+    }
+
+    const response = await apiClient.get<District[]>("/districts");
+
+    return response.data;
+  },
+
+  /**
+   * 전체 상권 목록 조회
+   */
+  getTradeAreas: async (
+    _params: TradeAreaSearchParams = {},
+    signal?: AbortSignal,
+  ): Promise<TradeAreaResponse[]> => {
+    if (USE_MOCK) {
+      return MOCK_TRADE_AREA_RESPONSES;
+    }
+
+    const response = await apiClient.get<TradeAreaResponse[]>("/trade-areas", {
+      signal,
+    });
 
     return response.data;
   },

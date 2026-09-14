@@ -27,7 +27,7 @@ export const ComparePage: React.FC = () => {
 
   const { data: allTradeAreas = [] } = useQuery({
     queryKey: ["trade-areas"],
-    queryFn: api.getTradeAreas,
+    queryFn: ({ signal }) => api.getTradeAreas({}, signal),
   });
 
   const { data: compareList = [], isLoading } = useQuery({
@@ -47,7 +47,7 @@ export const ComparePage: React.FC = () => {
   });
 
   const availableToAdd = allTradeAreas.filter(
-    (ta) => !selectedCodes.includes(ta.code),
+    (ta) => !selectedCodes.includes(ta.trdar_cd),
   );
 
   return (
@@ -89,13 +89,13 @@ export const ComparePage: React.FC = () => {
           </span>
           {availableToAdd.map((ta) => (
             <button
-              key={ta.code}
+              key={ta.trdar_cd}
               disabled={selectedCodes.length >= 3}
-              onClick={() => addDistrict(ta.code)}
+              onClick={() => addDistrict(ta.trdar_cd)}
               className="px-2.5 py-1 text-xs font-mono font-bold border border-black bg-white hover:bg-[#d4ff00] disabled:opacity-40 disabled:hover:bg-white flex items-center gap-1 transition-colors"
             >
               <Plus className="w-3 h-3" />
-              {ta.name}
+              {ta.trdar_cd_nm}
             </button>
           ))}
         </div>

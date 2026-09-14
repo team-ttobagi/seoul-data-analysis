@@ -10,8 +10,12 @@ import {
 } from "lucide-react";
 import { api } from "../../shared/api/client";
 import { Signals, ScorePill } from "../../shared/ui/Signals";
-import { useCompareStore } from "../../shared/lib/store";
-import type { Industry, RecommendationItem } from "../../shared/types";
+import { useCompareStore, useExploreStore } from "../../shared/lib/store";
+import type {
+  Industry,
+  RecommendationItem,
+  TradeArea,
+} from "../../shared/types";
 
 interface ExploreFilterBarProps {
   industries: Industry[];
@@ -42,9 +46,19 @@ const ExploreFilterBar: React.FC<ExploreFilterBarProps> = ({
   clearDistricts,
   onOpenCompare,
 }) => {
-  const selectedDistricts = recommendations.filter((district) =>
-    selectedCodes.includes(district.trade_area_code),
-  );
+  const areaNamesByCode = useCompareStore((state) => state.areaNamesByCode);
+
+  const selectedDistricts = selectedCodes.map((code) => {
+    const recommendation = recommendations.find(
+      (item) => item.trade_area_code === code,
+    );
+
+    return {
+      trade_area_code: code,
+      trade_area_name:
+        areaNamesByCode[code] ?? recommendation?.trade_area_name ?? code,
+    };
+  });
   const candidateRecommendations = recommendations
     .filter((district) => !selectedCodes.includes(district.trade_area_code))
     .slice(0, 6);
@@ -134,12 +148,13 @@ const ExploreFilterBar: React.FC<ExploreFilterBarProps> = ({
                 비교 상권 트레이
               </span>
               <span className="font-mono text-[11px] font-bold bg-black text-[#d8fc03] px-1.5 py-0.5">
-                {selectedDistricts.length} / 4
+                {selectedDistricts.length} / 3
               </span>
             </div>
             {selectedDistricts.length === 0 ? (
               <span className="text-xs text-gray-500 italic py-1">
-                상권 카드의 '비교' 버튼을 눌러 비교군을 담아보세요.
+                검색 결과의 '비교 담기' 또는 상권 카드의 '비교' 버튼을
+                눌러주세요.
               </span>
             ) : (
               selectedDistricts.map((district) => (
@@ -204,6 +219,45 @@ const ExploreFilterBar: React.FC<ExploreFilterBarProps> = ({
 
 export const ExplorePage: React.FC = () => {
   const navigate = useNavigate();
+  const selectedDistrictCode = useExploreStore(
+    (state) => state.selectedDistrictCode,
+  );
+
+  const setDistrict = useExploreStore((state) => state.setDistrict);
+
+  const keyword = useExploreStore((state) => state.keyword);
+  const setKeyword = useExploreStore((state) => state.setKeyword);
+
+  const searchKeyword = keyword.trim();
+
+  const {
+    data: tradeAreas = [],
+    isFetching: isTradeAreasFetching,
+    isError: isTradeAreasError,
+    refetch: refetchTradeAreas,
+  } = useQuery({
+    queryKey: ["trade-area-search", selectedDistrictCode, searchKeyword],
+    queryFn: ({ signal }) =>
+      api.searchTradeAreas(
+        {
+          signgu_cd: selectedDistrictCode,
+          keyword: searchKeyword || undefined,
+        },
+        signal,
+      ),
+    enabled: selectedDistrictCode !== "",
+  });
+
+  const {
+    data: districts = [],
+    isPending: isDistrictsPending,
+    isError: isDistrictsError,
+    refetch: refetchDistricts,
+  } = useQuery({
+    queryKey: ["districts"],
+    queryFn: () => api.getDistricts(),
+  });
+
   const [selectedIndustry, setSelectedIndustry] = useState<string>("CS100010");
   const [selectedRegion, setSelectedRegion] = useState<string>("서울 전체");
   const [selectedQuarter, setSelectedQuarter] = useState<string>("2026 Q2");
@@ -266,6 +320,103 @@ export const ExplorePage: React.FC = () => {
             <br />
             먼저 살펴볼 상권을 찾았습니다.
           </p>
+        </div>
+
+        <div className="mt-6 border border-black bg-[#F8F7F2] p-4">
+          <label
+            htmlFor="district-select"
+            className="mb-2 block text-sm font-bold"
+          >
+            상권을 찾을 자치구
+          </label>
+
+          <select
+            id="district-select"
+            value={selectedDistrictCode}
+            onChange={(event) => setDistrict(event.target.value)}
+            disabled={
+              isDistrictsPending || isDistrictsError || districts.length === 0
+            }
+            className="w-full rounded-none border border-black bg-white p-3 text-sm text-black disabled:opacity-50 focus:outline-2 focus:outline-black"
+          >
+            <option value="">
+              {isDistrictsPending
+                ? "자치구를 불러오는 중입니다"
+                : "자치구를 선택하세요"}
+            </option>
+
+            {districts.map((district) => (
+              <option key={district.signgu_cd} value={district.signgu_cd}>
+                {district.signgu_cd_nm}
+              </option>
+            ))}
+          </select>
+
+          <div className="mt-4">
+            <label
+              htmlFor="trade-area-keyword"
+              className="mb-2 block text-sm font-bold"
+            >
+              상권 검색
+            </label>
+
+            <input
+              id="trade-area-keyword"
+              type="search"
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+              disabled={!selectedDistrictCode}
+              placeholder={
+                selectedDistrictCode
+                  ? "상권명을 입력하세요"
+                  : "먼저 자치구를 선택하세요"
+              }
+              className="w-full rounded-none border border-black bg-white p-3 text-sm disabled:opacity-50 focus:outline-2 focus:outline-black"
+            />
+
+            {selectedDistrictCode && (
+              <div className="mt-2 text-sm" aria-live="polite">
+                {isTradeAreasFetching ? (
+                  <p>상권을 불러오는 중입니다.</p>
+                ) : isTradeAreasError ? (
+                  <div>
+                    <p>상권 목록을 불러오지 못했습니다.</p>
+                    <button
+                      type="button"
+                      onClick={() => refetchTradeAreas()}
+                      className="mt-1 underline"
+                    >
+                      다시 시도
+                    </button>
+                  </div>
+                ) : (
+                  <TradeAreaResults
+                    key={JSON.stringify([selectedDistrictCode, searchKeyword])}
+                    areas={tradeAreas}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+
+          {isDistrictsError && (
+            <div role="alert" className="mt-2 text-sm">
+              <p>자치구 목록을 불러오지 못했습니다.</p>
+              <button
+                type="button"
+                onClick={() => refetchDistricts()}
+                className="mt-1 underline"
+              >
+                다시 시도
+              </button>
+            </div>
+          )}
+
+          {!isDistrictsPending &&
+            !isDistrictsError &&
+            districts.length === 0 && (
+              <p className="mt-2 text-sm">조회 가능한 자치구가 없습니다.</p>
+            )}
         </div>
         <ExploreFilterBar
           industries={industries}
@@ -469,3 +620,88 @@ export const ExplorePage: React.FC = () => {
     </div>
   );
 };
+
+function TradeAreaResults({ areas }: { areas: TradeArea[] }) {
+  const selectedCodes = useCompareStore((state) => state.selectedCodes);
+  const toggleDistrict = useCompareStore((state) => state.toggleDistrict);
+  const rememberAreaName = useCompareStore((state) => state.rememberAreaName);
+  const [visibleCount, setVisibleCount] = useState(20);
+  const visibleAreas = areas.slice(0, visibleCount);
+  const hasMore = visibleCount < areas.length;
+
+  const showMore = () => {
+    setVisibleCount((count) => Math.min(count + 20, areas.length));
+  };
+
+  return (
+    <div>
+      <p className="mb-2">
+        전체 {areas.length}개 중 {visibleAreas.length}개 표시
+      </p>
+
+      <div
+        className="max-h-80 overflow-y-auto border border-black bg-white"
+        onScroll={(event) => {
+          const element = event.currentTarget;
+          const nearBottom =
+            element.scrollTop + element.clientHeight >=
+            element.scrollHeight - 40;
+
+          if (nearBottom && hasMore) {
+            showMore();
+          }
+        }}
+      >
+        {areas.length === 0 ? (
+          <p className="p-3">일치하는 상권이 없습니다.</p>
+        ) : (
+          <ul aria-label="상권 검색 결과">
+            {visibleAreas.map((area) => {
+              const selected = selectedCodes.includes(area.code);
+
+              return (
+                <li
+                  key={area.code}
+                  className="border-b border-black last:border-b-0"
+                >
+                  <button
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => {
+                      rememberAreaName(area.code, area.name);
+                      toggleDistrict(area.code);
+                    }}
+                    className={`flex w-full items-center justify-between gap-3 p-3 text-left focus:outline-2 focus:outline-black ${
+                      selected ? "bg-[#CCFF00]" : "bg-white hover:bg-[#F8F7F2]"
+                    }`}
+                  >
+                    <span>
+                      <span className="font-bold">{area.name}</span>
+                      <span className="ml-2 text-gray-600">
+                        {area.district_name ?? "자치구 정보 없음"}
+                      </span>
+                    </span>
+
+                    <span className="shrink-0 text-xs font-bold">
+                      {selected ? "선택 해제" : "비교 담기"}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {hasMore && (
+          <button
+            type="button"
+            onClick={showMore}
+            className="w-full border-t border-black p-3 font-bold hover:bg-[#CCFF00]"
+          >
+            결과 더 보기
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
