@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.core.config import settings
@@ -9,9 +11,21 @@ from backend.app.core.exceptions import (
 from backend.app.domain.trade_area.router import router as trade_area_router
 from backend.app.domain.industry.router import router as industry_router
 from backend.app.domain.sales.router import router as sales_router
-from backend.app.domain.analytics.router import router as analytics_router
+from backend.app.domain.analytics.router import (
+    close_insight_generator,
+    router as analytics_router,
+)
 from backend.app.domain.district.router import router as district_router
 from backend.app.domain.store.router import router as store_router
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    try:
+        yield
+    finally:
+        await close_insight_generator()
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -19,22 +33,23 @@ app = FastAPI(
     description="SEOUL DATA PLAYGROUND - Commercial district analytics API for aspiring entrepreneurs in Seoul.",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
-# CORS Configuration
+# CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all for development flexibility
+    allow_origins=["*"],  # 개발 편의를 위해 모든 출처를 허용한다.
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Exception handlers
+# 예외 처리기
 app.add_exception_handler(AppException, app_exception_handler)
 app.add_exception_handler(HTTPException, generic_http_exception_handler)
 
-# Include Domain API Routers
+# 도메인 API 라우터 설정
 app.include_router(trade_area_router, prefix=settings.API_V1_STR)
 app.include_router(industry_router, prefix=settings.API_V1_STR)
 app.include_router(sales_router, prefix=settings.API_V1_STR)

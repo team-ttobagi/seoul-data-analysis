@@ -1,6 +1,8 @@
 from pathlib import Path
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 
@@ -19,6 +21,14 @@ class Settings(BaseSettings):
 
     SEOUL_API_KEY: str = ""
     SEOUL_API_BASE_URL: str = "http://openapi.seoul.go.kr:8088"
+
+    GEMINI_ENABLED: bool = False
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-3.1-flash-lite"
+    GEMINI_TIMEOUT_SECONDS: float = Field(default=6.0, ge=2.0, le=10)
+    GEMINI_MAX_RETRIES: int = Field(default=2, ge=0, le=2)
+    GEMINI_MAX_CONCURRENT_REQUESTS: int = Field(default=2, ge=1, le=10)
+    GEMINI_MIN_REQUEST_INTERVAL_SECONDS: float = Field(default=0.1, ge=0.0, le=60.0)
 
     model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore")
 
