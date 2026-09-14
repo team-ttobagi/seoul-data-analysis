@@ -5,6 +5,7 @@ from backend.app.core.database import get_db
 from backend.app.domain.sales.repository import SalesRepository
 from backend.app.domain.sales.service import SalesService
 from backend.app.domain.sales.schemas import (
+    QuarterOptionResponse,
     SalesSummarySchema,
     SalesByDaySchema,
     SalesByTimeSchema,
@@ -17,6 +18,12 @@ router = APIRouter(prefix="/sales", tags=["Sales"])
 def get_sales_service(db: Optional[AsyncSession] = Depends(get_db)) -> SalesService:
     repository = SalesRepository(session=db)
     return SalesService(repository=repository)
+
+
+@router.get("/quarters", response_model=List[QuarterOptionResponse])
+async def get_quarters(service: SalesService = Depends(get_sales_service)):
+    """sales_data에 실제 저장된 기준 분기 목록을 최신순으로 반환합니다."""
+    return await service.get_quarters()
 
 
 @router.get("/summary", response_model=Optional[SalesSummarySchema])
@@ -32,9 +39,10 @@ async def get_summary(
         examples=["CS100010"],
     ),
     quarter: str = Query(
-        "2025 Q4",
-        description="조회 기준 분기. YYYY QN 형식이며 N은 1~4입니다. 미입력 시 2025년 4분기를 조회합니다.",
-        examples=["2025 Q4"],
+        "20254",
+        pattern=r"^\d{4}[1-4]$",
+        description="조회 기준 분기 코드(YYYYN). N은 1~4이며 미입력 시 2025년 4분기를 조회합니다.",
+        examples=["20254"],
     ),
     service: SalesService = Depends(get_sales_service),
 ):

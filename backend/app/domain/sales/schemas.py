@@ -2,6 +2,11 @@ from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class QuarterOptionResponse(BaseModel):
+    code: str = Field(description="sales_data.stdr_yyqu_cd의 원본 분기 코드(YYYYN).")
+    value: str = Field(description="프론트엔드 표시용 기준 분기(YYYY QN).")
+
+
 class SalesSummarySchema(BaseModel):
     quarter: str = Field(description="매출 조회 기준 분기. 요청한 quarter 문자열을 그대로 반환합니다.")
     trade_area_code: str = Field(description="매출을 조회한 상권 코드. 요청값의 영문을 대문자로 변환한 값입니다.")
