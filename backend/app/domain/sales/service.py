@@ -1,6 +1,7 @@
 from typing import List, Optional
 from backend.app.domain.sales.repository import SalesRepository
 from backend.app.domain.sales.schemas import (
+    QuarterOptionResponse,
     SalesSummarySchema,
     SalesByDaySchema,
     SalesByTimeSchema,
@@ -13,8 +14,18 @@ class SalesService:
     def __init__(self, repository: SalesRepository):
         self.repository = repository
 
+    async def get_quarters(self) -> List[QuarterOptionResponse]:
+        quarter_codes = await self.repository.get_quarter_codes()
+        return [
+            QuarterOptionResponse(
+                code=quarter_code,
+                value=f"{quarter_code[:4]} Q{quarter_code[4:]}",
+            )
+            for quarter_code in quarter_codes
+        ]
+
     async def get_summary(
-        self, trade_area_code: str, industry_code: str = "CS100010", quarter: str = "2025 Q4"
+        self, trade_area_code: str, industry_code: str = "CS100010", quarter: str = "20254"
     ) -> Optional[SalesSummarySchema]:
         data = await self.repository.get_sales_summary(trade_area_code, industry_code, quarter)
         if data:
@@ -22,25 +33,25 @@ class SalesService:
         return None
 
     async def get_by_time(
-        self, trade_area_code: str, industry_code: str = "CS100010", quarter: str = "2025 Q4"
+        self, trade_area_code: str, industry_code: str = "CS100010", quarter: str = "20254"
     ) -> List[SalesByTimeSchema]:
         items = await self.repository.get_sales_by_time(trade_area_code, industry_code, quarter)
         return [SalesByTimeSchema(**item) for item in items]
 
     async def get_by_age_gender(
-        self, trade_area_code: str, industry_code: str = "CS100010", quarter: str = "2025 Q4"
+        self, trade_area_code: str, industry_code: str = "CS100010", quarter: str = "20254"
     ) -> List[SalesByAgeGenderSchema]:
         items = await self.repository.get_sales_by_age_gender(trade_area_code, industry_code, quarter)
         return [SalesByAgeGenderSchema(**item) for item in items]
 
     async def get_gender_split(
-        self, trade_area_code: str, industry_code: str = "CS100010", quarter: str = "2025 Q4"
+        self, trade_area_code: str, industry_code: str = "CS100010", quarter: str = "20254"
     ) -> Optional[SalesGenderSchema]:
         data = await self.repository.get_gender_split(trade_area_code, industry_code, quarter)
         return SalesGenderSchema(**data) if data else None
 
     async def get_by_day(
-        self, trade_area_code: str, industry_code: str = "CS100010", quarter: str = "2025 Q4"
+        self, trade_area_code: str, industry_code: str = "CS100010", quarter: str = "20254"
     ) -> List[SalesByDaySchema]:
         items = await self.repository.get_sales_by_day(trade_area_code, industry_code, quarter)
         return [SalesByDaySchema(**item) for item in items]

@@ -1,21 +1,13 @@
 import logging
-import re
-from typing import Optional, List, Dict
+from typing import Any, List, Mapping, Optional
 import pandas as pd
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
+from sqlalchemy import select, text
 
 from backend.app.domain.sales import scoring
+from backend.app.domain.sales.models import SalesDataModel
 
 logger = logging.getLogger(__name__)
-
-
-def _normalize_quarter(quarter: str) -> str:
-    """API에서 사용하는 'YYYY Q#' 형식을 DB의 'YYYYQ#' 분기 코드로 변환한다. 예: '2025 Q4' -> '20254'."""
-    match = re.match(r"\s*(\d{4})\s*[Qq]?\s*(\d)\s*$", quarter)
-    if match:
-        return f"{match.group(1)}{match.group(2)}"
-    return quarter
 
 
 def _previous_quarter(quarter_code: str) -> str:
@@ -28,6 +20,24 @@ def _previous_quarter(quarter_code: str) -> str:
 class SalesRepository:
     def __init__(self, session: Optional[AsyncSession] = None):
         self.session = session
+
+    async def get_quarter_codes(self) -> List[str]:
+        """sales_data에 존재하는 기준 분기 코드를 최신순으로 반환한다."""
+        if not self.session:
+            return []
+
+        try:
+            stmt = (
+                select(SalesDataModel.stdr_yyqu_cd)
+                .where(SalesDataModel.stdr_yyqu_cd.is_not(None))
+                .distinct()
+                .order_by(SalesDataModel.stdr_yyqu_cd.desc())
+            )
+            result = await self.session.execute(stmt)
+            return list(result.scalars().all())
+        except Exception:
+            logger.exception("Failed to load sales quarter codes from DB")
+            return []
 
     async def get_sales_summary(
         self, trade_area_code: str, industry_code: str, quarter: str
@@ -191,7 +201,7 @@ class SalesRepository:
         if not self.session:
             return []
 
-        quarter_code = _normalize_quarter(quarter)
+        quarter_code = quarter
         prev_quarter_code = _previous_quarter(quarter_code)
 
         try:
@@ -230,7 +240,7 @@ class SalesRepository:
 
     async def _get_raw_row(
         self, trade_area_code: str, industry_code: str, quarter: str
-    ) -> Optional[Dict]:
+    ) -> Mapping[Any, Any] | None:
         if not self.session:
             return None
 
@@ -244,7 +254,7 @@ class SalesRepository:
                 {
                     "trade_area_code": trade_area_code.upper(),
                     "industry_code": industry_code,
-                    "quarter_code": _normalize_quarter(quarter),
+                    "quarter_code": quarter,
                 },
             )
             return result.mappings().first()

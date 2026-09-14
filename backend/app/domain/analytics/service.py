@@ -3,7 +3,7 @@ import logging
 import math
 import re
 import time
-from typing import Dict, List, Optional, Protocol
+from typing import Dict, List, Optional, Protocol, SupportsFloat, SupportsIndex
 
 import pandas as pd
 
@@ -117,11 +117,20 @@ def _validate_generated_summary(value: object) -> str:
 
 def _optional_float(value: object) -> Optional[float]:
     """원천 결측·비유한 값을 0이 아닌 None으로 보존한다."""
-    if value is None:
+    if value is None or isinstance(value, bool):
         return None
+
+    # ``object``는 float()에 전달 가능한 타입이라는 보장이 없으므로,
+    # Python의 float 변환 계약에 해당하는 타입으로 먼저 좁힌다.
+    if not isinstance(
+        value,
+        (str, bytes, bytearray, SupportsFloat, SupportsIndex),
+    ):
+        return None
+
     try:
         converted = float(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
     return converted if math.isfinite(converted) else None
 
@@ -562,7 +571,7 @@ class AnalyticsService:
     async def get_recommendations(
         self,
         industry_code: str = "CS100010",
-        quarter: str = "2025 Q4",
+        quarter: str = "20254",
         region: Optional[str] = "서울 전체",
         keyword: Optional[str] = None,
     ) -> List[RecommendationItemResponse]:
@@ -657,7 +666,7 @@ class AnalyticsService:
         self,
         trade_area_code: str,
         industry_code: str = "CS100010",
-        quarter: str = "2025 Q4",
+        quarter: str = "20254",
     ) -> DistrictOverviewResponse:
         code, ta_name, district_name, industry_name, metrics_df, row = (
             await self._get_overview_data(trade_area_code, industry_code, quarter)
@@ -744,7 +753,7 @@ class AnalyticsService:
         self,
         trade_area_code: str,
         industry_code: str = "CS100010",
-        quarter: str = "2025 Q4",
+        quarter: str = "20254",
     ) -> OverviewInsightResponse:
         code, ta_name, district_name, industry_name, _, row = await self._get_overview_data(
             trade_area_code, industry_code, quarter
@@ -812,7 +821,7 @@ class AnalyticsService:
         self,
         trade_area_code: str,
         industry_code: str = "CS100010",
-        quarter: str = "2025 Q4",
+        quarter: str = "20254",
     ) -> DistrictPatternsResponse:
         code = trade_area_code.upper()
         time_slots = await self.sales_repo.get_sales_by_time(
@@ -870,7 +879,7 @@ class AnalyticsService:
         self,
         trade_area_code: str,
         industry_code: str = "CS100010",
-        quarter: str = "2025 Q4",
+        quarter: str = "20254",
     ) -> DistrictCompetitionResponse:
         code = trade_area_code.upper()
         metrics_df = await self._compute_metrics(quarter, industry_code)
@@ -905,7 +914,7 @@ class AnalyticsService:
         self,
         trade_area_codes: List[str],
         industry_code: str = "CS100010",
-        quarter: str = "2025 Q4",
+        quarter: str = "20254",
     ) -> List[CompareDistrictData]:
         codes = [c.upper() for c in trade_area_codes] if trade_area_codes else []
         if not codes:

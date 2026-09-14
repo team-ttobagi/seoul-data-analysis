@@ -202,7 +202,7 @@ class OverviewInsightContext(BaseModel):
     trade_area_name: str = Field(min_length=1, max_length=100, pattern=r"^[^\r\n]+$")
     district_name: str = Field(min_length=1, max_length=50, pattern=r"^[^\r\n]+$")
     industry_name: str = Field(min_length=1, max_length=100, pattern=r"^[^\r\n]+$")
-    quarter: str = Field(pattern=r"^\d{4} Q[1-4]$")
+    quarter: str = Field(pattern=r"^\d{4}[1-4]$")
     # 진단: 기존 patterns endpoint가 계산한 대표 연령대·시간대·요일
     strongest_age_group: Optional[str] = Field(default=None, max_length=50)
     peak_slot: Optional[str] = Field(default=None, max_length=50)
@@ -271,7 +271,7 @@ class DistrictOverviewResponse(BaseModel):
         description="상세 화면에 표시할 서비스 업종명. 업종명을 조회할 수 없으면 업종 코드를 표시한다."
     )
     quarter: str = Field(
-        description="분석 대상 분기. 요청한 quarter 값을 그대로 반환하며, 기본 표기는 '2025 Q4'이다."
+        description="분석 대상 분기 코드(YYYYN). 요청한 quarter 값을 그대로 반환한다."
     )
     kpis: DistrictKpis = Field(
         description="상세 화면 상단 KPI와 Benchmark 표시용 매출액, 거래건수, 서울 종합 순위, QoQ 매출 성장률 및 수준 등급."

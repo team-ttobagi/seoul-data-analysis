@@ -5,7 +5,7 @@ import json
 import math
 import re
 import time
-from typing import Any
+from typing import Any, SupportsFloat, SupportsIndex
 
 from google import genai
 from google.genai import types
@@ -115,9 +115,17 @@ def _numeric_tokens(value: object) -> set[str]:
     if value is None or isinstance(value, bool):
         return set()
 
+    # ``object``는 float()에 전달 가능한 타입이라는 보장이 없으므로,
+    # Python의 float 변환 계약에 해당하는 타입으로 먼저 좁힌다.
+    if not isinstance(
+        value,
+        (str, bytes, bytearray, SupportsFloat, SupportsIndex),
+    ):
+        return set()
+
     try:
         number = float(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return set()
 
     if not math.isfinite(number):

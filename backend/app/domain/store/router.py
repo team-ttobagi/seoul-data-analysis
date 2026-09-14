@@ -31,9 +31,10 @@ async def get_summary(
         examples=["CS100010"],
     ),
     quarter: str = Query(
-        "2025 Q4",
-        description="조회 기준 분기. YYYY QN 또는 DB 코드 YYYYQ 형식으로 전달할 수 있습니다.",
-        examples=["2025 Q4"],
+        "20254",
+        pattern=r"^\d{4}[1-4]$",
+        description="조회 기준 분기 코드(YYYYN). N은 1~4입니다.",
+        examples=["20254"],
     ),
     service: StoreService = Depends(get_store_service),
 ):
