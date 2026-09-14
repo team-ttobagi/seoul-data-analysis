@@ -1,6 +1,9 @@
 from typing import List
 from backend.app.domain.trade_area.repository import TradeAreaRepository
-from backend.app.domain.trade_area.schemas import TradeAreaResponse
+from backend.app.domain.trade_area.schemas import (
+    TradeAreaResponse,
+    TradeAreaSearchResponse,
+)
 from backend.app.core.exceptions import TradeAreaNotFoundException
 
 
@@ -17,3 +20,23 @@ class TradeAreaService:
         if not trade_area:
             raise TradeAreaNotFoundException(trade_area_code=code)
         return TradeAreaResponse(**trade_area)
+
+    async def get_trade_areas_by_district(
+        self,
+        signgu_cd: str,
+        keyword: str | None = None,
+    ) -> List[TradeAreaSearchResponse]:
+        trade_areas = await self.repository.get_by_district(
+            signgu_cd=signgu_cd,
+            keyword=keyword,
+        )
+
+        return [
+            TradeAreaSearchResponse(
+                code=ta["trdar_cd"],
+                name=ta["trdar_cd_nm"],
+                district_code=ta["signgu_cd"],
+                district_name=ta["signgu_cd_nm"],
+            )
+            for ta in trade_areas
+        ]

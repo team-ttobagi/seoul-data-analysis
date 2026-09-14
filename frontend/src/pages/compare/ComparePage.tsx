@@ -1,14 +1,27 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Trash2, Plus, ArrowUpRight, ExternalLink } from "lucide-react";
+import {
+  ArrowLeft,
+  Trash2,
+  Plus,
+  ArrowUpRight,
+  ExternalLink,
+} from "lucide-react";
 import { api } from "../../shared/api/client";
 import { useCompareStore } from "../../shared/lib/store";
 import { ScorePill } from "../../shared/ui/Signals";
 
+/* ---------------------------------------------- */
+// Update by SoO 2026.09.07
+//   store_count
+//   store_count_change 동일 업종 점포수 / 경쟁 주석처리
+/* ---------------------------------------------- */
+
 export const ComparePage: React.FC = () => {
   const navigate = useNavigate();
-  const { selectedCodes, removeDistrict, addDistrict, clearDistricts } = useCompareStore();
+  const { selectedCodes, removeDistrict, addDistrict, clearDistricts } =
+    useCompareStore();
   const [selectedIndustry] = useState("CS100010");
   const [selectedQuarter] = useState("2026 Q2");
 
@@ -18,7 +31,12 @@ export const ComparePage: React.FC = () => {
   });
 
   const { data: compareList = [], isLoading } = useQuery({
-    queryKey: ["compare-data", selectedCodes, selectedIndustry, selectedQuarter],
+    queryKey: [
+      "compare-data",
+      selectedCodes,
+      selectedIndustry,
+      selectedQuarter,
+    ],
     queryFn: () =>
       api.getCompareData({
         trade_area_codes: selectedCodes,
@@ -29,7 +47,7 @@ export const ComparePage: React.FC = () => {
   });
 
   const availableToAdd = allTradeAreas.filter(
-    (ta) => !selectedCodes.includes(ta.code)
+    (ta) => !selectedCodes.includes(ta.code),
   );
 
   return (
@@ -147,7 +165,9 @@ export const ComparePage: React.FC = () => {
                         <span className="bg-black text-white px-2.5 py-0.5 text-xs font-mono">
                           Score {item.exploration_score}
                         </span>
-                        <span className="text-xs font-normal text-gray-500">/ 100</span>
+                        <span className="text-xs font-normal text-gray-500">
+                          / 100
+                        </span>
                       </div>
                     </td>
                   ))}
@@ -199,9 +219,12 @@ export const ComparePage: React.FC = () => {
                     </td>
                   ))}
                 </tr>
-
+                {/* === Update by SoO 2026.09.07 ===========
+                      2. [fix] 점포 관련 UI 및 데이터 참조 제거
+                        2-2. Compare 화면의 점포 수 / 점포 수 변화 표시 제거
+                  */}
                 {/* 5. Store Count & Competition */}
-                <tr>
+                {/* <tr>
                   <td className="p-4 font-bold text-black border-r-2 border-black bg-[#eeede6]">
                     동일 업종 점포수 / 경쟁
                   </td>
@@ -222,7 +245,7 @@ export const ComparePage: React.FC = () => {
                       </span>
                     </td>
                   ))}
-                </tr>
+                </tr> */}
 
                 {/* 6. Primary Age & Gender */}
                 <tr>
@@ -298,8 +321,8 @@ export const ComparePage: React.FC = () => {
                         onClick={() =>
                           navigate(
                             `/district/${item.trade_area_code}?industry=${selectedIndustry}&quarter=${encodeURIComponent(
-                              selectedQuarter
-                            )}`
+                              selectedQuarter,
+                            )}`,
                           )
                         }
                         className="w-full py-2 bg-black text-white font-bold text-xs hover:bg-[#d4ff00] hover:text-black border border-black flex items-center justify-center gap-1.5 transition-colors"

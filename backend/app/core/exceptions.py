@@ -27,6 +27,27 @@ class IndustryNotFoundException(AppException):
         )
 
 
+class DistrictNotFoundException(AppException):
+    def __init__(self, district_code: str):
+        super().__init__(
+            code="DISTRICT_NOT_FOUND",
+            message=f"District with code '{district_code}' was not found.",
+            status_code=404,
+        )
+
+
+class SalesDataNotFoundException(AppException):
+    def __init__(self, trade_area_code: str, industry_code: str, quarter: str):
+        super().__init__(
+            code="SALES_DATA_NOT_FOUND",
+            message=(
+                f"No sales data for trade area '{trade_area_code}', "
+                f"industry '{industry_code}', quarter '{quarter}'."
+            ),
+            status_code=404,
+        )
+
+
 async def app_exception_handler(request: Request, exc: AppException):
     return JSONResponse(
         status_code=exc.status_code,

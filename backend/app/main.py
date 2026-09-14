@@ -10,6 +10,8 @@ from backend.app.domain.trade_area.router import router as trade_area_router
 from backend.app.domain.industry.router import router as industry_router
 from backend.app.domain.sales.router import router as sales_router
 from backend.app.domain.analytics.router import router as analytics_router
+from backend.app.domain.district.router import router as district_router
+from backend.app.domain.store.router import router as store_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -37,6 +39,8 @@ app.include_router(trade_area_router, prefix=settings.API_V1_STR)
 app.include_router(industry_router, prefix=settings.API_V1_STR)
 app.include_router(sales_router, prefix=settings.API_V1_STR)
 app.include_router(analytics_router, prefix=settings.API_V1_STR)
+app.include_router(district_router, prefix=settings.API_V1_STR)
+app.include_router(store_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health", tags=["System"])
