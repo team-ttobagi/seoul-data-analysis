@@ -1,25 +1,101 @@
-from typing import List, Optional
+from functools import lru_cache
+from importlib import import_module
+import inspect
+import logging
+from typing import List, Optional, cast
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from backend.app.core.config import settings
 from backend.app.core.database import get_db
 from backend.app.domain.trade_area.repository import TradeAreaRepository
 from backend.app.domain.sales.repository import SalesRepository
 from backend.app.domain.industry.repository import IndustryRepository
 from backend.app.domain.store.repository import StoreRepository
 from backend.app.domain.store.service import StoreService
-from backend.app.domain.analytics.service import AnalyticsService
+from backend.app.domain.analytics.service import AnalyticsService, OverviewInsightGenerator
 from backend.app.domain.analytics.schemas import (
     RecommendationItemResponse,
     DistrictOverviewResponse,
     DistrictPatternsResponse,
     DistrictCompetitionResponse,
     CompareDistrictData,
+    OverviewInsightResponse,
 )
 
 router = APIRouter(tags=["Analytics"])
+logger = logging.getLogger(__name__)
 
 
-def get_analytics_service(db: AsyncSession = Depends(get_db)) -> AnalyticsService:
+@lru_cache(maxsize=1)
+def get_insight_generator() -> Optional[OverviewInsightGenerator]:
+    """선택적 Gemini 어댑터를 한 번만 생성하며, 설정·가져오기 실패는 치명적이지 않게 처리한다."""
+    if not settings.GEMINI_ENABLED:
+        logger.info(
+            "Gemini 인사이트 생성을 비활성화해 결정론적 fallback을 사용한다 "
+            "(reason=disabled)",
+            extra={
+                "event": "analytics.insight_adapter_unavailable",
+                "reason": "disabled",
+            },
+        )
+        return None
+    if not settings.GEMINI_API_KEY:
+        logger.warning(
+            "Gemini API 키가 없어 결정론적 fallback을 사용한다 "
+            "(reason=missing_api_key)",
+            extra={
+                "event": "analytics.insight_adapter_unavailable",
+                "reason": "missing_api_key",
+            },
+        )
+        return None
+
+    try:
+        module = import_module("backend.app.external.gemini")
+        generator_class = getattr(module, "GeminiInsightGenerator")
+        generator = generator_class(
+            api_key=settings.GEMINI_API_KEY,
+            model=settings.GEMINI_MODEL,
+            timeout_seconds=settings.GEMINI_TIMEOUT_SECONDS,
+            max_retries=settings.GEMINI_MAX_RETRIES,
+            max_concurrent_requests=settings.GEMINI_MAX_CONCURRENT_REQUESTS,
+            min_request_interval_seconds=settings.GEMINI_MIN_REQUEST_INTERVAL_SECONDS,
+        )
+        return cast(OverviewInsightGenerator, generator)
+    except Exception:
+        logger.exception(
+            "Gemini 인사이트 어댑터 초기화에 실패해 결정론적 fallback을 사용한다 "
+            "(reason=initialization_failed)",
+            extra={"event": "analytics.insight_adapter_unavailable"},
+        )
+        return None
+
+
+async def close_insight_generator() -> None:
+    """종료 중 새로 생성하지 않고 캐시된 외부 클라이언트를 닫는다."""
+    if get_insight_generator.cache_info().currsize == 0:
+        return
+
+    generator = get_insight_generator()
+    try:
+        close = getattr(generator, "aclose", None)
+        if callable(close):
+            close_result = close()
+            if inspect.isawaitable(close_result):
+                await close_result
+    except Exception:
+        logger.exception(
+            "Gemini insight adapter shutdown failed",
+            extra={"event": "analytics.insight_adapter_shutdown_failed"},
+        )
+    finally:
+        get_insight_generator.cache_clear()
+
+
+def get_analytics_service(
+    db: AsyncSession = Depends(get_db),
+) -> AnalyticsService:
     trade_area_repo = TradeAreaRepository(session=db)
     sales_repo = SalesRepository(session=db)
     industry_repo = IndustryRepository(session=db)
@@ -29,6 +105,24 @@ def get_analytics_service(db: AsyncSession = Depends(get_db)) -> AnalyticsServic
         sales_repo=sales_repo,
         industry_repo=industry_repo,
         store_service=store_service,
+    )
+
+
+def get_insight_analytics_service(
+    db: AsyncSession = Depends(get_db),
+    insight_generator: Optional[OverviewInsightGenerator] = Depends(get_insight_generator),
+) -> AnalyticsService:
+    trade_area_repo = TradeAreaRepository(session=db)
+    sales_repo = SalesRepository(session=db)
+    industry_repo = IndustryRepository(session=db)
+    store_service = StoreService(repository=StoreRepository(session=db))
+    return AnalyticsService(
+        trade_area_repo=trade_area_repo,
+        sales_repo=sales_repo,
+        industry_repo=industry_repo,
+        store_service=store_service,
+        insight_generator=insight_generator,
+        insight_timeout_seconds=settings.GEMINI_TIMEOUT_SECONDS,
     )
 
 
@@ -116,8 +210,38 @@ async def get_district_overview(
     ExplorationScore를 반올림한 값입니다.
     구성 점수가 부족하면 null이며 score_note로 산출 불가 사유를 안내합니다.
     CompetitionScore는 점포 수·점포당 거래건수·폐업률을 동일 분기·업종 상권 간에 비교한 상대 점수입니다.
+    takeaway.summary는 별도 /overview/insight endpoint의 응답이 도착하기 전까지
+    "AI 인사이트 생성 중입니다."를 반환합니다. Gemini 인사이트 생성에 실패하면
+    /overview/insight endpoint가 결정론적 fallback 문장을 반환하며, 나머지 takeaway 필드와
+    응답 구조는 기존 계약을 유지합니다.
     """
     return await service.get_overview(trade_area_code, industry_code, quarter)
+
+
+@router.get(
+    "/trade-areas/{trade_area_code}/overview/insight",
+    response_model=OverviewInsightResponse,
+)
+async def get_district_overview_insight(
+    trade_area_code: str,
+    industry_code: str = Query(
+        "CS100010",
+        description="인사이트를 생성할 서비스 업종 코드.",
+        examples=["CS100010"],
+    ),
+    quarter: str = Query(
+        "2025 Q4",
+        description="인사이트 생성 기준 분기. YYYY Qn 형식으로 전달합니다.",
+        examples=["2025 Q4"],
+    ),
+    service: AnalyticsService = Depends(get_insight_analytics_service),
+):
+    """Gemini 종합 인사이트와 생성 출처·상태를 반환합니다.
+
+    Gemini가 비활성화되었거나 호출·응답 검증에 실패하면 기존 결정론적 문장을
+    반환하며 source와 status를 모두 fallback으로 표시합니다.
+    """
+    return await service.get_overview_insight(trade_area_code, industry_code, quarter)
 
 
 @router.get("/trade-areas/{trade_area_code}/patterns", response_model=DistrictPatternsResponse)
