@@ -133,8 +133,9 @@ async def get_recommendations(
         examples=["CS100010"],
     ),
     quarter: str = Query(
-        "2025 Q4", description="분석 기준 분기. YYYY Qn 형식으로 전달하며 해당 분기와 직전 분기 매출·거래 데이터를 사용합니다.",
-        examples=["2025 Q4"],
+        "20254", pattern=r"^\d{4}[1-4]$",
+        description="분석 기준 분기 코드(YYYYN)이며 해당 분기와 직전 분기 매출·거래 데이터를 사용합니다.",
+        examples=["20254"],
     ),
     region: Optional[str] = Query(
         "서울 전체", description="추천 후보를 제한할 자치구명. 자치구명과 완전히 일치해야 하며 서울 전체 또는 빈 문자열이면 지역을 제한하지 않습니다. 점수 산출 기준은 서울 전체입니다.",
@@ -183,8 +184,9 @@ async def get_district_overview(
         examples=["CS100010"],
     ),
     quarter: str = Query(
-        "2025 Q4", description="상세 분석 기준 분기. YYYY Qn 형식이며 GrowthRate는 해당 분기와 직전 분기 매출을 비교합니다.",
-        examples=["2025 Q4"],
+        "20254", pattern=r"^\d{4}[1-4]$",
+        description="상세 분석 기준 분기 코드(YYYYN)이며 GrowthRate는 해당 분기와 직전 분기 매출을 비교합니다.",
+        examples=["20254"],
     ),
     service: AnalyticsService = Depends(get_analytics_service),
 ):
@@ -230,9 +232,10 @@ async def get_district_overview_insight(
         examples=["CS100010"],
     ),
     quarter: str = Query(
-        "2025 Q4",
-        description="인사이트 생성 기준 분기. YYYY Qn 형식으로 전달합니다.",
-        examples=["2025 Q4"],
+        "20254",
+        pattern=r"^\d{4}[1-4]$",
+        description="인사이트 생성 기준 분기 코드(YYYYN)입니다.",
+        examples=["20254"],
     ),
     service: AnalyticsService = Depends(get_insight_analytics_service),
 ):
@@ -252,8 +255,9 @@ async def get_district_patterns(
         examples=["CS100010"],
     ),
     quarter: str = Query(
-        "2025 Q4", description="소비 패턴 조회 분기. YYYY Qn 형식이며 해당 분기의 시간대·연령대·성별·요일별 매출을 사용합니다.",
-        examples=["2025 Q4"],
+        "20254", pattern=r"^\d{4}[1-4]$",
+        description="소비 패턴 조회 분기 코드(YYYYN)이며 해당 분기의 시간대·연령대·성별·요일별 매출을 사용합니다.",
+        examples=["20254"],
     ),
     service: AnalyticsService = Depends(get_analytics_service),
 ):
@@ -286,8 +290,9 @@ async def get_district_competition(
         examples=["CS100010"],
     ),
     quarter: str = Query(
-        "2025 Q4", description="경쟁 여건 분석 분기. YYYY Qn 형식이며 해당 분기의 매출 거래건수와 점포 데이터를 사용합니다.",
-        examples=["2025 Q4"],
+        "20254", pattern=r"^\d{4}[1-4]$",
+        description="경쟁 여건 분석 분기 코드(YYYYN)이며 해당 분기의 매출 거래건수와 점포 데이터를 사용합니다.",
+        examples=["20254"],
     ),
     service: AnalyticsService = Depends(get_analytics_service),
 ):
@@ -325,8 +330,9 @@ async def get_compare_districts(
         examples=["CS100010"],
     ),
     quarter: str = Query(
-        "2025 Q4", description="모든 비교 상권에 공통으로 적용할 분기. YYYY Qn 형식이며 점수와 순위는 동일 분기·동일 업종의 서울 전체 상권을 기준으로 산출합니다.",
-        examples=["2025 Q4"],
+        "20254", pattern=r"^\d{4}[1-4]$",
+        description="모든 비교 상권에 공통으로 적용할 분기 코드(YYYYN)이며 점수와 순위는 동일 분기·동일 업종의 서울 전체 상권을 기준으로 산출합니다.",
+        examples=["20254"],
     ),
     service: AnalyticsService = Depends(get_analytics_service),
 ):

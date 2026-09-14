@@ -12,7 +12,7 @@ class StoreService:
         self,
         trade_area_code: str,
         industry_code: str = "CS100010",
-        quarter: str = "2025 Q4",
+        quarter: str = "20254",
     ) -> Optional[StoreSummarySchema]:
         """점포 요약 원천 데이터를 API 응답 스키마로 변환합니다."""
         data = await self.repository.get_store_summary(
@@ -26,7 +26,7 @@ class StoreService:
         self,
         trade_area_code: str,
         industry_code: str = "CS100010",
-        quarter: str = "2025 Q4",
+        quarter: str = "20254",
     ) -> Optional[StoreTrendSchema]:
         """현재·직전 분기의 점포 추이를 조회해 분석용 DTO로 반환합니다."""
         return await self.repository.get_store_trend(
@@ -39,7 +39,7 @@ class StoreService:
         self,
         trade_area_codes: Sequence[str],
         industry_code: str = "CS100010",
-        quarter: str = "2025 Q4",
+        quarter: str = "20254",
     ) -> Dict[str, StoreTrendSchema]:
         """여러 상권의 점포 추이를 조회해 상권 코드별 DTO로 반환합니다."""
         return await self.repository.get_store_trends(
