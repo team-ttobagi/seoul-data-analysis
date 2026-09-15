@@ -34,7 +34,7 @@ export const DistrictDetailPage: React.FC = () => {
   const navigate = useNavigate();
 
   const industryCode = searchParams.get("industry") || "CS100010";
-  const quarter = searchParams.get("quarter") || "2026 Q2";
+  const quarter = searchParams.get("quarter") || "20254";
 
   const [rankTab, setRankTab] = useState<
     "sales" | "volume" | "growth" | "score"
@@ -72,7 +72,11 @@ export const DistrictDetailPage: React.FC = () => {
 
   const { data: tradeAreas = [] } = useQuery({
     queryKey: ["trade-areas"],
+<<<<<<< Updated upstream
     queryFn: ({ signal }) => api.getTradeAreas({}, signal),
+=======
+    queryFn: ({ signal }) => api.getTradeAreas(signal),
+>>>>>>> Stashed changes
   });
 
   if (isOverviewLoading || !overview) {
@@ -117,8 +121,13 @@ export const DistrictDetailPage: React.FC = () => {
                 className="appearance-none bg-white border border-black px-3 py-1 pr-6 font-bold text-black cursor-pointer hover:bg-[#d4ff00]/20 focus:outline-none"
               >
                 {tradeAreas.map((ta) => (
+<<<<<<< Updated upstream
                   <option key={ta.trdar_cd} value={ta.trdar_cd}>
                     {ta.trdar_cd_nm} ({ta.signgu_cd_nm ?? "자치구 정보 없음"})
+=======
+                  <option key={ta.code} value={ta.code}>
+                    {ta.name} ({ta.district_name ?? "자치구 정보 없음"})
+>>>>>>> Stashed changes
                   </option>
                 ))}
               </select>

@@ -40,7 +40,7 @@ export const Header: React.FC = () => {
                 isExplore ? "text-black font-extrabold" : "text-gray-500"
               }`}
             >
-              EXPLORE
+              탐색
               {isExplore && (
                 <span className="absolute bottom-0 left-0 w-full h-[3px] bg-[#d4ff00] border-t border-black" />
               )}
@@ -52,7 +52,7 @@ export const Header: React.FC = () => {
                 isCompare ? "text-black font-extrabold" : "text-gray-500"
               }`}
             >
-              COMPARE
+              비교
               {selectedCodes.length > 0 && (
                 <span className="bg-black text-white text-[11px] font-mono px-1.5 py-0.2 rounded-none">
                   {selectedCodes.length}
@@ -106,7 +106,7 @@ export const Header: React.FC = () => {
                   : "text-gray-700"
               }`}
             >
-              EXPLORE (상권 탐색)
+              탐색
             </Link>
             <Link
               to="/compare"
@@ -117,7 +117,7 @@ export const Header: React.FC = () => {
                   : "text-gray-700"
               }`}
             >
-              COMPARE (상권 비교 - {selectedCodes.length}개 선택됨)
+              비교 ({selectedCodes.length}개 선택됨)
             </Link>
             <button
               onClick={() => {

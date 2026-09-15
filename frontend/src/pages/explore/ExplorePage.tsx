@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -19,10 +19,25 @@ import type {
 
 interface ExploreFilterBarProps {
   industries: Industry[];
+  quarters: QuarterOption[];
+  industryStatus: string;
+  quarterStatus: string;
   selectedIndustry: string;
   setSelectedIndustry: (value: string) => void;
-  selectedRegion: string;
-  setSelectedRegion: (value: string) => void;
+  districts: District[];
+  selectedDistrictCode: string;
+  setDistrict: (code: string) => void;
+  isDistrictsPending: boolean;
+  isDistrictsError: boolean;
+  keyword: string;
+  setKeyword: (keyword: string) => void;
+  searchKeyword: string;
+  tradeAreas: TradeArea[];
+  isTradeAreasFetching: boolean;
+  isTradeAreasError: boolean;
+  refetchTradeAreas: () => void;
+  onSearch: () => void;
+  onSubmitSearch: () => void;
   selectedQuarter: string;
   setSelectedQuarter: (value: string) => void;
   recommendations: RecommendationItem[];
@@ -34,10 +49,25 @@ interface ExploreFilterBarProps {
 
 const ExploreFilterBar: React.FC<ExploreFilterBarProps> = ({
   industries,
+  quarters,
+  industryStatus,
+  quarterStatus,
   selectedIndustry,
   setSelectedIndustry,
-  selectedRegion,
-  setSelectedRegion,
+  districts,
+  selectedDistrictCode,
+  setDistrict,
+  isDistrictsPending,
+  isDistrictsError,
+  keyword,
+  setKeyword,
+  searchKeyword,
+  tradeAreas,
+  isTradeAreasFetching,
+  isTradeAreasError,
+  refetchTradeAreas,
+  onSearch,
+  onSubmitSearch,
   selectedQuarter,
   setSelectedQuarter,
   recommendations,
@@ -64,83 +94,203 @@ const ExploreFilterBar: React.FC<ExploreFilterBarProps> = ({
     .slice(0, 6);
 
   return (
-    <div className="mt-6 md:mt-8 border border-black bg-white shadow-sm">
-      <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-black border-b border-black bg-white">
+    <div className="-mx-4 border border-black bg-white shadow-sm sm:-mx-6 lg:-mx-8">
+      <div className="grid grid-cols-1 md:grid-cols-[repeat(4,minmax(0,1fr))_88px] lg:grid-cols-[repeat(4,minmax(0,1fr))_104px] divide-y md:divide-y-0 md:divide-x divide-black border-b border-black bg-white">
         {[
           {
             label: "업종 카테고리",
             tag: "INDUSTRY",
-            value:
-              industries.find((industry) => industry.code === selectedIndustry)
-                ?.name || "커피·음료",
-            options: industries.map((industry) => ({
-              value: industry.name,
-              label: industry.name,
-            })),
-            onChange: (value: string) => {
-              const industry = industries.find((item) => item.name === value);
-              if (industry) setSelectedIndustry(industry.code);
-            },
+            value: selectedIndustry,
+            options: industries.length
+              ? industries.map((industry) => ({
+                  value: industry.code,
+                  label: industry.name,
+                }))
+              : [{ value: "", label: industryStatus }],
+            onChange: setSelectedIndustry,
+            disabled: industries.length === 0,
           },
           {
             label: "분석 지역",
             tag: "REGION",
-            value: selectedRegion,
+            value: selectedDistrictCode,
             options: [
-              "서울 전체",
-              "성동·광진구",
-              "마포·용산구",
-              "강남·서초구",
-              "종로·중구",
-              "관악구",
-            ].map((value) => ({ value, label: value })),
-            onChange: setSelectedRegion,
+              {
+                value: "",
+                label: isDistrictsPending
+                  ? "자치구를 불러오는 중입니다"
+                  : isDistrictsError
+                    ? "지역 조회 실패"
+                    : "서울 전체",
+              },
+              ...districts.map((district) => ({
+                value: district.signgu_cd,
+                label: district.signgu_cd_nm,
+              })),
+            ],
+            onChange: setDistrict,
+            disabled:
+              isDistrictsPending || isDistrictsError || districts.length === 0,
           },
           {
             label: "기준 분기",
             tag: "TIMELINE",
             value: selectedQuarter,
-            options: ["2026 Q2", "2026 Q1", "2025 Q4"].map((value) => ({
-              value,
-              label: value === "2026 Q2" ? "2026 Q2 (최신 집계)" : value,
-            })),
+            options: quarters.length
+              ? quarters.map((quarter, index) => ({
+                  value: quarter.code,
+                  label:
+                    index === 0
+                      ? `${quarter.value} (최신 집계)`
+                      : quarter.value,
+                }))
+              : [{ value: "", label: quarterStatus }],
             onChange: setSelectedQuarter,
+            disabled: quarters.length === 0,
           },
         ].map((item) => (
-          <div
-            key={item.tag}
-            className="p-3.5 flex flex-col justify-center gap-1 hover:bg-gray-50 transition-colors relative"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono font-bold text-gray-500 uppercase tracking-wider">
-                {item.label}
-              </span>
-              <span className="text-[9px] font-mono px-1.5 py-0.2 bg-gray-200 text-gray-800 rounded-none">
-                {item.tag}
-              </span>
+          <React.Fragment key={item.tag}>
+            <div className="p-3.5 flex flex-col justify-center gap-1 hover:bg-gray-50 transition-colors relative">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono font-bold text-gray-500 uppercase tracking-wider">
+                  {item.label}
+                </span>
+                <span className="text-[9px] font-mono px-1.5 py-0.2 bg-gray-200 text-gray-800 rounded-none">
+                  {item.tag}
+                </span>
+              </div>
+              <div className="relative flex items-center justify-between mt-0.5">
+                <select
+                  value={item.value}
+                  onChange={(event) => item.onChange(event.target.value)}
+                  disabled={item.disabled}
+                  className="w-full appearance-none bg-transparent font-bold text-sm text-black cursor-pointer focus:outline-none pr-6 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {item.options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="pointer-events-none absolute right-0 text-xs text-gray-600 font-bold">
+                  ▼
+                </span>
+              </div>
             </div>
-            <div className="relative flex items-center justify-between mt-0.5">
-              <select
-                value={item.value}
-                onChange={(event) => item.onChange(event.target.value)}
-                className="w-full appearance-none bg-transparent font-bold text-sm text-black cursor-pointer focus:outline-none pr-6"
+            {item.tag === "TIMELINE" && (
+              <div
+                className="p-3.5 flex flex-col justify-center gap-1 hover:bg-gray-50 transition-colors relative"
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget))
+                    setIsSearchOpen(false);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") setIsSearchOpen(false);
+                }}
               >
-                {item.options.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <span className="pointer-events-none absolute right-0 text-xs text-gray-600 font-bold">
-                ▼
-              </span>
-            </div>
-          </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono font-bold text-gray-500 uppercase tracking-wider">
+                    상권 검색
+                  </span>
+                  <span className="text-[9px] font-mono px-1.5 py-0.2 bg-gray-200 text-gray-800 rounded-none">
+                    SEARCH
+                  </span>
+                </div>
+
+                <div className="relative mt-0.5">
+                  <label htmlFor="trade-area-keyword" className="sr-only">
+                    상권 검색
+                  </label>
+                  <input
+                    ref={searchInputRef}
+                    id="trade-area-keyword"
+                    type="search"
+                    value={keyword}
+                    onChange={(event) => {
+                      setKeyword(event.target.value);
+                      setIsSearchOpen(true);
+                      onSearch();
+                    }}
+                    onFocus={() => {
+                      setIsSearchOpen(true);
+                      onSearch();
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        setIsSearchOpen(false);
+                        onSubmitSearch();
+                      }
+                    }}
+                    placeholder="상권 검색"
+                    className="w-full rounded-none border-0 border-b border-black bg-transparent pb-1 pr-6 text-sm font-bold text-black placeholder:text-black focus:outline-none focus:border-b-2"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSearchOpen((open) => !open);
+                      onSearch();
+                    }}
+                    aria-label="상권 검색 목록"
+                    aria-expanded={isSearchOpen}
+                    className="absolute right-0 top-0 text-xs text-gray-600 font-bold cursor-pointer"
+                  >
+                    ▼
+                  </button>
+                </div>
+
+                {isSearchOpen && (
+                  <div
+                    className="absolute left-0 right-0 top-full z-20 text-sm shadow-sm"
+                    aria-live="polite"
+                  >
+                    {isTradeAreasFetching ? (
+                      <p className="border border-black bg-white p-3">
+                        상권을 불러오는 중입니다.
+                      </p>
+                    ) : isTradeAreasError ? (
+                      <div className="border border-black bg-white p-3">
+                        <p>상권 목록을 불러오지 못했습니다.</p>
+                        <button
+                          type="button"
+                          onClick={() => refetchTradeAreas()}
+                          className="mt-1 underline"
+                        >
+                          다시 시도
+                        </button>
+                      </div>
+                    ) : (
+                      <TradeAreaResults
+                        key={JSON.stringify([
+                          selectedDistrictCode,
+                          searchKeyword,
+                        ])}
+                        areas={tradeAreas}
+                        onSelect={(area) => {
+                          setKeyword(area.name);
+                          setIsSearchOpen(false);
+                        }}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </React.Fragment>
         ))}
+        <button
+          type="button"
+          onClick={() => {
+            setIsSearchOpen(false);
+            onSubmitSearch();
+          }}
+          className="flex items-center justify-center self-stretch bg-black px-4 py-4 text-lg font-bold text-white hover:bg-black/85 focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-[#CCFF00] cursor-pointer"
+        >
+          검색
+        </button>
       </div>
 
       <div className="p-4 bg-[#f2f2ee] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex flex-col gap-2.5">
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1.5 mr-2">
               <span className="w-1.5 h-1.5 bg-black inline-block" />
@@ -176,21 +326,6 @@ const ExploreFilterBar: React.FC<ExploreFilterBarProps> = ({
               ))
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-xs">
-            <span className="text-[11px] font-medium text-gray-500 mr-1">
-              추천 추가:
-            </span>
-            {candidateRecommendations.map((district) => (
-              <button
-                key={district.trade_area_code}
-                onClick={() => toggleDistrict(district.trade_area_code)}
-                className="px-2 py-0.5 bg-white border border-gray-400 text-gray-700 text-xs font-medium hover:border-black hover:text-black transition-all cursor-pointer"
-                type="button"
-              >
-                + {district.trade_area_name}
-              </button>
-            ))}
-          </div>
         </div>
         <div className="flex items-center gap-3 shrink-0 self-end lg:self-center border-t lg:border-t-0 border-gray-300 pt-2 lg:pt-0 w-full lg:w-auto justify-end">
           {selectedDistricts.length > 0 && (
@@ -208,7 +343,7 @@ const ExploreFilterBar: React.FC<ExploreFilterBarProps> = ({
             className={`inline-flex items-center gap-2 px-4 py-2 text-xs font-bold border border-black transition-colors shadow-sm cursor-pointer ${selectedDistricts.length > 0 ? "bg-black text-white hover:bg-[#d8fc03] hover:text-black" : "bg-gray-300 text-gray-600 border-gray-400 cursor-not-allowed"}`}
             type="button"
           >
-            <span>{selectedDistricts.length}개 상권 나란히 비교</span>
+            <span>상권 나란히 비교</span>
             <span className="text-xs">➔</span>
           </button>
         </div>
@@ -263,31 +398,86 @@ export const ExplorePage: React.FC = () => {
   const [selectedQuarter, setSelectedQuarter] = useState<string>("2026 Q2");
   const [activeItemCode, setActiveItemCode] = useState<string>("SEONGSU");
 
+  const {
+    data: allTradeAreas = [],
+    isFetching: isTradeAreasFetching,
+    isError: isTradeAreasError,
+    refetch: refetchTradeAreas,
+  } = useQuery({
+    queryKey: [
+      "trade-areas",
+      selectedIndustry,
+      selectedDistrictCode,
+      selectedQuarter,
+    ],
+    queryFn: ({ signal }) =>
+      selectedDistrictCode
+        ? api.searchTradeAreas(
+            {
+              industry_code: selectedIndustry,
+              signgu_cd: selectedDistrictCode,
+              quarter: selectedQuarter,
+            },
+            signal,
+          )
+        : api.getTradeAreas(signal),
+    enabled: Boolean(selectedIndustry && selectedQuarter),
+    staleTime: Infinity,
+    retry: false,
+  });
+  const tradeAreas = allTradeAreas.filter((area) =>
+    area.name.toLowerCase().includes(searchKeyword.toLowerCase()),
+  );
+  const loadTradeAreas = () => {
+    if (
+      selectedIndustry &&
+      selectedQuarter &&
+      isTradeAreasError &&
+      !isTradeAreasFetching
+    ) {
+      void refetchTradeAreas();
+    }
+  };
+
   const { isDistrictSelected, toggleDistrict, selectedCodes } =
     useCompareStore();
 
-  const { data: industries = [] } = useQuery({
-    queryKey: ["industries"],
-    queryFn: api.getIndustries,
-  });
-
-  const { data: recommendations = [], isLoading } = useQuery({
+  const {
+    data: recommendations = [],
+    isLoading,
+    isError: recommendationsError,
+    refetch: refetchRecommendations,
+  } = useQuery({
     queryKey: [
       "recommendations",
       selectedIndustry,
       selectedQuarter,
       selectedRegion,
+      submittedKeyword,
     ],
+    enabled: Boolean(selectedIndustry && selectedQuarter),
     queryFn: () =>
       api.getRecommendations({
         industry_code: selectedIndustry,
         quarter: selectedQuarter,
         region: selectedRegion,
+        keyword: submittedKeyword || undefined,
       }),
   });
 
   const currentIndustryName =
-    industries.find((i) => i.code === selectedIndustry)?.name || "커피·음료";
+    industries.find((i) => i.code === selectedIndustry)?.name || "업종 선택";
+  const selectedRecommendations = selectedCodes
+    .map((code) =>
+      recommendations.find((item) => item.trade_area_code === code),
+    )
+    .filter((item): item is RecommendationItem => item !== undefined);
+  const orderedRecommendations = [
+    ...selectedRecommendations,
+    ...recommendations.filter(
+      (item) => !selectedCodes.includes(item.trade_area_code),
+    ),
+  ];
 
   const handleDistrictClick = (code: string) => {
     navigate(
@@ -298,7 +488,7 @@ export const ExplorePage: React.FC = () => {
   return (
     <div className="w-full bg-[#f5f5f0] min-h-[calc(100vh-4rem)]">
       {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-8 border-b-2 border-black">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12">
         <div className="max-w-3xl space-y-4">
           {/* Badge */}
           <div>
@@ -434,6 +624,64 @@ export const ExplorePage: React.FC = () => {
         />
       </section>
 
+      <div className="sticky top-16 z-30 mt-6 bg-[#f5f5f0] sm:mt-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <ExploreFilterBar
+            industries={industries}
+            quarters={quarterData}
+            industryStatus={
+              industriesPending
+                ? "업종 불러오는 중"
+                : industriesError
+                  ? "업종 조회 실패"
+                  : "등록된 업종 없음"
+            }
+            quarterStatus={
+              quartersPending
+                ? "분기 불러오는 중"
+                : quartersError
+                  ? "분기 조회 실패"
+                  : "등록된 분기 없음"
+            }
+            selectedIndustry={selectedIndustry}
+            setSelectedIndustry={setSelectedIndustry}
+            districts={districts}
+            selectedDistrictCode={selectedDistrictCode}
+            setDistrict={setDistrict}
+            isDistrictsPending={isDistrictsPending}
+            isDistrictsError={isDistrictsError}
+            keyword={keyword}
+            setKeyword={setKeyword}
+            searchKeyword={searchKeyword}
+            tradeAreas={tradeAreas}
+            isTradeAreasFetching={isTradeAreasFetching}
+            isTradeAreasError={isTradeAreasError}
+            refetchTradeAreas={refetchTradeAreas}
+            onSearch={loadTradeAreas}
+            onSubmitSearch={() => {
+              if (
+                searchKeyword === submittedKeyword &&
+                selectedIndustry &&
+                selectedQuarter
+              ) {
+                void refetchRecommendations();
+              } else {
+                setSubmittedKeyword(searchKeyword);
+              }
+            }}
+            selectedQuarter={selectedQuarter}
+            setSelectedQuarter={setSelectedQuarter}
+            recommendations={recommendations}
+            selectedCodes={selectedCodes}
+            toggleDistrict={toggleDistrict}
+            clearDistricts={useCompareStore.getState().clearDistricts}
+            onOpenCompare={() => navigate("/compare")}
+          />
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto border-b-2 border-black pb-8" />
+
       {/* Main Swiss Grid Section */}
       <section className="max-w-7xl mx-auto border-b-2 border-black">
         <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[600px]">
@@ -455,8 +703,16 @@ export const ExplorePage: React.FC = () => {
                 <div className="p-12 text-center font-mono text-gray-500">
                   데이터 집계 중...
                 </div>
+              ) : recommendationsError ? (
+                <p className="p-12 text-center">
+                  상권 조회에 실패했습니다. 잠시 후 다시 시도해 주세요.
+                </p>
+              ) : orderedRecommendations.length === 0 ? (
+                <p className="p-12 text-center">
+                  조회 조건에 맞는 상권이 없습니다.
+                </p>
               ) : (
-                recommendations.map((item, idx) => {
+                orderedRecommendations.map((item) => {
                   const isTopActive = activeItemCode === item.trade_area_code;
                   const isChecked = isDistrictSelected(item.trade_area_code);
 
@@ -467,7 +723,7 @@ export const ExplorePage: React.FC = () => {
                         setActiveItemCode(item.trade_area_code)
                       }
                       className={`relative p-5 sm:p-6 transition-colors duration-150 group cursor-pointer ${
-                        isTopActive
+                        isTopActive || isChecked
                           ? "bg-[#d4ff00]"
                           : "bg-[#f5f5f0] hover:bg-[#eeede6]"
                       }`}
@@ -571,22 +827,24 @@ export const ExplorePage: React.FC = () => {
               </div>
 
               {/* Factors list with solid black bottom borders matching Reference 1 */}
-              <div className="divide-y border-t border-b border-black font-mono text-xs sm:text-sm">
+              <div className="-mr-6 divide-y border-t border-b border-black font-mono text-xs sm:-mr-8 sm:text-sm">
                 <div className="flex justify-between py-3">
-                  <span className="text-black font-medium">Sales Growth</span>
-                  <span className="font-extrabold text-black">40%</span>
+                  <span className="text-black font-medium">
+                    매출 성장 (Sales Growth)
+                  </span>
+                  <span className="mr-3 font-extrabold text-black">40%</span>
                 </div>
                 <div className="flex justify-between py-3">
                   <span className="text-black font-medium">
-                    Transaction Volume
+                    거래량 (Transaction Volume)
                   </span>
-                  <span className="font-extrabold text-black">35%</span>
+                  <span className="mr-3 font-extrabold text-black">35%</span>
                 </div>
                 <div className="flex justify-between py-3">
                   <span className="text-black font-medium">
-                    Competition Intensity
+                    경쟁 강도 (Competition Intensity)
                   </span>
-                  <span className="font-extrabold text-black">25%</span>
+                  <span className="mr-3 font-extrabold text-black">25%</span>
                 </div>
               </div>
 

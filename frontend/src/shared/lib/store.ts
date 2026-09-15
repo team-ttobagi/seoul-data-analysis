@@ -26,11 +26,11 @@ export const useCompareStore = create<CompareState>((set, get) => ({
   addDistrict: (code: string) => {
     const current = get().selectedCodes;
     if (current.includes(code)) return;
-    if (current.length >= 3) {
-      set({ selectedCodes: [...current.slice(1), code] });
-    } else {
-      set({ selectedCodes: [...current, code] });
+    if (current.length >= 7) {
+      window.alert("비교 상권 트레이에 7개까지 담을 수 있습니다.");
+      return;
     }
+    set({ selectedCodes: [...current, code] });
   },
   removeDistrict: (code: string) => {
     set({ selectedCodes: get().selectedCodes.filter((c) => c !== code) });

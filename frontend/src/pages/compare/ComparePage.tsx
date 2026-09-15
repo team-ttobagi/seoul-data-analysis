@@ -23,7 +23,7 @@ export const ComparePage: React.FC = () => {
   const { selectedCodes, removeDistrict, addDistrict, clearDistricts } =
     useCompareStore();
   const [selectedIndustry] = useState("CS100010");
-  const [selectedQuarter] = useState("2026 Q2");
+  const [selectedQuarter] = useState("20254");
 
   const { data: allTradeAreas = [] } = useQuery({
     queryKey: ["trade-areas"],
@@ -67,7 +67,7 @@ export const ComparePage: React.FC = () => {
               상권 다각 비교 분석
             </h1>
             <p className="text-sm font-mono text-gray-600 mt-1">
-              최대 3개 상권의 핵심 지표를 나란히 비교하여 후보지를 압축하세요.
+              최대 7개 상권의 핵심 지표를 나란히 비교하여 후보지를 압축하세요.
             </p>
           </div>
 
@@ -85,7 +85,7 @@ export const ComparePage: React.FC = () => {
         {/* Quick Add Bar */}
         <div className="mt-6 flex flex-wrap items-center gap-2">
           <span className="font-mono text-xs font-bold text-gray-700">
-            상권 추가 ({selectedCodes.length}/3):
+            상권 추가 ({selectedCodes.length}/7):
           </span>
           {availableToAdd.map((ta) => (
             <button

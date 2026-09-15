@@ -29,7 +29,7 @@ export interface TradeAreaSearchParams {
 export interface Industry {
   code: string;
   name: string;
-  category: string;
+  category?: string;
   description?: string;
 }
 

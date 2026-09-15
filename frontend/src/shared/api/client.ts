@@ -6,6 +6,7 @@ import {
   TradeAreaSearchParams,
   District,
   Industry,
+  QuarterOption,
   RecommendationItem,
   DistrictOverview,
   DistrictPatterns,
@@ -18,7 +19,6 @@ import {
   MOCK_INDUSTRIES,
   MOCK_TRADE_AREA_RESPONSES,
   MOCK_TRADE_AREAS,
-  getMockRecommendations,
   getMockDistrictOverview,
   getMockDistrictPatterns,
   getMockDistrictCompetition,
@@ -146,13 +146,32 @@ export const api = {
   },
 
   /**
+   * 전체 상권 목록 조회
+   *
+   * GET /trade-areas는 쿼리 파라미터를 받지 않는다. 백엔드 필드명을
+   * 프론트 공통 TradeArea 형태로 변환해 반환한다.
+   */
+  getTradeAreas: async (signal?: AbortSignal): Promise<TradeArea[]> => {
+    const response = await apiClient.get<TradeAreaResponse[]>("/trade-areas", {
+      signal,
+    });
+    return response.data.map((area) => ({
+      code: area.trdar_cd,
+      name: area.trdar_cd_nm,
+      district_code: area.signgu_cd,
+      district_name: area.signgu_cd_nm,
+    }));
+  },
+
+  /**
    * 업종 목록
    */
-  getIndustries: async (): Promise<Industry[]> => {
-    if (USE_MOCK) {
-      return MOCK_INDUSTRIES;
-    }
+  getQuarters: async (): Promise<QuarterOption[]> => {
+    const response = await apiClient.get<QuarterOption[]>("/sales/quarters");
+    return response.data;
+  },
 
+  getIndustries: async (): Promise<Industry[]> => {
     const response = await apiClient.get<Industry[]>("/industries");
 
     return response.data;
@@ -165,18 +184,17 @@ export const api = {
     industry_code?: string;
     quarter?: string;
     region?: string;
+    keyword?: string;
   }): Promise<RecommendationItem[]> => {
-    if (USE_MOCK) {
-      return getMockRecommendations(params?.industry_code, params?.quarter);
-    }
-
     const response = await apiClient.get<RecommendationItem[]>(
       "/analytics/recommendations",
       {
+        timeout: 30000,
         params: {
           industry_code: params?.industry_code,
           quarter: params?.quarter,
           region: params?.region,
+          keyword: params?.keyword,
         },
       },
     );
