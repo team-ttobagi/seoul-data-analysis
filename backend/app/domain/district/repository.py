@@ -19,7 +19,10 @@ class DistrictRepository:
 
         try:
             result = await self.session.execute(
-                select(DistrictModel).order_by(DistrictModel.signgu_cd)
+                select(DistrictModel).order_by(
+                    DistrictModel.signgu_cd_nm,
+                    DistrictModel.signgu_cd,
+                )
             )
             rows = result.scalars().all()
             return [
