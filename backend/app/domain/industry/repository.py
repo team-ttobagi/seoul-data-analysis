@@ -16,7 +16,10 @@ class IndustryRepository:
             return []
 
         try:
-            stmt = select(ServiceIndustryModel)
+            stmt = select(ServiceIndustryModel).order_by(
+                ServiceIndustryModel.svc_induty_cd_nm,
+                ServiceIndustryModel.svc_induty_cd,
+            )
             result = await self.session.execute(stmt)
             rows = result.scalars().all()
             return [
