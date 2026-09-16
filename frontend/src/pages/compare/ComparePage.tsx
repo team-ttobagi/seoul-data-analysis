@@ -1,34 +1,39 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Trash2,
-  Plus,
   ArrowUpRight,
   ExternalLink,
+  Loader2,
 } from "lucide-react";
 import { api } from "../../shared/api/client";
 import { useCompareStore } from "../../shared/lib/store";
 import { ScorePill } from "../../shared/ui/Signals";
 
-/* ---------------------------------------------- */
-// Update by SoO 2026.09.07
-//   store_count
-//   store_count_change 동일 업종 점포수 / 경쟁 주석처리
-/* ---------------------------------------------- */
-
 export const ComparePage: React.FC = () => {
   const navigate = useNavigate();
-  const { selectedCodes, removeDistrict, addDistrict, clearDistricts } =
+  const { selectedCodes, clearDistricts, areaNamesByCode } =
     useCompareStore();
   const [selectedIndustry] = useState("CS100010");
   const [selectedQuarter] = useState("20254");
 
-  const { data: allTradeAreas = [] } = useQuery({
-    queryKey: ["trade-areas"],
-    queryFn: ({ signal }) => api.getTradeAreas(signal),
-  });
+  // 선택은 최대 7개까지 가능하지만, 비교표에는 선택한 순서대로 최대 3개만 표시한다.
+  // 이미 표시 중이던 항목은 selectedCodes 가 바뀌어도(추가/Explore에서 넘어옴 등) 그대로 유지하고,
+  // 표시할 게 하나도 없을 때만 선택 순서대로 앞의 3개를 채운다.
+  const [displayedCodes, setDisplayedCodes] = useState<string[]>([]);
+
+  useEffect(() => {
+    setDisplayedCodes((current) => {
+      const stillSelected = current.filter((code) =>
+        selectedCodes.includes(code),
+      );
+      return stillSelected.length > 0
+        ? stillSelected.slice(0, 3)
+        : selectedCodes.slice(0, 3);
+    });
+  }, [selectedCodes]);
 
   const { data: compareList = [], isLoading } = useQuery({
     queryKey: [
@@ -46,9 +51,45 @@ export const ComparePage: React.FC = () => {
     enabled: selectedCodes.length > 0,
   });
 
-  const availableToAdd = allTradeAreas.filter(
-    (ta) => !selectedCodes.includes(ta.code),
-  );
+  // 비교표 컬럼은 데이터 로딩 여부와 무관하게 displayedCodes(최대 3개) 순서로 즉시 그린다.
+  // compareList 가 아직 안 왔으면 data 가 undefined 인 채로 컬럼만 먼저 표시하고(Explore→Compare
+  // 이동 직후 "비교 지표" 한 칸만 화면을 채우는 현상 방지), 각 셀은 도착하면 실제 값으로 채운다.
+  const displayedItems = displayedCodes.map((code) => ({
+    code,
+    name: areaNamesByCode[code] ?? code,
+    data: compareList.find((item) => item.trade_area_code === code),
+  }));
+
+  // "상권 추가"에는 선택은 했지만 현재 비교표에는 표시되지 않은 상권만 보여준다
+  // (비교표에 보이는 상권은 여기서 제외).
+  const hiddenSelectedDistricts = selectedCodes
+    .filter((code) => !displayedCodes.includes(code))
+    .map((code) => ({
+      trade_area_code: code,
+      trade_area_name: areaNamesByCode[code] ?? code,
+    }));
+
+  const showInComparison = (code: string) => {
+    if (displayedCodes.length >= 3) {
+      window.alert("비교 지표는 3개까지 비교됩니다.");
+      return;
+    }
+    setDisplayedCodes((current) => [...current, code]);
+  };
+
+  // 비교표의 쓰레기통은 선택 자체를 취소하지 않고 표시에서만 숨긴다 — 숨긴 상권은
+  // "상권 추가"에 다시 나타나며, 완전히 선택을 취소하려면 "선택 초기화"를 사용한다.
+  const hideFromComparison = (code: string) => {
+    setDisplayedCodes((current) => current.filter((c) => c !== code));
+  };
+
+  const handleClearDistricts = () => {
+    setDisplayedCodes([]);
+    clearDistricts();
+  };
+
+  // compareList 가 아직 로딩 중인 컬럼(data undefined)에 표시할 자리표시자.
+  const Placeholder = () => <span className="text-gray-300">…</span>;
 
   return (
     <div className="w-full bg-[#f5f5f0] min-h-[calc(100vh-4rem)] pb-16">
@@ -73,7 +114,7 @@ export const ComparePage: React.FC = () => {
 
           {selectedCodes.length > 0 && (
             <button
-              onClick={clearDistricts}
+              onClick={handleClearDistricts}
               className="px-3 py-1.5 border border-black font-mono text-xs font-bold bg-white hover:bg-black hover:text-white transition-colors flex items-center gap-1"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -82,28 +123,49 @@ export const ComparePage: React.FC = () => {
           )}
         </div>
 
-        {/* Quick Add Bar */}
+        {/* [연동] 비교표에 보이는 상권은 제외하고, 선택은 했지만 표시되지 않은 상권만 보여준다.
+            클릭하면 비교표에 표시되고(최대 3개), 3개가 이미 차 있으면 alert 로 안내한다. */}
         <div className="mt-6 flex flex-wrap items-center gap-2">
           <span className="font-mono text-xs font-bold text-gray-700">
             상권 추가 ({selectedCodes.length}/7):
           </span>
-          {availableToAdd.map((ta) => (
-            <button
-              key={ta.code}
-              disabled={selectedCodes.length >= 7}
-              onClick={() => addDistrict(ta.code, ta.name)}
-              className="px-2.5 py-1 text-xs font-mono font-bold border border-black bg-white hover:bg-[#d4ff00] disabled:opacity-40 disabled:hover:bg-white flex items-center gap-1 transition-colors"
-            >
-              <Plus className="w-3 h-3" />
-              {ta.name}
-            </button>
-          ))}
+          {selectedCodes.length === 0 ? (
+            <span className="text-xs text-gray-500 italic py-1">
+              Explore에서 비교할 상권을 선택하세요.
+            </span>
+          ) : hiddenSelectedDistricts.length === 0 ? (
+            <span className="text-xs text-gray-500 italic py-1">
+              선택한 상권이 모두 비교표에 표시 중입니다.
+            </span>
+          ) : (
+            hiddenSelectedDistricts.map((district) => (
+              <button
+                key={district.trade_area_code}
+                type="button"
+                disabled={displayedCodes.length >= 3}
+                onClick={() => showInComparison(district.trade_area_code)}
+                className="inline-flex items-center gap-2 px-2.5 py-1 bg-white border border-black text-black text-xs font-bold shadow-sm hover:bg-[#d4ff00] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white"
+                title={
+                  displayedCodes.length >= 3
+                    ? "비교 지표는 3개까지 비교됩니다."
+                    : `${district.trade_area_name} 비교표에 표시`
+                }
+              >
+                <span className="w-1.5 h-1.5 inline-block border border-black bg-black" />
+                <span>{district.trade_area_name}</span>
+                <span className="text-gray-500">보기</span>
+              </button>
+            ))
+          )}
         </div>
       </section>
 
       {/* Comparison Table / Matrix */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
-        {selectedCodes.length === 0 ? (
+        {/* 비교표에 표시 중인 상권이 0개면(전체 미선택 포함) 빈 상태 화면을 보여준다.
+            선택은 남아있지만 전부 숨겨진 경우에도 동일하게 이 화면을 보여주고,
+            "상권 추가"의 "보기" 버튼으로 다시 표시할 수 있다. */}
+        {displayedCodes.length === 0 ? (
           <div className="border-2 border-black p-12 text-center bg-white space-y-4">
             <p className="font-mono text-base font-bold text-gray-800">
               비교할 상권이 선택되지 않았습니다.
@@ -116,30 +178,39 @@ export const ComparePage: React.FC = () => {
             </Link>
           </div>
         ) : (
-          <div className="border-2 border-black bg-white overflow-x-auto">
-            <table className="w-full text-left border-collapse font-mono text-xs sm:text-sm">
-              <thead>
-                <tr className="border-b-2 border-black bg-[#eeede6]">
+          <>
+            {/* [연동] compareList 조회(useQuery)의 isLoading 동안 표 위에 로딩 안내를 띄운다.
+                표 자체(컬럼/자리표시자)는 이미 즉시 그려지므로 이 배너는 보조 안내다. */}
+            {isLoading && (
+              <div className="mb-3 flex items-center gap-2 border-2 border-black bg-white px-4 py-3 font-mono text-xs sm:text-sm font-bold text-gray-700">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>비교할 상권데이터를 가져오는 중입니다.</span>
+              </div>
+            )}
+            <div className="border-2 border-black bg-white overflow-x-auto">
+              <table className="w-full text-left border-collapse font-mono text-xs sm:text-sm">
+                <thead>
+                  <tr className="border-b-2 border-black bg-[#eeede6]">
                   <th className="p-4 sm:p-5 font-black text-black w-44 sm:w-56 border-r-2 border-black text-sm sm:text-base">
                     비교 지표
                   </th>
-                  {compareList.map((item) => (
+                  {displayedItems.map(({ code, name, data }) => (
                     <th
-                      key={item.trade_area_code}
+                      key={code}
                       className="p-4 sm:p-5 font-black text-black border-r-2 border-black last:border-r-0 min-w-[220px]"
                     >
                       <div className="flex items-center justify-between">
                         <div>
                           <span className="text-xs text-gray-500 block font-normal">
-                            {item.district}
+                            {data?.district ?? <Placeholder />}
                           </span>
                           <span className="text-lg sm:text-xl font-black">
-                            {item.trade_area_name}
+                            {data?.trade_area_name ?? name}
                           </span>
                         </div>
                         <button
-                          onClick={() => removeDistrict(item.trade_area_code)}
-                          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                          onClick={() => hideFromComparison(code)}
+                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                           title="제외하기"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -156,19 +227,23 @@ export const ComparePage: React.FC = () => {
                   <td className="p-4 font-bold text-black border-r-2 border-black bg-[#eeede6]/70">
                     데이터 탐색 점수
                   </td>
-                  {compareList.map((item) => (
+                  {displayedItems.map(({ code, data }) => (
                     <td
-                      key={item.trade_area_code}
+                      key={code}
                       className="p-4 border-r-2 border-black last:border-r-0 font-extrabold text-base sm:text-lg text-black"
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="bg-black text-white px-2.5 py-0.5 text-xs font-mono">
-                          Score {item.exploration_score}
-                        </span>
-                        <span className="text-xs font-normal text-gray-500">
-                          / 100
-                        </span>
-                      </div>
+                      {data ? (
+                        <div className="flex items-center gap-2">
+                          <span className="bg-black text-white px-2.5 py-0.5 text-xs font-mono">
+                            Score {data.exploration_score ?? "-"}
+                          </span>
+                          <span className="text-xs font-normal text-gray-500">
+                            / 100
+                          </span>
+                        </div>
+                      ) : (
+                        <Placeholder />
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -178,12 +253,12 @@ export const ComparePage: React.FC = () => {
                   <td className="p-4 font-bold text-black border-r-2 border-black bg-[#eeede6]">
                     추정 분기 매출
                   </td>
-                  {compareList.map((item) => (
+                  {displayedItems.map(({ code, data }) => (
                     <td
-                      key={item.trade_area_code}
+                      key={code}
                       className="p-4 border-r-2 border-black last:border-r-0 font-bold text-base text-black"
                     >
-                      {item.estimated_sales_formatted}
+                      {data ? data.estimated_sales_formatted : <Placeholder />}
                     </td>
                   ))}
                 </tr>
@@ -193,12 +268,12 @@ export const ComparePage: React.FC = () => {
                   <td className="p-4 font-bold text-black border-r-2 border-black bg-[#eeede6]">
                     거래 건수
                   </td>
-                  {compareList.map((item) => (
+                  {displayedItems.map(({ code, data }) => (
                     <td
-                      key={item.trade_area_code}
+                      key={code}
                       className="p-4 border-r-2 border-black last:border-r-0 font-bold text-black"
                     >
-                      {item.transaction_count_formatted}건
+                      {data ? `${data.transaction_count_formatted}건` : <Placeholder />}
                     </td>
                   ))}
                 </tr>
@@ -208,56 +283,75 @@ export const ComparePage: React.FC = () => {
                   <td className="p-4 font-bold text-black border-r-2 border-black bg-[#eeede6]">
                     매출 성장률 (전분기비)
                   </td>
-                  {compareList.map((item) => (
+                  {displayedItems.map(({ code, data }) => (
                     <td
-                      key={item.trade_area_code}
+                      key={code}
                       className="p-4 border-r-2 border-black last:border-r-0 font-bold text-black"
                     >
-                      <span className="bg-[#d4ff00] px-2 py-0.5 border border-black text-xs font-bold">
-                        +{item.growth_rate}%
-                      </span>
+                      {/* [연동] growth_rate 는 음수 가능(Optional[float]) → 부호 직접 계산, null 이면 "-" 표기 */}
+                      {data ? (
+                        <span className="bg-[#d4ff00] px-2 py-0.5 border border-black text-xs font-bold">
+                          {data.growth_rate === null
+                            ? "-"
+                            : `${data.growth_rate > 0 ? "+" : ""}${data.growth_rate.toFixed(1)}%`}
+                        </span>
+                      ) : (
+                        <Placeholder />
+                      )}
                     </td>
                   ))}
                 </tr>
-                {/* === Update by SoO 2026.09.07 ===========
-                      2. [fix] 점포 관련 UI 및 데이터 참조 제거
-                        2-2. Compare 화면의 점포 수 / 점포 수 변화 표시 제거
-                  */}
-                {/* 5. Store Count & Competition */}
-                {/* <tr>
+                {/* 5. Store Count & Competition
+                    [연동] GET /api/v1/compare 응답의 store_count / store_count_change / competition_level 을 사용한다
+                    (backend/app/domain/analytics/schemas.py CompareDistrictData 기준).
+                    competition_level 실제 값은 "높음" / "보통" / "낮음" 3단계(백엔드 CompetitionScore 기준)이며
+                    "높음"을 경쟁 경고(빨강) 기준으로 맞춘다. */}
+                <tr>
                   <td className="p-4 font-bold text-black border-r-2 border-black bg-[#eeede6]">
                     동일 업종 점포수 / 경쟁
                   </td>
-                  {compareList.map((item) => (
+                  {displayedItems.map(({ code, data }) => (
                     <td
-                      key={item.trade_area_code}
+                      key={code}
                       className="p-4 border-r-2 border-black last:border-r-0 text-black"
                     >
-                      <div className="font-bold">{item.store_count}개 (+{item.store_count_change}개)</div>
-                      <span
-                        className={`inline-block mt-1 px-1.5 py-0.2 text-[11px] font-bold ${
-                          item.competition_level === "매우 높음"
-                            ? "bg-red-500 text-white"
-                            : "bg-gray-200 text-black"
-                        }`}
-                      >
-                        경쟁 {item.competition_level}
-                      </span>
+                      {data ? (
+                        <>
+                          <div className="font-bold">
+                            {data.store_count ?? "-"}개 (
+                            {data.store_count_change === null
+                              ? "-"
+                              : `${data.store_count_change > 0 ? "+" : ""}${data.store_count_change}개`}
+                            )
+                          </div>
+                          <span
+                            className={`inline-block mt-1 px-1.5 py-0.5 text-[11px] font-bold ${
+                              data.competition_level === "높음"
+                                ? "bg-red-500 text-white"
+                                : "bg-gray-200 text-black"
+                            }`}
+                          >
+                            경쟁 {data.competition_level ?? "-"}
+                          </span>
+                        </>
+                      ) : (
+                        <Placeholder />
+                      )}
                     </td>
                   ))}
-                </tr> */}
+                </tr>
 
                 {/* 6. Primary Age & Gender */}
                 <tr>
                   <td className="p-4 font-bold text-black border-r-2 border-black bg-[#eeede6]">
                     주요 소비 타겟 (WHO)
                   </td>
-                  {compareList.map((item) => (
+                  {displayedItems.map(({ code, data }) => (
                     <td
-                      key={item.trade_area_code}
+                      key={code}
                       className="p-4 border-r-2 border-black last:border-r-0 font-bold text-black"
                     >
-                      {item.strongest_age_group}
+                      {data ? data.strongest_age_group : <Placeholder />}
                     </td>
                   ))}
                 </tr>
@@ -267,12 +361,12 @@ export const ComparePage: React.FC = () => {
                   <td className="p-4 font-bold text-black border-r-2 border-black bg-[#eeede6]">
                     피크 소비 시간대 (WHEN)
                   </td>
-                  {compareList.map((item) => (
+                  {displayedItems.map(({ code, data }) => (
                     <td
-                      key={item.trade_area_code}
+                      key={code}
                       className="p-4 border-r-2 border-black last:border-r-0 font-bold text-black"
                     >
-                      {item.strongest_time_period}
+                      {data ? data.strongest_time_period : <Placeholder />}
                     </td>
                   ))}
                 </tr>
@@ -282,12 +376,12 @@ export const ComparePage: React.FC = () => {
                   <td className="p-4 font-bold text-black border-r-2 border-black bg-[#eeede6]">
                     최대 매출 요일 (DAY)
                   </td>
-                  {compareList.map((item) => (
+                  {displayedItems.map(({ code, data }) => (
                     <td
-                      key={item.trade_area_code}
+                      key={code}
                       className="p-4 border-r-2 border-black last:border-r-0 font-bold text-black"
                     >
-                      {item.strongest_day}
+                      {data ? data.strongest_day : <Placeholder />}
                     </td>
                   ))}
                 </tr>
@@ -297,12 +391,12 @@ export const ComparePage: React.FC = () => {
                   <td className="p-4 font-bold text-black border-r-2 border-black bg-[#eeede6]">
                     상권 탐색 요약
                   </td>
-                  {compareList.map((item) => (
+                  {displayedItems.map(({ code, data }) => (
                     <td
-                      key={item.trade_area_code}
+                      key={code}
                       className="p-4 border-r-2 border-black last:border-r-0 text-xs font-sans text-gray-800 leading-relaxed"
                     >
-                      {item.key_insight}
+                      {data ? data.key_insight : <Placeholder />}
                     </td>
                   ))}
                 </tr>
@@ -312,22 +406,22 @@ export const ComparePage: React.FC = () => {
                   <td className="p-4 font-bold text-black border-r-2 border-black bg-[#eeede6]">
                     상세 분석
                   </td>
-                  {compareList.map((item) => (
+                  {displayedItems.map(({ code, name, data }) => (
                     <td
-                      key={item.trade_area_code}
+                      key={code}
                       className="p-4 border-r-2 border-black last:border-r-0"
                     >
                       <button
                         onClick={() =>
                           navigate(
-                            `/district/${item.trade_area_code}?industry=${selectedIndustry}&quarter=${encodeURIComponent(
+                            `/district/${code}?industry=${selectedIndustry}&quarter=${encodeURIComponent(
                               selectedQuarter,
                             )}`,
                           )
                         }
                         className="w-full py-2 bg-black text-white font-bold text-xs hover:bg-[#d4ff00] hover:text-black border border-black flex items-center justify-center gap-1.5 transition-colors"
                       >
-                        <span>{item.trade_area_name} 심층 보기</span>
+                        <span>{data?.trade_area_name ?? name} 심층 보기</span>
                         <ArrowUpRight className="w-3.5 h-3.5" />
                       </button>
                     </td>
@@ -335,7 +429,8 @@ export const ComparePage: React.FC = () => {
                 </tr>
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
       </section>
     </div>

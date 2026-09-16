@@ -9,6 +9,7 @@ import {
   QuarterOption,
   RecommendationItem,
   DistrictOverview,
+  DistrictOverviewInsight,
   DistrictPatterns,
   DistrictCompetition,
   CompareDistrictData,
@@ -19,6 +20,7 @@ import {
   MOCK_INDUSTRIES,
   MOCK_TRADE_AREAS,
   getMockDistrictOverview,
+  getMockDistrictOverviewInsight,
   getMockDistrictPatterns,
   getMockDistrictCompetition,
   getMockCompareData,
@@ -214,6 +216,35 @@ export const api = {
   },
 
   /**
+   * 상권 종합 인사이트(Gemini) — [연동] Gemini 생성이 최대 수 초 걸려 overview 응답과 분리된
+   * GET /trade-areas/{trade_area_code}/overview/insight 를 별도로 호출한다.
+   * overview.takeaway.summary 는 이 응답이 도착하기 전까지 고정 문구("AI 인사이트 생성 중입니다.")다.
+   */
+  getDistrictOverviewInsight: async (
+    tradeAreaCode: string,
+    params?: {
+      industry_code?: string;
+      quarter?: string;
+    },
+  ): Promise<DistrictOverviewInsight> => {
+    if (USE_MOCK) {
+      return getMockDistrictOverviewInsight(tradeAreaCode);
+    }
+
+    const response = await apiClient.get<DistrictOverviewInsight>(
+      `/trade-areas/${tradeAreaCode}/overview/insight`,
+      {
+        params: {
+          industry_code: params?.industry_code,
+          quarter: params?.quarter,
+        },
+      },
+    );
+
+    return response.data;
+  },
+
+  /**
    * 상권 패턴
    */
   getDistrictPatterns: async (
@@ -279,7 +310,10 @@ export const api = {
       return getMockCompareData(params.trade_area_codes);
     }
 
+    // [연동] 상권 여러 개(최대 7개)를 동시에 집계하는 무거운 조회라 기본 5000ms 로 종종 초과된다.
+    // getRecommendations와 동일하게 timeout 을 넉넉히 늘린다.
     const response = await apiClient.get<CompareDistrictData[]>("/compare", {
+      timeout: 30000,
       params: {
         trade_area_codes: params.trade_area_codes.join(","),
         industry_code: params.industry_code,

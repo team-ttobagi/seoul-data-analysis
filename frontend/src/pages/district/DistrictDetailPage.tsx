@@ -17,7 +17,7 @@ import { api } from "../../shared/api/client";
 import {
   RankBarChart,
   TimeBarChart,
-  AgeGenderBarChart,
+  AgeBarChart,
   DayBarChart,
 } from "../../shared/ui/Charts";
 import { useCompareStore } from "../../shared/lib/store";
@@ -47,6 +47,17 @@ export const DistrictDetailPage: React.FC = () => {
     queryKey: ["district-overview", tradeAreaCode, industryCode, quarter],
     queryFn: () =>
       api.getDistrictOverview(tradeAreaCode, {
+        industry_code: industryCode,
+        quarter,
+      }),
+  });
+
+  // [연동] Gemini 인사이트는 별도 /overview/insight 호출로 받아온다(최대 수 초 소요, 나머지 화면을 막지 않음).
+  // 응답 전까지는 overview.takeaway.summary 의 고정 문구("AI 인사이트 생성 중입니다.")를 그대로 보여준다.
+  const { data: overviewInsight } = useQuery({
+    queryKey: ["district-overview-insight", tradeAreaCode, industryCode, quarter],
+    queryFn: () =>
+      api.getDistrictOverviewInsight(tradeAreaCode, {
         industry_code: industryCode,
         quarter,
       }),
@@ -165,6 +176,124 @@ export const DistrictDetailPage: React.FC = () => {
         </div>
       </section>
 
+      {/* AI Insight Section — 추정 매출 KPI 라인 위로 이동, 경쟁은 어떨까? 를 오른쪽에 함께 배치 */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 border-2 border-black bg-[#121212] text-white">
+          {/* Left Dark Card: OVERALL INSIGHT & Score (~62%) */}
+          <div className="lg:col-span-7 p-6 sm:p-8 border-b-2 lg:border-b-0 lg:border-r-2 border-black flex flex-col justify-between space-y-6">
+            <div>
+              <span className="text-xs font-mono font-bold tracking-widest text-gray-400 uppercase">
+                OVERALL INSIGHT
+              </span>
+
+              {/* Giant Score */}
+              {/* [연동] score 는 성장률/거래량/경쟁 구성 지표 부족 시 null → "-" 폴백, score_note 로 사유 안내 */}
+              <div className="flex items-baseline gap-2 mt-2">
+                <span className="text-5xl sm:text-7xl font-black text-[#d4ff00] tracking-tighter">
+                  SCORE {overview.takeaway.score ?? "-"}
+                </span>
+                <span className="text-xl sm:text-2xl font-mono text-gray-500 font-bold">
+                  /100
+                </span>
+              </div>
+              {overview.takeaway.score == null &&
+                overview.takeaway.score_note && (
+                  <p className="text-xs font-mono text-gray-500 mt-1">
+                    {overview.takeaway.score_note}
+                  </p>
+                )}
+
+              {/* Signal Badges matching Reference 2 */}
+              <div className="flex flex-wrap items-center gap-2 mt-4 font-mono text-xs">
+                <span className="bg-[#d4ff00] text-black px-2.5 py-1 font-bold">
+                  {overview.takeaway.growth_tag}
+                </span>
+                <span className="bg-[#d4ff00] text-black px-2.5 py-1 font-bold">
+                  {overview.takeaway.volume_tag}
+                </span>
+                <span className="border border-red-500 text-red-400 px-2.5 py-1 font-bold">
+                  {overview.takeaway.competition_tag}
+                </span>
+              </div>
+            </div>
+
+            {/* Quote Conclusion matching Reference 2 */}
+            {/* [연동] overviewInsight(/overview/insight) 가 도착하면 실제 AI 인사이트 문장으로 교체하고,
+                source가 gemini일 때만 "AI INSIGHT" 라벨을 단다. 도착 전에는 overview.takeaway.summary
+                의 고정 문구("AI 인사이트 생성 중입니다.")를 그대로 보여준다. */}
+            <div className="border-l-4 border-[#d4ff00] pl-4 py-2">
+              {overviewInsight?.source === "gemini" && (
+                <span className="block text-[10px] font-mono font-bold tracking-widest text-[#d4ff00] uppercase mb-1">
+                  AI INSIGHT
+                </span>
+              )}
+              <p className="text-base sm:text-xl font-bold text-white leading-snug">
+                "{overviewInsight?.summary ?? overview.takeaway.summary}"
+              </p>
+            </div>
+
+            {/* Disclaimer note */}
+            <p className="text-[11px] font-mono text-gray-500">
+              * {overview.takeaway.disclaimer}
+            </p>
+          </div>
+
+          {/* Right Dark Card: 경쟁은 어떨까? (주의할 점) (~38%) */}
+          <div className="lg:col-span-5 p-6 sm:p-8 flex flex-col justify-between space-y-6">
+            <div>
+              <h3 className="text-xl sm:text-2xl font-black text-[#d4ff00] tracking-tight">
+                경쟁은 어떨까?
+              </h3>
+              {/* === Update by SoO 2026.09.07 ===========
+                      2. [fix] 점포 관련 UI 및 데이터 참조 제거
+                        2-1. District 상세 화면의 점포 수 표시 제거
+              */}
+              {/* <div className="mt-4">
+                <span className="block font-mono text-xs text-gray-400 font-medium">동일 업종</span>
+                <div className="flex items-baseline gap-3 mt-1">
+                  <span className="text-3xl sm:text-4xl font-black text-white">
+                    {competition?.store_count || 134}개
+                  </span>
+                  <span className="text-xs font-mono text-gray-400">
+                    전분기 대비 <span className="text-[#d4ff00] font-bold">+{competition?.qoq_store_change || 12}개</span>
+                  </span>
+                </div>
+              </div> */}
+            </div>
+
+            {/* Metric Level List matching Reference 2 */}
+            <div className="divide-y divide-gray-800 border-t border-b border-gray-800 font-mono text-xs sm:text-sm">
+              <div className="flex justify-between items-center py-2.5">
+                <span className="text-gray-300">매출 수준</span>
+                <span className="bg-white text-black px-2 py-0.5 font-bold text-xs">
+                  {competition?.sales_level || "높음"}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center py-2.5">
+                <span className="text-gray-300">거래량</span>
+                <span className="bg-white text-black px-2 py-0.5 font-bold text-xs">
+                  {competition?.volume_level || "높음"}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center py-2.5">
+                <span className="text-gray-300">경쟁 강도</span>
+                <span className="bg-[#ff3b30] text-white px-2 py-0.5 font-bold text-xs">
+                  {competition?.competition_level || "매우 높음"}
+                </span>
+              </div>
+            </div>
+
+            {/* Warning Interpretation */}
+            <p className="text-xs text-gray-400 leading-relaxed font-sans">
+              {competition?.warning_text ||
+                "수요도 크지만 동일 업종 공급 역시 빠르게 증가하고 있습니다."}
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* KPI Row matching Reference 2 (4 equal columns with black borders) */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 md:grid-cols-4 border-2 border-black divide-x-2 divide-y-2 md:divide-y-0 divide-black bg-[#f5f5f0]">
@@ -193,8 +322,11 @@ export const DistrictDetailPage: React.FC = () => {
             <span className="block font-mono text-xs text-gray-600 font-bold">
               서울 상권 순위
             </span>
+            {/* [연동] seoul_rank 는 Optional(구성 Percentile 부족 시 null) → "-" 폴백 */}
             <span className="block text-2xl sm:text-3xl font-black text-black mt-2 tracking-tight">
-              {overview.kpis.seoul_rank}위
+              {overview.kpis.seoul_rank != null
+                ? `${overview.kpis.seoul_rank}위`
+                : "-"}
             </span>
           </div>
 
@@ -203,8 +335,11 @@ export const DistrictDetailPage: React.FC = () => {
             <span className="block font-mono text-xs text-black font-bold">
               전분기 대비
             </span>
+            {/* [연동] qoq_growth_rate 는 음수 가능(Optional[float]) → 부호 직접 계산, null 이면 "-" */}
             <span className="block text-2xl sm:text-3xl font-black text-black mt-2 tracking-tight">
-              +{overview.kpis.qoq_growth_rate}%
+              {overview.kpis.qoq_growth_rate == null
+                ? "-"
+                : `${overview.kpis.qoq_growth_rate > 0 ? "+" : ""}${overview.kpis.qoq_growth_rate.toFixed(1)}%`}
             </span>
           </div>
         </div>
@@ -287,7 +422,9 @@ export const DistrictDetailPage: React.FC = () => {
             <div className="border-t border-black pt-3 text-xs font-mono text-gray-700 flex justify-between">
               <span>
                 {overview.trade_area_name} · 서울 전체{" "}
-                {overview.kpis.seoul_rank}위
+                {overview.kpis.seoul_rank != null
+                  ? `${overview.kpis.seoul_rank}위`
+                  : "-"}
               </span>
               <span className="text-gray-500">
                 상위 {overview.kpis.sales_percentile}%
@@ -333,13 +470,17 @@ export const DistrictDetailPage: React.FC = () => {
                 누가 가장 많이 살까?
               </h2>
 
-              {/* Big primary target label matching Reference 2 */}
+              {/* [연동] 성별 구분 없이 연령대(primary_age_group)만 표시.
+                  backend who.gender(female_ratio/male_ratio)는 화면에서 사용하지 않는다. */}
               <div className="mt-4 flex items-center gap-3">
                 <span className="text-3xl sm:text-4xl font-black text-black tracking-tight">
-                  {patterns?.who.primary_target || "20대 여성"}
+                  {patterns?.who.primary_age_group ?? "-"}
                 </span>
                 <span className="bg-[#d4ff00] text-black border border-black px-2 py-0.5 text-xs font-mono font-bold">
-                  {patterns?.who.target_badge || "주요 고객층"}
+                  주요 소비 연령대
+                  {patterns?.who.primary_age_percentage != null
+                    ? ` (${patterns.who.primary_age_percentage}%)`
+                    : ""}
                 </span>
               </div>
             </div>
@@ -347,16 +488,13 @@ export const DistrictDetailPage: React.FC = () => {
             {/* Demographics Bar Breakdown */}
             {patterns && (
               <div className="my-2">
-                <AgeGenderBarChart
-                  demographics={patterns.who.demographics}
-                  primaryTarget={patterns.who.primary_target}
-                />
+                <AgeBarChart demographics={patterns.who.demographics} />
               </div>
             )}
 
             {/* Insight quote */}
             <div className="border-l-4 border-[#d4ff00] pl-3 py-1 text-xs sm:text-sm font-medium text-black">
-              {patterns?.who.insight || "20대 여성 소비 비중이 가장 높습니다."}
+              {patterns?.who.insight || "20대 소비 비중이 가장 높습니다."}
             </div>
           </div>
 
@@ -387,107 +525,6 @@ export const DistrictDetailPage: React.FC = () => {
               {patterns?.day.insight ||
                 "금요일 매출이 주중 평균보다 21% 높습니다."}
             </div>
-          </div>
-        </div>
-
-        {/* Bottom Section: Competition & Overall Insight matching Reference 2 (Dark container) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 border-2 border-t-0 border-black bg-[#121212] text-white">
-          {/* Left Dark Card: 경쟁은 어떨까? (주의할 점) (~38%) */}
-          <div className="lg:col-span-5 p-6 sm:p-8 border-b-2 lg:border-b-0 lg:border-r-2 border-black flex flex-col justify-between space-y-6">
-            <div>
-              <h3 className="text-xl sm:text-2xl font-black text-[#d4ff00] tracking-tight">
-                경쟁은 어떨까?
-              </h3>
-              {/* === Update by SoO 2026.09.07 ===========
-                      2. [fix] 점포 관련 UI 및 데이터 참조 제거
-                        2-1. District 상세 화면의 점포 수 표시 제거
-              */}
-              {/* <div className="mt-4">
-                <span className="block font-mono text-xs text-gray-400 font-medium">동일 업종</span>
-                <div className="flex items-baseline gap-3 mt-1">
-                  <span className="text-3xl sm:text-4xl font-black text-white">
-                    {competition?.store_count || 134}개
-                  </span>
-                  <span className="text-xs font-mono text-gray-400">
-                    전분기 대비 <span className="text-[#d4ff00] font-bold">+{competition?.qoq_store_change || 12}개</span>
-                  </span>
-                </div>
-              </div> */}
-            </div>
-
-            {/* Metric Level List matching Reference 2 */}
-            <div className="divide-y divide-gray-800 border-t border-b border-gray-800 font-mono text-xs sm:text-sm">
-              <div className="flex justify-between items-center py-2.5">
-                <span className="text-gray-300">매출 수준</span>
-                <span className="bg-white text-black px-2 py-0.5 font-bold text-xs">
-                  {competition?.sales_level || "높음"}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center py-2.5">
-                <span className="text-gray-300">거래량</span>
-                <span className="bg-white text-black px-2 py-0.5 font-bold text-xs">
-                  {competition?.volume_level || "높음"}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center py-2.5">
-                <span className="text-gray-300">경쟁 강도</span>
-                <span className="bg-[#ff3b30] text-white px-2 py-0.5 font-bold text-xs">
-                  {competition?.competition_level || "매우 높음"}
-                </span>
-              </div>
-            </div>
-
-            {/* Warning Interpretation */}
-            <p className="text-xs text-gray-400 leading-relaxed font-sans">
-              {competition?.warning_text ||
-                "수요도 크지만 동일 업종 공급 역시 빠르게 증가하고 있습니다."}
-            </p>
-          </div>
-
-          {/* Right Dark Card: OVERALL INSIGHT & Score 82 (~62%) */}
-          <div className="lg:col-span-7 p-6 sm:p-8 flex flex-col justify-between space-y-6">
-            <div>
-              <span className="text-xs font-mono font-bold tracking-widest text-gray-400 uppercase">
-                OVERALL INSIGHT
-              </span>
-
-              {/* Giant Score */}
-              <div className="flex items-baseline gap-2 mt-2">
-                <span className="text-5xl sm:text-7xl font-black text-[#d4ff00] tracking-tighter">
-                  SCORE {overview.takeaway.score}
-                </span>
-                <span className="text-xl sm:text-2xl font-mono text-gray-500 font-bold">
-                  /100
-                </span>
-              </div>
-
-              {/* Signal Badges matching Reference 2 */}
-              <div className="flex flex-wrap items-center gap-2 mt-4 font-mono text-xs">
-                <span className="bg-[#d4ff00] text-black px-2.5 py-1 font-bold">
-                  {overview.takeaway.growth_tag}
-                </span>
-                <span className="bg-[#d4ff00] text-black px-2.5 py-1 font-bold">
-                  {overview.takeaway.volume_tag}
-                </span>
-                <span className="border border-red-500 text-red-400 px-2.5 py-1 font-bold">
-                  {overview.takeaway.competition_tag}
-                </span>
-              </div>
-            </div>
-
-            {/* Quote Conclusion matching Reference 2 */}
-            <div className="border-l-4 border-[#d4ff00] pl-4 py-2">
-              <p className="text-base sm:text-xl font-bold text-white leading-snug">
-                "{overview.takeaway.summary}"
-              </p>
-            </div>
-
-            {/* Disclaimer note */}
-            <p className="text-[11px] font-mono text-gray-500">
-              * {overview.takeaway.disclaimer}
-            </p>
           </div>
         </div>
       </section>
