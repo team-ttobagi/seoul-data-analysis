@@ -22,8 +22,15 @@ export interface District {
 }
 
 export interface TradeAreaSearchParams {
-  signgu_cd?: string;
+  industry_code: string;
+  signgu_cd: string;
+  quarter: string;
   keyword?: string;
+}
+
+export interface QuarterOption {
+  code: string;
+  value: string;
 }
 
 export interface Industry {

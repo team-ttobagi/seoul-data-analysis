@@ -12,7 +12,9 @@ import { api } from "../../shared/api/client";
 import { Signals, ScorePill } from "../../shared/ui/Signals";
 import { useCompareStore, useExploreStore } from "../../shared/lib/store";
 import type {
+  District,
   Industry,
+  QuarterOption,
   RecommendationItem,
   TradeArea,
 } from "../../shared/types";
@@ -76,6 +78,8 @@ const ExploreFilterBar: React.FC<ExploreFilterBarProps> = ({
   clearDistricts,
   onOpenCompare,
 }) => {
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const areaNamesByCode = useCompareStore((state) => state.areaNamesByCode);
 
   const selectedDistricts = selectedCodes.map((code) => {
@@ -364,38 +368,34 @@ export const ExplorePage: React.FC = () => {
   const setKeyword = useExploreStore((state) => state.setKeyword);
 
   const searchKeyword = keyword.trim();
-
-  const {
-    data: tradeAreas = [],
-    isFetching: isTradeAreasFetching,
-    isError: isTradeAreasError,
-    refetch: refetchTradeAreas,
-  } = useQuery({
-    queryKey: ["trade-area-search", selectedDistrictCode, searchKeyword],
-    queryFn: ({ signal }) =>
-      api.searchTradeAreas(
-        {
-          signgu_cd: selectedDistrictCode,
-          keyword: searchKeyword || undefined,
-        },
-        signal,
-      ),
-    enabled: selectedDistrictCode !== "",
-  });
+  const [submittedKeyword, setSubmittedKeyword] = useState("");
 
   const {
     data: districts = [],
     isPending: isDistrictsPending,
     isError: isDistrictsError,
-    refetch: refetchDistricts,
   } = useQuery({
     queryKey: ["districts"],
     queryFn: () => api.getDistricts(),
   });
 
-  const [selectedIndustry, setSelectedIndustry] = useState<string>("CS100010");
-  const [selectedRegion, setSelectedRegion] = useState<string>("서울 전체");
-  const [selectedQuarter, setSelectedQuarter] = useState<string>("2026 Q2");
+  const { data: industries = [], isPending: industriesPending, isError: industriesError } = useQuery({
+    queryKey: ["industries"],
+    queryFn: api.getIndustries,
+  });
+  const { data: quarterData = [], isPending: quartersPending, isError: quartersError } = useQuery({
+    queryKey: ["quarters"],
+    queryFn: api.getQuarters,
+  });
+  const [industryChoice, setSelectedIndustry] = useState("");
+  const [quarterChoice, setSelectedQuarter] = useState("");
+  const selectedIndustry = industries.some((item) => item.code === industryChoice)
+    ? industryChoice
+    : (industries.find((item) => item.code === "CS100010") ?? industries[0])?.code ?? "";
+  const selectedQuarter = quarterData.some((item) => item.code === quarterChoice)
+    ? quarterChoice
+    : quarterData[0]?.code ?? "";
+  const selectedRegion = districts.find((item) => item.signgu_cd === selectedDistrictCode)?.signgu_cd_nm ?? "서울 전체";
   const [activeItemCode, setActiveItemCode] = useState<string>("SEONGSU");
 
   const {
@@ -512,116 +512,6 @@ export const ExplorePage: React.FC = () => {
           </p>
         </div>
 
-        <div className="mt-6 border border-black bg-[#F8F7F2] p-4">
-          <label
-            htmlFor="district-select"
-            className="mb-2 block text-sm font-bold"
-          >
-            상권을 찾을 자치구
-          </label>
-
-          <select
-            id="district-select"
-            value={selectedDistrictCode}
-            onChange={(event) => setDistrict(event.target.value)}
-            disabled={
-              isDistrictsPending || isDistrictsError || districts.length === 0
-            }
-            className="w-full rounded-none border border-black bg-white p-3 text-sm text-black disabled:opacity-50 focus:outline-2 focus:outline-black"
-          >
-            <option value="">
-              {isDistrictsPending
-                ? "자치구를 불러오는 중입니다"
-                : "자치구를 선택하세요"}
-            </option>
-
-            {districts.map((district) => (
-              <option key={district.signgu_cd} value={district.signgu_cd}>
-                {district.signgu_cd_nm}
-              </option>
-            ))}
-          </select>
-
-          <div className="mt-4">
-            <label
-              htmlFor="trade-area-keyword"
-              className="mb-2 block text-sm font-bold"
-            >
-              상권 검색
-            </label>
-
-            <input
-              id="trade-area-keyword"
-              type="search"
-              value={keyword}
-              onChange={(event) => setKeyword(event.target.value)}
-              disabled={!selectedDistrictCode}
-              placeholder={
-                selectedDistrictCode
-                  ? "상권명을 입력하세요"
-                  : "먼저 자치구를 선택하세요"
-              }
-              className="w-full rounded-none border border-black bg-white p-3 text-sm disabled:opacity-50 focus:outline-2 focus:outline-black"
-            />
-
-            {selectedDistrictCode && (
-              <div className="mt-2 text-sm" aria-live="polite">
-                {isTradeAreasFetching ? (
-                  <p>상권을 불러오는 중입니다.</p>
-                ) : isTradeAreasError ? (
-                  <div>
-                    <p>상권 목록을 불러오지 못했습니다.</p>
-                    <button
-                      type="button"
-                      onClick={() => refetchTradeAreas()}
-                      className="mt-1 underline"
-                    >
-                      다시 시도
-                    </button>
-                  </div>
-                ) : (
-                  <TradeAreaResults
-                    key={JSON.stringify([selectedDistrictCode, searchKeyword])}
-                    areas={tradeAreas}
-                  />
-                )}
-              </div>
-            )}
-          </div>
-
-          {isDistrictsError && (
-            <div role="alert" className="mt-2 text-sm">
-              <p>자치구 목록을 불러오지 못했습니다.</p>
-              <button
-                type="button"
-                onClick={() => refetchDistricts()}
-                className="mt-1 underline"
-              >
-                다시 시도
-              </button>
-            </div>
-          )}
-
-          {!isDistrictsPending &&
-            !isDistrictsError &&
-            districts.length === 0 && (
-              <p className="mt-2 text-sm">조회 가능한 자치구가 없습니다.</p>
-            )}
-        </div>
-        <ExploreFilterBar
-          industries={industries}
-          selectedIndustry={selectedIndustry}
-          setSelectedIndustry={setSelectedIndustry}
-          selectedRegion={selectedRegion}
-          setSelectedRegion={setSelectedRegion}
-          selectedQuarter={selectedQuarter}
-          setSelectedQuarter={setSelectedQuarter}
-          recommendations={recommendations}
-          selectedCodes={selectedCodes}
-          toggleDistrict={toggleDistrict}
-          clearDistricts={useCompareStore.getState().clearDistricts}
-          onOpenCompare={() => navigate("/compare")}
-        />
       </section>
 
       <div className="sticky top-16 z-30 mt-6 bg-[#f5f5f0] sm:mt-8">
@@ -879,10 +769,10 @@ export const ExplorePage: React.FC = () => {
   );
 };
 
-function TradeAreaResults({ areas }: { areas: TradeArea[] }) {
-  const selectedCodes = useCompareStore((state) => state.selectedCodes);
-  const toggleDistrict = useCompareStore((state) => state.toggleDistrict);
-  const rememberAreaName = useCompareStore((state) => state.rememberAreaName);
+function TradeAreaResults({ areas, onSelect }: {
+  areas: TradeArea[];
+  onSelect: (area: TradeArea) => void;
+}) {
   const [visibleCount, setVisibleCount] = useState(20);
   const visibleAreas = areas.slice(0, visibleCount);
   const hasMore = visibleCount < areas.length;
@@ -915,8 +805,6 @@ function TradeAreaResults({ areas }: { areas: TradeArea[] }) {
         ) : (
           <ul aria-label="상권 검색 결과">
             {visibleAreas.map((area) => {
-              const selected = selectedCodes.includes(area.code);
-
               return (
                 <li
                   key={area.code}
@@ -924,14 +812,8 @@ function TradeAreaResults({ areas }: { areas: TradeArea[] }) {
                 >
                   <button
                     type="button"
-                    aria-pressed={selected}
-                    onClick={() => {
-                      rememberAreaName(area.code, area.name);
-                      toggleDistrict(area.code);
-                    }}
-                    className={`flex w-full items-center justify-between gap-3 p-3 text-left focus:outline-2 focus:outline-black ${
-                      selected ? "bg-[#CCFF00]" : "bg-white hover:bg-[#F8F7F2]"
-                    }`}
+                    onClick={() => onSelect(area)}
+                    className="flex w-full items-center justify-between gap-3 p-3 text-left focus:outline-2 focus:outline-black bg-white hover:bg-[#F8F7F2]"
                   >
                     <span>
                       <span className="font-bold">{area.name}</span>
@@ -941,7 +823,7 @@ function TradeAreaResults({ areas }: { areas: TradeArea[] }) {
                     </span>
 
                     <span className="shrink-0 text-xs font-bold">
-                      {selected ? "선택 해제" : "비교 담기"}
+                      검색어 선택
                     </span>
                   </button>
                 </li>
