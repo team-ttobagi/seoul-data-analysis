@@ -21,20 +21,17 @@ import {
   DayBarChart,
 } from "../../shared/ui/Charts";
 import { useCompareStore } from "../../shared/lib/store";
+import {
+  formatNullable,
+  formatQuarterLabel,
+  formatSignedPercent,
+} from "../../shared/lib/format";
 
 /* ----------------------------- */
 // Update by SoO 2026.09.07
 //   store_count
 //   store_count_change
 /* ----------------------------- */
-
-// [연동] 백엔드 quarter 코드(YYYYN, 예: "20254")를 화면 표시용 "2025 Q4" 형식으로 변환한다.
-// GET /api/v1/sales/quarters 가 내려주는 value 포맷과 동일하게 맞춘다.
-// API 호출·URL 파라미터에는 원래 코드(quarter)를 그대로 쓰고, 화면에 보여줄 때만 이 함수를 거친다.
-function formatQuarterLabel(code: string): string {
-  if (!/^\d{5}$/.test(code)) return code;
-  return `${code.slice(0, 4)} Q${code.slice(4)}`;
-}
 
 export const DistrictDetailPage: React.FC = () => {
   const { tradeAreaCode = "SEONGSU" } = useParams<{ tradeAreaCode: string }>();
@@ -198,7 +195,7 @@ export const DistrictDetailPage: React.FC = () => {
               {/* [연동] score 는 성장률/거래량/경쟁 구성 지표 부족 시 null → "-" 폴백, score_note 로 사유 안내 */}
               <div className="flex items-baseline gap-2 mt-2">
                 <span className="text-5xl sm:text-7xl font-black text-[#d4ff00] tracking-tighter">
-                  SCORE {overview.takeaway.score ?? "-"}
+                  SCORE {formatNullable(overview.takeaway.score)}
                 </span>
                 <span className="text-xl sm:text-2xl font-mono text-gray-500 font-bold">
                   /100
@@ -270,34 +267,40 @@ export const DistrictDetailPage: React.FC = () => {
             </div>
 
             {/* Metric Level List matching Reference 2 */}
+            {/* [연동] sales_level/volume_level/competition_level 은 경쟁·폐업률 데이터 부족 시
+                백엔드가 null 을 내려주는 Optional 필드다. 로딩 중(isCompLoading)엔 중립 placeholder를,
+                로딩이 끝났는데 null이면 가짜 예시값 대신 "-"를 보여준다. */}
             <div className="divide-y divide-gray-800 border-t border-b border-gray-800 font-mono text-xs sm:text-sm">
               <div className="flex justify-between items-center py-2.5">
                 <span className="text-gray-300">매출 수준</span>
                 <span className="bg-white text-black px-2 py-0.5 font-bold text-xs">
-                  {competition?.sales_level || "높음"}
+                  {isCompLoading ? "…" : (competition?.sales_level ?? "-")}
                 </span>
               </div>
 
               <div className="flex justify-between items-center py-2.5">
                 <span className="text-gray-300">거래량</span>
                 <span className="bg-white text-black px-2 py-0.5 font-bold text-xs">
-                  {competition?.volume_level || "높음"}
+                  {isCompLoading ? "…" : (competition?.volume_level ?? "-")}
                 </span>
               </div>
 
               <div className="flex justify-between items-center py-2.5">
                 <span className="text-gray-300">경쟁 강도</span>
                 <span className="bg-[#ff3b30] text-white px-2 py-0.5 font-bold text-xs">
-                  {competition?.competition_level || "매우 높음"}
+                  {isCompLoading ? "…" : (competition?.competition_level ?? "-")}
                 </span>
               </div>
             </div>
 
-            {/* Warning Interpretation */}
-            <p className="text-xs text-gray-400 leading-relaxed font-sans">
-              {competition?.warning_text ||
-                "수요도 크지만 동일 업종 공급 역시 빠르게 증가하고 있습니다."}
-            </p>
+            {/* Warning Interpretation
+                [연동] warning_text 는 경쟁 여건이 낮음일 때만 채워지는 Optional 필드라, 로딩 중이거나
+                null이면(경고할 내용이 없으면) 가짜 문구를 보여주지 않고 문단 자체를 숨긴다. */}
+            {!isCompLoading && competition?.warning_text && (
+              <p className="text-xs text-gray-400 leading-relaxed font-sans">
+                {competition.warning_text}
+              </p>
+            )}
           </div>
         </div>
       </section>
@@ -332,9 +335,7 @@ export const DistrictDetailPage: React.FC = () => {
             </span>
             {/* [연동] seoul_rank 는 Optional(구성 Percentile 부족 시 null) → "-" 폴백 */}
             <span className="block text-2xl sm:text-3xl font-black text-black mt-2 tracking-tight">
-              {overview.kpis.seoul_rank != null
-                ? `${overview.kpis.seoul_rank}위`
-                : "-"}
+              {formatNullable(overview.kpis.seoul_rank, "위")}
             </span>
           </div>
 
@@ -343,11 +344,10 @@ export const DistrictDetailPage: React.FC = () => {
             <span className="block font-mono text-xs text-black font-bold">
               전분기 대비
             </span>
-            {/* [연동] qoq_growth_rate 는 음수 가능(Optional[float]) → 부호 직접 계산, null 이면 "-" */}
+            {/* [연동] qoq_growth_rate 는 음수 가능(Optional[float]) → formatSignedPercent 가
+                null/0/음수를 모두 정확히 구분해 표시한다 */}
             <span className="block text-2xl sm:text-3xl font-black text-black mt-2 tracking-tight">
-              {overview.kpis.qoq_growth_rate == null
-                ? "-"
-                : `${overview.kpis.qoq_growth_rate > 0 ? "+" : ""}${overview.kpis.qoq_growth_rate.toFixed(1)}%`}
+              {formatSignedPercent(overview.kpis.qoq_growth_rate)}
             </span>
           </div>
         </div>
@@ -430,9 +430,7 @@ export const DistrictDetailPage: React.FC = () => {
             <div className="border-t border-black pt-3 text-xs font-mono text-gray-700 flex justify-between">
               <span>
                 {overview.trade_area_name} · 서울 전체{" "}
-                {overview.kpis.seoul_rank != null
-                  ? `${overview.kpis.seoul_rank}위`
-                  : "-"}
+                {formatNullable(overview.kpis.seoul_rank, "위")}
               </span>
               <span className="text-gray-500">
                 상위 {overview.kpis.sales_percentile}%

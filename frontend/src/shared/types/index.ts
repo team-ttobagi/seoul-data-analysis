@@ -111,7 +111,8 @@ export interface DaySales {
 
 export interface DistrictPatterns {
   when: {
-    peak_slot: string; // e.g. "17–21시"
+    // slots 가 [] 이면(원천 데이터 없음) peak_slot 도 null(백엔드 기준).
+    peak_slot: string | null; // e.g. "17–21시"
     insight: string;
     slots: TimeSlotSales[];
   };
@@ -123,8 +124,9 @@ export interface DistrictPatterns {
     demographics: AgeShare[];
   };
   day: {
-    peak_day: string; // e.g. "금요일"
-    peak_diff_badge: string; // "+21%"
+    // days 가 [] 이면(원천 데이터 없음) peak_day/peak_diff_badge 도 null(백엔드 기준).
+    peak_day: string | null; // e.g. "금요일"
+    peak_diff_badge: string | null; // "+21%"
     insight: string;
     days: DaySales[];
   };
