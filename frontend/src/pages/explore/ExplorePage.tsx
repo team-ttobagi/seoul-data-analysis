@@ -613,9 +613,11 @@ export const ExplorePage: React.FC = () => {
                         setActiveItemCode(item.trade_area_code)
                       }
                       className={`relative p-5 sm:p-6 transition-colors duration-150 group cursor-pointer ${
-                        isTopActive || isChecked
-                          ? "bg-[#d4ff00]"
-                          : "bg-[#f5f5f0] hover:bg-[#eeede6]"
+                        isChecked
+                          ? "bg-[#CCFF00]"
+                          : isTopActive
+                            ? "bg-[#e5e5df]"
+                            : "bg-[#f5f5f0] hover:bg-[#e5e5df]"
                       }`}
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
