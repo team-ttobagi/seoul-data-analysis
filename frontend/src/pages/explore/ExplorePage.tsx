@@ -745,24 +745,24 @@ export const ExplorePage: React.FC = () => {
               </div>
 
               {/* Factors list with solid black bottom borders matching Reference 1 */}
-              <div className="-mr-6 divide-y border-t border-b border-black font-mono text-xs sm:-mr-8 sm:text-sm">
+              <div className="divide-y border-t border-b border-black font-mono text-xs sm:text-sm">
                 <div className="flex justify-between py-3">
                   <span className="text-black font-medium">
                     매출 성장 (Sales Growth)
                   </span>
-                  <span className="mr-3 font-extrabold text-black">40%</span>
+                  <span className="font-extrabold text-black">40%</span>
                 </div>
                 <div className="flex justify-between py-3">
                   <span className="text-black font-medium">
                     거래량 (Transaction Volume)
                   </span>
-                  <span className="mr-3 font-extrabold text-black">35%</span>
+                  <span className="font-extrabold text-black">35%</span>
                 </div>
                 <div className="flex justify-between py-3">
                   <span className="text-black font-medium">
                     경쟁 강도 (Competition Intensity)
                   </span>
-                  <span className="mr-3 font-extrabold text-black">25%</span>
+                  <span className="font-extrabold text-black">25%</span>
                 </div>
               </div>
 
