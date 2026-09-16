@@ -98,7 +98,7 @@ const ExploreFilterBar: React.FC<ExploreFilterBarProps> = ({
     .slice(0, 6);
 
   return (
-    <div className="-mx-4 border border-black bg-white shadow-sm sm:-mx-6 lg:-mx-8">
+    <div className="border border-black bg-white shadow-sm">
       <div className="grid grid-cols-1 md:grid-cols-[repeat(4,minmax(0,1fr))_88px] lg:grid-cols-[repeat(4,minmax(0,1fr))_104px] divide-y md:divide-y-0 md:divide-x divide-black border-b border-black bg-white">
         {[
           {
@@ -590,11 +590,11 @@ export const ExplorePage: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto border-b-2 border-black pb-8" />
+      <div className="h-8" />
 
       {/* Main Swiss Grid Section */}
-      <section className="max-w-7xl mx-auto border-b-2 border-black">
-        <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[600px]">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[600px] border-y-2 border-black">
           {/* Left Column: Ranked Candidates (~68%) */}
           <div className="lg:col-span-8 lg:border-r-2 border-black flex flex-col">
             {/* Section Header */}
