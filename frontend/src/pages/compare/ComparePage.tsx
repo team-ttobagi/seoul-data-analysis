@@ -90,8 +90,8 @@ export const ComparePage: React.FC = () => {
           {availableToAdd.map((ta) => (
             <button
               key={ta.code}
-              disabled={selectedCodes.length >= 3}
-              onClick={() => addDistrict(ta.code)}
+              disabled={selectedCodes.length >= 7}
+              onClick={() => addDistrict(ta.code, ta.name)}
               className="px-2.5 py-1 text-xs font-mono font-bold border border-black bg-white hover:bg-[#d4ff00] disabled:opacity-40 disabled:hover:bg-white flex items-center gap-1 transition-colors"
             >
               <Plus className="w-3 h-3" />

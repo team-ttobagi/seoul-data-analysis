@@ -302,7 +302,7 @@ const ExploreFilterBar: React.FC<ExploreFilterBarProps> = ({
                 비교 상권 트레이
               </span>
               <span className="font-mono text-[11px] font-bold bg-black text-[#d8fc03] px-1.5 py-0.5">
-                {selectedDistricts.length} / 3
+                {selectedDistricts.length} / 7
               </span>
             </div>
             {selectedDistricts.length === 0 ? (
@@ -669,7 +669,10 @@ export const ExplorePage: React.FC = () => {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              toggleDistrict(item.trade_area_code);
+                              toggleDistrict(
+                                item.trade_area_code,
+                                item.trade_area_name,
+                              );
                             }}
                             title="비교함에 추가/제외"
                             className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono font-bold border border-black bg-white hover:bg-black hover:text-white transition-colors"

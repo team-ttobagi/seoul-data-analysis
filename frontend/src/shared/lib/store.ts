@@ -4,15 +4,15 @@ interface CompareState {
   selectedCodes: string[];
   areaNamesByCode: Record<string, string>;
   rememberAreaName: (code: string, name: string) => void;
-  addDistrict: (code: string) => void;
+  addDistrict: (code: string, name?: string) => void;
   removeDistrict: (code: string) => void;
-  toggleDistrict: (code: string) => void;
+  toggleDistrict: (code: string, name?: string) => void;
   clearDistricts: () => void;
   isDistrictSelected: (code: string) => boolean;
 }
 
 export const useCompareStore = create<CompareState>((set, get) => ({
-  selectedCodes: ["SEONGSU", "HONGDAE", "SHAROSU"],
+  selectedCodes: [],
   areaNamesByCode: {},
 
   rememberAreaName: (code, name) => {
@@ -23,24 +23,29 @@ export const useCompareStore = create<CompareState>((set, get) => ({
       },
     }));
   },
-  addDistrict: (code: string) => {
+  addDistrict: (code: string, name?: string) => {
     const current = get().selectedCodes;
     if (current.includes(code)) return;
     if (current.length >= 7) {
       window.alert("비교 상권 트레이에 7개까지 담을 수 있습니다.");
       return;
     }
-    set({ selectedCodes: [...current, code] });
+    set((state) => ({
+      selectedCodes: [...current, code],
+      areaNamesByCode: name
+        ? { ...state.areaNamesByCode, [code]: name }
+        : state.areaNamesByCode,
+    }));
   },
   removeDistrict: (code: string) => {
     set({ selectedCodes: get().selectedCodes.filter((c) => c !== code) });
   },
-  toggleDistrict: (code: string) => {
+  toggleDistrict: (code: string, name?: string) => {
     const { selectedCodes, addDistrict, removeDistrict } = get();
     if (selectedCodes.includes(code)) {
       removeDistrict(code);
     } else {
-      addDistrict(code);
+      addDistrict(code, name);
     }
   },
   clearDistricts: () => set({ selectedCodes: [] }),
