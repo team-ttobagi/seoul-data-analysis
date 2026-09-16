@@ -587,19 +587,24 @@ class AnalyticsService:
             }
             metrics_df = metrics_df[metrics_df["trdar_cd"].isin(valid_codes)]
 
-        if keyword:
-            needle = keyword.strip().lower()
+        normalized_keyword = keyword.strip().lower() if keyword else ""
+        if normalized_keyword:
             matching_codes = {
                 code
                 for code, ta in lookup.items()
-                if needle in (ta.get("trdar_cd_nm") or "").lower()
+                if normalized_keyword in (ta.get("trdar_cd_nm") or "").lower()
             }
             metrics_df = metrics_df[metrics_df["trdar_cd"].isin(matching_codes)]
 
         # ExplorationScore가 산출 불가(NaN)인 상권은 "낮은 점수"가 아니라 "데이터 부족"이므로
         # 추천 후보에서 아예 제외한다 (0점으로 강등시키지 않는다).
         scored = metrics_df.dropna(subset=["exploration_score"])
-        top = scored.sort_values("exploration_score", ascending=False).head(100)
+        top = scored.sort_values(
+            by=["exploration_score", "trdar_cd"],
+            ascending=[False, True],
+        )
+        if not normalized_keyword:
+            top = top.head(7)
 
         results = []
         for rank, (_, row) in enumerate(top.iterrows(), start=1):
