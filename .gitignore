@@ -44,6 +44,8 @@ build/
 dist/
 coverage/
 
-.env
+# Git worktrees
+.worktrees/
 
+.env
 
