@@ -98,7 +98,7 @@ const ExploreFilterBar: React.FC<ExploreFilterBarProps> = ({
     .slice(0, 6);
 
   return (
-    <div className="-mx-4 border border-black bg-white shadow-sm sm:-mx-6 lg:-mx-8">
+    <div className="border border-black bg-white shadow-[0_10px_14px_-8px_rgba(0,0,0,0.5)]">
       <div className="grid grid-cols-1 md:grid-cols-[repeat(4,minmax(0,1fr))_88px] lg:grid-cols-[repeat(4,minmax(0,1fr))_104px] divide-y md:divide-y-0 md:divide-x divide-black border-b border-black bg-white">
         {[
           {
@@ -590,11 +590,11 @@ export const ExplorePage: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto border-b-2 border-black pb-8" />
+      <div className="h-8" />
 
       {/* Main Swiss Grid Section */}
-      <section className="max-w-7xl mx-auto border-b-2 border-black">
-        <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[600px]">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[600px] border-y-2 border-black">
           {/* Left Column: Ranked Candidates (~68%) */}
           <div className="lg:col-span-8 lg:border-r-2 border-black flex flex-col">
             {/* Section Header */}
@@ -695,12 +695,12 @@ export const ExplorePage: React.FC = () => {
                               );
                             }}
                             title="비교함에 추가/제외"
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono font-bold border border-black bg-white hover:bg-black hover:text-white transition-colors"
+                            className="flex h-[38px] items-center gap-2 px-3 text-sm font-mono font-bold border border-black bg-white hover:bg-black hover:text-white transition-colors"
                           >
                             {isChecked ? (
-                              <CheckSquare className="w-3.5 h-3.5 text-black" />
+                              <CheckSquare className="w-[18px] h-[18px] text-black" />
                             ) : (
-                              <Square className="w-3.5 h-3.5 text-gray-500" />
+                              <Square className="w-[18px] h-[18px] text-gray-500" />
                             )}
                             <span className="hidden sm:inline">비교</span>
                           </button>
@@ -745,24 +745,24 @@ export const ExplorePage: React.FC = () => {
               </div>
 
               {/* Factors list with solid black bottom borders matching Reference 1 */}
-              <div className="-mr-6 divide-y border-t border-b border-black font-mono text-xs sm:-mr-8 sm:text-sm">
+              <div className="divide-y border-t border-b border-black font-mono text-xs sm:text-sm">
                 <div className="flex justify-between py-3">
                   <span className="text-black font-medium">
                     매출 성장 (Sales Growth)
                   </span>
-                  <span className="mr-3 font-extrabold text-black">40%</span>
+                  <span className="font-extrabold text-black">40%</span>
                 </div>
                 <div className="flex justify-between py-3">
                   <span className="text-black font-medium">
                     거래량 (Transaction Volume)
                   </span>
-                  <span className="mr-3 font-extrabold text-black">35%</span>
+                  <span className="font-extrabold text-black">35%</span>
                 </div>
                 <div className="flex justify-between py-3">
                   <span className="text-black font-medium">
                     경쟁 강도 (Competition Intensity)
                   </span>
-                  <span className="mr-3 font-extrabold text-black">25%</span>
+                  <span className="font-extrabold text-black">25%</span>
                 </div>
               </div>
 

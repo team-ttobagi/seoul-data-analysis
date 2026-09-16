@@ -10,12 +10,44 @@ import {
   TradeAreaResponse,
   District,
   Industry,
+  QuarterOption,
   RecommendationItem,
   DistrictOverview,
+  DistrictOverviewInsight,
   DistrictPatterns,
   DistrictCompetition,
   CompareDistrictData,
 } from "../types";
+
+// [연동] GET /api/v1/sales/quarters 응답을 그대로 고정한 값이다(2026-09-16 기준 실제 조회 결과).
+// 분기는 3개월에 한 번만 늘어나는 값인데, 백엔드가 sales_data(48만 행)를 SELECT DISTINCT로
+// 매번 훑어서(PostgreSQL이 DISTINCT skip-scan을 지원하지 않음) 요청마다 300~500ms 가 걸린다.
+// 그래서 기준 분기 목록은 항상 이 mock 값을 사용하고 실제 API를 호출하지 않는다
+// (client.ts api.getQuarters 참고). 최신 분기가 추가되면 이 배열 맨 앞에 추가해주면 된다.
+export const MOCK_QUARTERS: QuarterOption[] = [
+  { code: "20262", value: "2026 Q2" },
+  { code: "20261", value: "2026 Q1" },
+  { code: "20254", value: "2025 Q4" },
+  { code: "20253", value: "2025 Q3" },
+  { code: "20252", value: "2025 Q2" },
+  { code: "20251", value: "2025 Q1" },
+  { code: "20244", value: "2024 Q4" },
+  { code: "20243", value: "2024 Q3" },
+  { code: "20242", value: "2024 Q2" },
+  { code: "20241", value: "2024 Q1" },
+  { code: "20234", value: "2023 Q4" },
+  { code: "20233", value: "2023 Q3" },
+  { code: "20232", value: "2023 Q2" },
+  { code: "20231", value: "2023 Q1" },
+  { code: "20224", value: "2022 Q4" },
+  { code: "20223", value: "2022 Q3" },
+  { code: "20222", value: "2022 Q2" },
+  { code: "20221", value: "2022 Q1" },
+  { code: "20214", value: "2021 Q4" },
+  { code: "20213", value: "2021 Q3" },
+  { code: "20212", value: "2021 Q2" },
+  { code: "20211", value: "2021 Q1" },
+];
 
 export const MOCK_DISTRICTS: District[] = [
   { signgu_cd: "11110", signgu_cd_nm: "종로구" },
@@ -968,6 +1000,19 @@ export function getMockDistrictOverview(
   };
 }
 
+// [연동] GET /trade-areas/{code}/overview/insight mock. 실제 Gemini 호출 없이
+// getMockDistrictOverview 의 takeaway.summary 를 그대로 재사용해 fallback 응답을 흉내낸다.
+export function getMockDistrictOverviewInsight(
+  tradeAreaCode: string,
+): DistrictOverviewInsight {
+  const overview = getMockDistrictOverview(tradeAreaCode);
+  return {
+    summary: overview.takeaway.summary,
+    source: "fallback",
+    status: "fallback",
+  };
+}
+
 export function getMockDistrictPatterns(
   tradeAreaCode: string,
 ): DistrictPatterns {
@@ -1012,42 +1057,14 @@ export function getMockDistrictPatterns(
         ],
       },
       who: {
-        primary_target: "20대 남녀",
-        target_badge: "주요 고객층",
+        primary_age_group: "20대",
+        primary_age_percentage: 52,
         insight: "20대 청년층이 전체 매출의 60% 이상을 차지합니다.",
         demographics: [
-          {
-            age_group: "10대",
-            percentage: 12,
-            female_ratio: 55,
-            male_ratio: 45,
-            dominant_gender: "female",
-            is_primary: false,
-          },
-          {
-            age_group: "20대",
-            percentage: 52,
-            female_ratio: 58,
-            male_ratio: 42,
-            dominant_gender: "female",
-            is_primary: true,
-          },
-          {
-            age_group: "30대",
-            percentage: 24,
-            female_ratio: 48,
-            male_ratio: 52,
-            dominant_gender: "male",
-            is_primary: false,
-          },
-          {
-            age_group: "40대+",
-            percentage: 12,
-            female_ratio: 45,
-            male_ratio: 55,
-            dominant_gender: "male",
-            is_primary: false,
-          },
+          { age_group: "10대", percentage: 12, is_primary: false },
+          { age_group: "20대", percentage: 52, is_primary: true },
+          { age_group: "30대", percentage: 24, is_primary: false },
+          { age_group: "40대+", percentage: 12, is_primary: false },
         ],
       },
       day: {
@@ -1106,42 +1123,14 @@ export function getMockDistrictPatterns(
       ],
     },
     who: {
-      primary_target: "20대 여성",
-      target_badge: "주요 고객층",
-      insight: "20대 여성 소비 비중이 가장 높습니다.",
+      primary_age_group: "20대",
+      primary_age_percentage: 45,
+      insight: "20대 소비 비중이 가장 높습니다.",
       demographics: [
-        {
-          age_group: "10대",
-          percentage: 15,
-          female_ratio: 52,
-          male_ratio: 48,
-          dominant_gender: "female",
-          is_primary: false,
-        },
-        {
-          age_group: "20대",
-          percentage: 45,
-          female_ratio: 65,
-          male_ratio: 35,
-          dominant_gender: "female",
-          is_primary: true,
-        },
-        {
-          age_group: "30대",
-          percentage: 25,
-          female_ratio: 52,
-          male_ratio: 48,
-          dominant_gender: "female",
-          is_primary: false,
-        },
-        {
-          age_group: "40대+",
-          percentage: 15,
-          female_ratio: 40,
-          male_ratio: 60,
-          dominant_gender: "male",
-          is_primary: false,
-        },
+        { age_group: "10대", percentage: 15, is_primary: false },
+        { age_group: "20대", percentage: 45, is_primary: true },
+        { age_group: "30대", percentage: 25, is_primary: false },
+        { age_group: "40대+", percentage: 15, is_primary: false },
       ],
     },
     day: {
@@ -1216,6 +1205,8 @@ export function getMockCompareData(
       transaction_count_formatted: "1만",
       transaction_count: 10000,
       growth_rate: 5,
+      store_count: null,
+      store_count_change: null,
       strongest_age_group: "테스트 데이터",
       strongest_time_period: "테스트 데이터",
       strongest_day: "테스트 데이터",
@@ -1232,6 +1223,8 @@ export function getMockCompareData(
       transaction_count_formatted: "1만",
       transaction_count: 10000,
       growth_rate: 5,
+      store_count: null,
+      store_count_change: null,
       strongest_age_group: "테스트 데이터",
       strongest_time_period: "테스트 데이터",
       strongest_day: "테스트 데이터",
@@ -1248,6 +1241,8 @@ export function getMockCompareData(
       transaction_count_formatted: "1만",
       transaction_count: 10000,
       growth_rate: 5,
+      store_count: null,
+      store_count_change: null,
       strongest_age_group: "테스트 데이터",
       strongest_time_period: "테스트 데이터",
       strongest_day: "테스트 데이터",
@@ -1264,8 +1259,8 @@ export function getMockCompareData(
       transaction_count_formatted: "45만",
       transaction_count: 450000,
       growth_rate: 12.4,
-      // store_count: 134,
-      // store_count_change: 12,
+      store_count: 134,
+      store_count_change: 12,
       strongest_age_group: "20대 여성 (45%)",
       strongest_time_period: "17–21시 (36%)",
       strongest_day: "금요일 (+21%)",
@@ -1282,8 +1277,8 @@ export function getMockCompareData(
       transaction_count_formatted: "58만",
       transaction_count: 580000,
       growth_rate: 6.8,
-      // store_count: 182,
-      // store_count_change: 8,
+      store_count: 182,
+      store_count_change: 8,
       strongest_age_group: "20대 남녀 (52%)",
       strongest_time_period: "18–22시 (38%)",
       strongest_day: "토요일 (+34%)",
@@ -1300,8 +1295,8 @@ export function getMockCompareData(
       transaction_count_formatted: "28만",
       transaction_count: 280000,
       growth_rate: 14.1,
-      // store_count: 58,
-      // store_count_change: 3,
+      store_count: 58,
+      store_count_change: 3,
       strongest_age_group: "20대 1인가구 (48%)",
       strongest_time_period: "18–21시 (32%)",
       strongest_day: "금요일 (+18%)",
@@ -1318,8 +1313,8 @@ export function getMockCompareData(
       transaction_count_formatted: "32만",
       transaction_count: 320000,
       growth_rate: 5.2,
-      // store_count: 96,
-      // store_count_change: 5,
+      store_count: 96,
+      store_count_change: 5,
       strongest_age_group: "20대 학생 (50%)",
       strongest_time_period: "17–21시 (34%)",
       strongest_day: "금/토 (+16%)",
@@ -1336,8 +1331,8 @@ export function getMockCompareData(
       transaction_count_formatted: "62만",
       transaction_count: 620000,
       growth_rate: 2.1,
-      // store_count: 240,
-      // store_count_change: 15,
+      store_count: 240,
+      store_count_change: 15,
       strongest_age_group: "30대 직장인 (46%)",
       strongest_time_period: "11–14시 (38%)",
       strongest_day: "목/금 (+14%)",

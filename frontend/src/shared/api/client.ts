@@ -9,6 +9,7 @@ import {
   QuarterOption,
   RecommendationItem,
   DistrictOverview,
+  DistrictOverviewInsight,
   DistrictPatterns,
   DistrictCompetition,
   CompareDistrictData,
@@ -17,8 +18,10 @@ import {
 import {
   MOCK_DISTRICTS,
   MOCK_INDUSTRIES,
+  MOCK_QUARTERS,
   MOCK_TRADE_AREAS,
   getMockDistrictOverview,
+  getMockDistrictOverviewInsight,
   getMockDistrictPatterns,
   getMockDistrictCompetition,
   getMockCompareData,
@@ -150,9 +153,14 @@ export const api = {
   /**
    * 업종 목록
    */
+  /**
+   * 기준 분기 목록 — [연동] GET /sales/quarters 는 sales_data(48만 행)를 SELECT DISTINCT 로
+   * 매번 스캔해 요청마다 300~500ms 가 걸리는데, 분기는 3개월에 한 번만 늘어나는 값이라
+   * 실제 API를 호출하지 않고 항상 MOCK_QUARTERS(mockData.ts, 현재 조회되는 데이터 기준으로 고정)를
+   * 반환한다. USE_MOCK 여부와 무관하게 항상 이 값을 쓴다.
+   */
   getQuarters: async (): Promise<QuarterOption[]> => {
-    const response = await apiClient.get<QuarterOption[]>("/sales/quarters");
-    return response.data;
+    return MOCK_QUARTERS;
   },
 
   getIndustries: async (): Promise<Industry[]> => {
@@ -202,6 +210,35 @@ export const api = {
 
     const response = await apiClient.get<DistrictOverview>(
       `/trade-areas/${tradeAreaCode}/overview`,
+      {
+        params: {
+          industry_code: params?.industry_code,
+          quarter: params?.quarter,
+        },
+      },
+    );
+
+    return response.data;
+  },
+
+  /**
+   * 상권 종합 인사이트(Gemini) — [연동] Gemini 생성이 최대 수 초 걸려 overview 응답과 분리된
+   * GET /trade-areas/{trade_area_code}/overview/insight 를 별도로 호출한다.
+   * overview.takeaway.summary 는 이 응답이 도착하기 전까지 고정 문구("AI 인사이트 생성 중입니다.")다.
+   */
+  getDistrictOverviewInsight: async (
+    tradeAreaCode: string,
+    params?: {
+      industry_code?: string;
+      quarter?: string;
+    },
+  ): Promise<DistrictOverviewInsight> => {
+    if (USE_MOCK) {
+      return getMockDistrictOverviewInsight(tradeAreaCode);
+    }
+
+    const response = await apiClient.get<DistrictOverviewInsight>(
+      `/trade-areas/${tradeAreaCode}/overview/insight`,
       {
         params: {
           industry_code: params?.industry_code,
@@ -279,7 +316,10 @@ export const api = {
       return getMockCompareData(params.trade_area_codes);
     }
 
+    // [연동] 상권 여러 개(최대 7개)를 동시에 집계하는 무거운 조회라 기본 5000ms 로 종종 초과된다.
+    // getRecommendations와 동일하게 timeout 을 넉넉히 늘린다.
     const response = await apiClient.get<CompareDistrictData[]>("/compare", {
+      timeout: 30000,
       params: {
         trade_area_codes: params.trade_area_codes.join(","),
         industry_code: params.industry_code,

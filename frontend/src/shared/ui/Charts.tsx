@@ -1,5 +1,5 @@
 import React from "react";
-import { DistrictRankingItem, TimeSlotSales, AgeGenderSales, DaySales } from "../types";
+import { DistrictRankingItem, TimeSlotSales, AgeShare, DaySales } from "../types";
 
 // 1. Rank Bar Chart for "어디가 강할까?" (Matching Reference 2 Top Left)
 interface RankBarChartProps {
@@ -72,7 +72,8 @@ export const RankBarChart: React.FC<RankBarChartProps> = ({
 // 2. Time Bar Chart (Matching Reference 2 Top Right: "언제 가장 많이 팔릴까?")
 interface TimeBarChartProps {
   slots: TimeSlotSales[];
-  peakSlot: string;
+  // [연동] 원천 데이터가 없으면(slots=[]) 백엔드가 peak_slot 을 null 로 내려준다.
+  peakSlot: string | null;
 }
 
 export const TimeBarChart: React.FC<TimeBarChartProps> = ({ slots, peakSlot }) => {
@@ -82,13 +83,16 @@ export const TimeBarChart: React.FC<TimeBarChartProps> = ({ slots, peakSlot }) =
     <div className="w-full">
       <div className="border border-black bg-white p-4 h-48 flex items-end justify-between gap-2 sm:gap-4 relative">
         {slots.map((slot) => {
-          const isPeak = slot.is_peak || slot.slot.includes(peakSlot) || peakSlot.includes(slot.slot);
+          const isPeak =
+            slot.is_peak ||
+            (peakSlot != null &&
+              (slot.slot.includes(peakSlot) || peakSlot.includes(slot.slot)));
           const heightPercent = Math.max(18, (slot.percentage / maxPercent) * 90);
 
           return (
             <div key={slot.slot} className="flex-1 flex flex-col items-center h-full justify-end relative">
               {/* Peak Tooltip / Pill Badge */}
-              {isPeak && (
+              {isPeak && peakSlot != null && (
                 <div className="absolute -top-1 bg-white border border-black px-2 py-0.5 text-[11px] font-mono font-bold text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] z-10">
                   {peakSlot}
                 </div>
@@ -118,17 +122,19 @@ export const TimeBarChart: React.FC<TimeBarChartProps> = ({ slots, peakSlot }) =
   );
 };
 
-// 3. Age & Gender Breakdown Chart (Matching Reference 2 Middle Left: "누가 가장 많이 살까?")
-interface AgeGenderBarChartProps {
-  demographics: AgeGenderSales[];
-  primaryTarget: string;
+// 3. Age Breakdown Chart (Matching Reference 2 Middle Left: "누가 가장 많이 살까?")
+// [연동] 성별 구분 없이 연령대(age_group)별 매출 비중만 표시한다.
+// backend DistrictPatternsResponse.who.demographics = [{ age_group, percentage, is_primary }].
+interface AgeBarChartProps {
+  demographics: AgeShare[];
 }
 
-export const AgeGenderBarChart: React.FC<AgeGenderBarChartProps> = ({ demographics }) => {
+export const AgeBarChart: React.FC<AgeBarChartProps> = ({ demographics }) => {
   return (
-    <div className="space-y-3 font-mono text-xs">
+    <div className="space-y-2.5 font-mono text-xs">
       {demographics.map((demo) => {
-        const isPrimary = demo.is_primary || demo.percentage >= 40;
+        // 막대 기준을 100%(전체 매출 비중)로 고정한다 — 연령대 중 최댓값이 아니라 percentage 값 그대로 너비로 사용.
+        const widthPercent = Math.min(100, Math.max(2, demo.percentage));
 
         return (
           <div key={demo.age_group} className="flex items-center gap-3">
@@ -137,34 +143,19 @@ export const AgeGenderBarChart: React.FC<AgeGenderBarChartProps> = ({ demographi
               {demo.age_group}
             </span>
 
-            {/* Split Bar Container */}
-            <div className="flex-1 h-8 border border-black bg-[#e5e5de] relative flex overflow-hidden">
-              {/* Female Proportion */}
+            {/* Bar Container */}
+            <div className="flex-1 h-8 border border-black bg-[#e5e5de] relative overflow-hidden">
               <div
-                className={`h-full border-r border-black flex items-center px-2 text-[11px] font-bold transition-all ${
-                  isPrimary
-                    ? "bg-[#d4ff00] text-black"
-                    : "bg-[#d6d5cc] text-gray-800"
+                className={`h-full transition-all duration-500 ${
+                  demo.is_primary
+                    ? "bg-[#d4ff00]"
+                    : "bg-[#dbdad2]"
                 }`}
-                style={{ width: `${demo.female_ratio}%` }}
-              >
-                {isPrimary ? (
-                  <span className="truncate">여성 우세</span>
-                ) : (
-                  <span className="truncate">{demo.female_ratio}%</span>
-                )}
-              </div>
-
-              {/* Male Proportion */}
-              <div
-                className="h-full bg-[#eeede6] flex items-center justify-end px-2 text-[11px] text-gray-600"
-                style={{ width: `${demo.male_ratio}%` }}
-              >
-                <span>{demo.male_ratio}%</span>
-              </div>
+                style={{ width: `${widthPercent}%` }}
+              />
             </div>
 
-            {/* Overall Age Group Percentage */}
+            {/* Age Group Percentage */}
             <span className="w-10 text-right font-extrabold text-sm text-black">
               {demo.percentage}%
             </span>
@@ -178,18 +169,20 @@ export const AgeGenderBarChart: React.FC<AgeGenderBarChartProps> = ({ demographi
 // 4. Day of Week Bar Chart (Matching Reference 2 Middle Right: "어느 요일이 강할까?")
 interface DayBarChartProps {
   days: DaySales[];
-  peakDay: string;
-  peakDiffBadge: string;
+  // [연동] 원천 데이터가 없으면(days=[]) 백엔드가 peak_day/peak_diff_badge 를 null 로 내려준다.
+  peakDay: string | null;
+  peakDiffBadge: string | null;
 }
 
 export const DayBarChart: React.FC<DayBarChartProps> = ({ days, peakDay, peakDiffBadge }) => {
   const maxPercent = Math.max(...days.map((d) => d.percentage), 1);
+  const peakDayShort = peakDay?.replace("요일", "") ?? null;
 
   return (
     <div className="w-full">
       <div className="border border-black bg-white p-4 h-48 flex items-end justify-between gap-1.5 sm:gap-3 relative">
         {days.map((day) => {
-          const isPeak = day.is_peak || day.day === peakDay.replace("요일", "");
+          const isPeak = day.is_peak || day.day === peakDayShort;
           const heightPercent = Math.max(20, (day.percentage / maxPercent) * 90);
 
           return (
@@ -197,7 +190,7 @@ export const DayBarChart: React.FC<DayBarChartProps> = ({ days, peakDay, peakDif
               {/* Peak Tag */}
               {isPeak && (
                 <div className="absolute -top-1 bg-white border border-black px-1.5 py-0.5 text-[11px] font-mono font-bold text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] z-10">
-                  {peakDiffBadge || "+21%"}
+                  {peakDiffBadge ?? "-"}
                 </div>
               )}
 
@@ -219,7 +212,7 @@ export const DayBarChart: React.FC<DayBarChartProps> = ({ days, peakDay, peakDif
           <span
             key={d.day}
             className={`text-center flex-1 ${
-              d.is_peak || d.day === peakDay.replace("요일", "")
+              d.is_peak || d.day === peakDayShort
                 ? "text-black underline underline-offset-4 decoration-2"
                 : "text-gray-700"
             }`}

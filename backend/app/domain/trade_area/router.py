@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.core.database import get_db
 from backend.app.domain.trade_area.repository import TradeAreaRepository
 from backend.app.domain.trade_area.service import TradeAreaService
+from backend.app.domain.sales.repository import SalesRepository
 from backend.app.domain.trade_area.schemas import (
     TradeAreaResponse,
     TradeAreaSearchResponse,
@@ -16,7 +17,8 @@ def get_trade_area_service(
     db: Optional[AsyncSession] = Depends(get_db),
 ) -> TradeAreaService:
     repository = TradeAreaRepository(session=db)
-    return TradeAreaService(repository=repository)
+    sales_repo = SalesRepository(session=db)
+    return TradeAreaService(repository=repository, sales_repo=sales_repo)
 
 
 @router.get("", response_model=List[TradeAreaResponse])
@@ -25,10 +27,9 @@ async def list_trade_areas(
 ):
     """상권 검색·선택에 사용하는 전체 상권 목록을 반환합니다.
 
-    등록된 상권의 코드, 구분 코드, 이름과 소속 자치구 정보를 조회합니다.
-    업종·분기·자치구에 따른 필터 없이 전체 목록을 반환합니다.
-    등록된 상권이 없거나 DB 연결 또는 조회가 실패하면 빈 배열을 반환하며,
-    연결된 자치구 정보가 없는 상권의 signgu_cd_nm은 null입니다.
+    등록된 상권의 코드, 구분 코드, 이름과 소속 자치구 정보를 점수 산출 여부와
+    관계없이 반환합니다. 등록된 상권이 없거나 DB 연결 또는 조회가 실패하면
+    빈 배열을 반환하며, 연결된 자치구 정보가 없는 상권의 signgu_cd_nm은 null입니다.
     """
     return await service.get_all_trade_areas()
 
@@ -49,7 +50,9 @@ async def search_trade_areas(
     상권명 검색어는 받지 않습니다. 검색어 자동완성은 이 API가 반환한
     전체 목록을 사용하는 프론트엔드에서 처리합니다.
 
-    세 조건에 해당하는 매출 데이터가 존재하는 상권만 반환합니다.
+    세 조건에 해당하는 매출 데이터가 있고 ExplorationScore를 산출할 수 있는
+    상권만 반환합니다. 현재·직전 분기 매출 또는 점포 데이터가 부족한 상권은
+    추천 목록과 동일하게 제외합니다.
     조건에 일치하는 상권이 없거나 DB 연결 또는 조회가 실패하면 빈 배열을
     반환합니다.
 
