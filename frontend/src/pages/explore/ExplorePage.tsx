@@ -98,7 +98,7 @@ const ExploreFilterBar: React.FC<ExploreFilterBarProps> = ({
     .slice(0, 6);
 
   return (
-    <div className="border border-black bg-white shadow-sm">
+    <div className="border border-black bg-white shadow-[0_10px_14px_-8px_rgba(0,0,0,0.5)]">
       <div className="grid grid-cols-1 md:grid-cols-[repeat(4,minmax(0,1fr))_88px] lg:grid-cols-[repeat(4,minmax(0,1fr))_104px] divide-y md:divide-y-0 md:divide-x divide-black border-b border-black bg-white">
         {[
           {
