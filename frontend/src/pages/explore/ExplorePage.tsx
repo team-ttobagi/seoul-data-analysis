@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -44,7 +44,7 @@ interface ExploreFilterBarProps {
   setSelectedQuarter: (value: string) => void;
   recommendations: RecommendationItem[];
   selectedCodes: string[];
-  toggleDistrict: (code: string) => void;
+  toggleDistrict: (code: string, name?: string) => void;
   clearDistricts: () => void;
   onOpenCompare: () => void;
 }
@@ -358,6 +358,8 @@ const ExploreFilterBar: React.FC<ExploreFilterBarProps> = ({
 
 export const ExplorePage: React.FC = () => {
   const navigate = useNavigate();
+  const filterBarRef = useRef<HTMLDivElement>(null);
+  const [filterBarHeight, setFilterBarHeight] = useState(0);
   const selectedDistrictCode = useExploreStore(
     (state) => state.selectedDistrictCode,
   );
@@ -396,7 +398,7 @@ export const ExplorePage: React.FC = () => {
     ? quarterChoice
     : quarterData[0]?.code ?? "";
   const selectedRegion = districts.find((item) => item.signgu_cd === selectedDistrictCode)?.signgu_cd_nm ?? "서울 전체";
-  const [activeItemCode, setActiveItemCode] = useState<string>("SEONGSU");
+  const [activeItemCode, setActiveItemCode] = useState<string>("");
 
   const {
     data: allTradeAreas = [],
@@ -485,6 +487,21 @@ export const ExplorePage: React.FC = () => {
     );
   };
 
+  useLayoutEffect(() => {
+    const filterBar = filterBarRef.current;
+    if (!filterBar) return;
+
+    const updateFilterBarHeight = () => {
+      setFilterBarHeight(Math.ceil(filterBar.getBoundingClientRect().height));
+    };
+
+    updateFilterBarHeight();
+    const resizeObserver = new ResizeObserver(updateFilterBarHeight);
+    resizeObserver.observe(filterBar);
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
   return (
     <div className="w-full bg-[#f5f5f0] min-h-[calc(100vh-4rem)]">
       {/* Hero Section */}
@@ -514,7 +531,10 @@ export const ExplorePage: React.FC = () => {
 
       </section>
 
-      <div className="sticky top-16 z-30 mt-6 bg-[#f5f5f0] sm:mt-8">
+      <div
+        ref={filterBarRef}
+        className="sticky top-16 z-30 mt-6 bg-[#f5f5f0] sm:mt-8"
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <ExploreFilterBar
             industries={industries}
@@ -709,7 +729,10 @@ export const ExplorePage: React.FC = () => {
           </div>
 
           {/* Right Column: Recommendation Factors & Disclaimer (~32%) */}
-          <div className="lg:col-span-4 bg-[#f5f5f0] flex flex-col justify-between p-6 sm:p-8 space-y-8">
+          <div
+            className="lg:col-span-4 lg:sticky lg:self-start bg-[#f5f5f0] flex flex-col justify-between p-6 sm:p-8 space-y-8"
+            style={{ top: `calc(4rem + ${filterBarHeight}px)` }}
+          >
             {/* Top: Factors Weight Table */}
             <div className="space-y-6">
               <div>

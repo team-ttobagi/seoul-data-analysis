@@ -38,7 +38,15 @@ export const useCompareStore = create<CompareState>((set, get) => ({
     }));
   },
   removeDistrict: (code: string) => {
-    set({ selectedCodes: get().selectedCodes.filter((c) => c !== code) });
+    set((state) => {
+      const { [code]: _removedName, ...remainingNames } =
+        state.areaNamesByCode;
+
+      return {
+        selectedCodes: state.selectedCodes.filter((c) => c !== code),
+        areaNamesByCode: remainingNames,
+      };
+    });
   },
   toggleDistrict: (code: string, name?: string) => {
     const { selectedCodes, addDistrict, removeDistrict } = get();
@@ -48,7 +56,7 @@ export const useCompareStore = create<CompareState>((set, get) => ({
       addDistrict(code, name);
     }
   },
-  clearDistricts: () => set({ selectedCodes: [] }),
+  clearDistricts: () => set({ selectedCodes: [], areaNamesByCode: {} }),
   isDistrictSelected: (code: string) => get().selectedCodes.includes(code),
 }));
 
