@@ -695,12 +695,12 @@ export const ExplorePage: React.FC = () => {
                               );
                             }}
                             title="비교함에 추가/제외"
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono font-bold border border-black bg-white hover:bg-black hover:text-white transition-colors"
+                            className="flex h-[38px] items-center gap-2 px-3 text-sm font-mono font-bold border border-black bg-white hover:bg-black hover:text-white transition-colors"
                           >
                             {isChecked ? (
-                              <CheckSquare className="w-3.5 h-3.5 text-black" />
+                              <CheckSquare className="w-[18px] h-[18px] text-black" />
                             ) : (
-                              <Square className="w-3.5 h-3.5 text-gray-500" />
+                              <Square className="w-[18px] h-[18px] text-gray-500" />
                             )}
                             <span className="hidden sm:inline">비교</span>
                           </button>
