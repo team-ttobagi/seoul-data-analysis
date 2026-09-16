@@ -1,4 +1,4 @@
-name: Sync Quarterly Sales
+name: Sync Quarterly Sales and Stores
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ on:
       timezone: "Asia/Seoul"
 
 jobs:
-  sync-sales:
+  sync-quarterly-data:
     runs-on: ubuntu-latest
 
     steps:
@@ -47,7 +47,7 @@ jobs:
           echo "QUARTER=$QUARTER" >> "$GITHUB_ENV"
           echo "Target quarter: $QUARTER"
 
-      - name: Sync sales data
+      - name: Sync quarterly sales and store data
         working-directory: backend
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -55,5 +55,5 @@ jobs:
         run: |
           echo "Sync quarter: $QUARTER"
 
-          PYTHONPATH=.. uv run python -m backend.app.scripts.sync_sales \
+          PYTHONPATH=.. uv run python -m backend.app.scripts.sync_quarterly \
             --quarter "$QUARTER"

@@ -1,5 +1,4 @@
 import logging
-import re
 from typing import Dict, Optional, Sequence
 
 from sqlalchemy import select
@@ -9,14 +8,6 @@ from backend.app.domain.store.models import StoreModel
 from backend.app.domain.store.schemas import StoreTrendSchema
 
 logger = logging.getLogger(__name__)
-
-
-def _normalize_quarter(quarter: str) -> str:
-    """API에서 사용하는 YYYY QN 형식을 DB의 YYYYN 분기 코드로 변환합니다."""
-    match = re.match(r"\s*(\d{4})\s*[Qq]?\s*(\d)\s*$", quarter)
-    if match:
-        return f"{match.group(1)}{match.group(2)}"
-    return quarter.strip()
 
 
 def _previous_quarter(quarter_code: str) -> str:
@@ -45,7 +36,7 @@ class StoreRepository:
         """기준 분기·상권·서비스 업종 조합의 점포 통계 한 건을 조회합니다."""
         normalized_trade_area_code = trade_area_code.strip().upper()
         normalized_industry_code = industry_code.strip()
-        quarter_code = _normalize_quarter(quarter)
+        quarter_code = quarter
 
         stmt = select(StoreModel).where(
             StoreModel.stdr_yyqu_cd == quarter_code,
@@ -104,7 +95,7 @@ class StoreRepository:
             return {}
 
         normalized_industry_code = industry_code.strip()
-        current_quarter = _normalize_quarter(quarter)
+        current_quarter = quarter
         previous_quarter = _previous_quarter(current_quarter)
 
         stmt = select(StoreModel).where(

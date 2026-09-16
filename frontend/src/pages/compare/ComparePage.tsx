@@ -23,11 +23,11 @@ export const ComparePage: React.FC = () => {
   const { selectedCodes, removeDistrict, addDistrict, clearDistricts } =
     useCompareStore();
   const [selectedIndustry] = useState("CS100010");
-  const [selectedQuarter] = useState("2026 Q2");
+  const [selectedQuarter] = useState("20254");
 
   const { data: allTradeAreas = [] } = useQuery({
     queryKey: ["trade-areas"],
-    queryFn: api.getTradeAreas,
+    queryFn: ({ signal }) => api.getTradeAreas(signal),
   });
 
   const { data: compareList = [], isLoading } = useQuery({
@@ -67,7 +67,7 @@ export const ComparePage: React.FC = () => {
               상권 다각 비교 분석
             </h1>
             <p className="text-sm font-mono text-gray-600 mt-1">
-              최대 3개 상권의 핵심 지표를 나란히 비교하여 후보지를 압축하세요.
+              최대 7개 상권의 핵심 지표를 나란히 비교하여 후보지를 압축하세요.
             </p>
           </div>
 
@@ -85,13 +85,13 @@ export const ComparePage: React.FC = () => {
         {/* Quick Add Bar */}
         <div className="mt-6 flex flex-wrap items-center gap-2">
           <span className="font-mono text-xs font-bold text-gray-700">
-            상권 추가 ({selectedCodes.length}/3):
+            상권 추가 ({selectedCodes.length}/7):
           </span>
           {availableToAdd.map((ta) => (
             <button
               key={ta.code}
-              disabled={selectedCodes.length >= 3}
-              onClick={() => addDistrict(ta.code)}
+              disabled={selectedCodes.length >= 7}
+              onClick={() => addDistrict(ta.code, ta.name)}
               className="px-2.5 py-1 text-xs font-mono font-bold border border-black bg-white hover:bg-[#d4ff00] disabled:opacity-40 disabled:hover:bg-white flex items-center gap-1 transition-colors"
             >
               <Plus className="w-3 h-3" />

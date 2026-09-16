@@ -7,7 +7,7 @@ DB에 접근하지 않는 순수 함수로만 구성하며, 입력은 하나의 
 사용 경로가 공통으로 호출하므로 모든 API에서 CompetitionScore가 동일하게 계산된다.
 """
 
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 import numpy as np
 import pandas as pd
@@ -18,6 +18,8 @@ BENCHMARK_PERCENTILE_COLUMNS = [
     "volume_percentile",
     "competition_percentile",
 ]
+
+ScoreLevel = Literal["높음", "보통", "낮음"]
 
 
 def safe_minmax(series: pd.Series, neutral: float = 0.5) -> pd.Series:
@@ -114,7 +116,7 @@ def seoul_rank(df: pd.DataFrame, percentile_cols: List[str] = BENCHMARK_PERCENTI
     return result
 
 
-def grade_from_score(score: Optional[float]) -> Optional[str]:
+def grade_from_score(score: Optional[float]) -> Optional[ScoreLevel]:
     """산출 정의서 7.1 — 70 이상 높음 / 40~70 보통 / 40 미만 낮음."""
     if score is None or pd.isna(score):
         return None

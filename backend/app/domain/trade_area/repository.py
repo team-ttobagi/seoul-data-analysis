@@ -1,8 +1,9 @@
 import logging
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.orm import selectinload
+from backend.app.domain.sales.models import SalesDataModel
 from backend.app.domain.trade_area.models import TradeAreaModel
 
 logger = logging.getLogger(__name__)
@@ -17,7 +18,14 @@ class TradeAreaRepository:
             return []
 
         try:
-            stmt = select(TradeAreaModel).options(selectinload(TradeAreaModel.district))
+            stmt = (
+                select(TradeAreaModel)
+                .options(selectinload(TradeAreaModel.district))
+                .order_by(
+                    TradeAreaModel.trdar_cd_nm,
+                    TradeAreaModel.trdar_cd,
+                )
+            )
             result = await self.session.execute(stmt)
             rows = result.scalars().all()
             return [_to_dict(r) for r in rows]
@@ -42,25 +50,35 @@ class TradeAreaRepository:
             logger.exception("Failed to load trade area '%s' from DB", code)
             return None
 
-    async def get_by_district(
+    async def get_by_filters(
         self,
+        industry_code: str,
         signgu_cd: str,
-        keyword: Optional[str] = None,
+        quarter: str,
     ) -> List[dict]:
         if not self.session:
             return []
 
         try:
+            matching_sales = exists(
+                select(SalesDataModel.sales_id).where(
+                    SalesDataModel.trdar_cd == TradeAreaModel.trdar_cd,
+                    SalesDataModel.svc_induty_cd == industry_code.strip(),
+                    SalesDataModel.stdr_yyqu_cd == quarter.strip(),
+                )
+            )
             stmt = (
                 select(TradeAreaModel)
                 .options(selectinload(TradeAreaModel.district))
-                .where(TradeAreaModel.signgu_cd == signgu_cd)
+                .where(
+                    TradeAreaModel.signgu_cd == signgu_cd.strip(),
+                    matching_sales,
+                )
             )
-
-            if keyword:
-                stmt = stmt.where(TradeAreaModel.trdar_cd_nm.ilike(f"%{keyword}%"))
-
-            stmt = stmt.order_by(TradeAreaModel.trdar_cd_nm)
+            stmt = stmt.order_by(
+                TradeAreaModel.trdar_cd_nm,
+                TradeAreaModel.trdar_cd,
+            )
 
             result = await self.session.execute(stmt)
             rows = result.scalars().all()
@@ -69,9 +87,10 @@ class TradeAreaRepository:
 
         except Exception:
             logger.exception(
-                "Failed to load trade areas by district '%s', keyword='%s'",
+                "Failed to load trade areas by industry '%s', district '%s', quarter '%s'",
+                industry_code,
                 signgu_cd,
-                keyword,
+                quarter,
             )
             return []
 

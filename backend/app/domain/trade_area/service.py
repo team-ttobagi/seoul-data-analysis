@@ -21,14 +21,16 @@ class TradeAreaService:
             raise TradeAreaNotFoundException(trade_area_code=code)
         return TradeAreaResponse(**trade_area)
 
-    async def get_trade_areas_by_district(
+    async def get_trade_areas_by_filters(
         self,
+        industry_code: str,
         signgu_cd: str,
-        keyword: str | None = None,
+        quarter: str,
     ) -> List[TradeAreaSearchResponse]:
-        trade_areas = await self.repository.get_by_district(
+        trade_areas = await self.repository.get_by_filters(
+            industry_code=industry_code,
             signgu_cd=signgu_cd,
-            keyword=keyword,
+            quarter=quarter,
         )
 
         return [

@@ -34,7 +34,7 @@ export const DistrictDetailPage: React.FC = () => {
   const navigate = useNavigate();
 
   const industryCode = searchParams.get("industry") || "CS100010";
-  const quarter = searchParams.get("quarter") || "2026 Q2";
+  const quarter = searchParams.get("quarter") || "20254";
 
   const [rankTab, setRankTab] = useState<
     "sales" | "volume" | "growth" | "score"
@@ -72,7 +72,7 @@ export const DistrictDetailPage: React.FC = () => {
 
   const { data: tradeAreas = [] } = useQuery({
     queryKey: ["trade-areas"],
-    queryFn: api.getTradeAreas,
+    queryFn: ({ signal }) => api.getTradeAreas(signal),
   });
 
   if (isOverviewLoading || !overview) {
@@ -118,7 +118,7 @@ export const DistrictDetailPage: React.FC = () => {
               >
                 {tradeAreas.map((ta) => (
                   <option key={ta.code} value={ta.code}>
-                    {ta.name} ({ta.district})
+                    {ta.name} ({ta.district_name ?? "자치구 정보 없음"})
                   </option>
                 ))}
               </select>

@@ -1,11 +1,7 @@
-import logging
 import csv
+import logging
 from pathlib import Path
 from typing import Any
-
-from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.domain.industry.models import ServiceIndustryModel
 from backend.app.domain.sales.models import SalesDataModel
@@ -13,6 +9,9 @@ from backend.app.domain.trade_area.models import (
     TradeAreaModel,
     TradeAreaTypeModel,
 )
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +22,7 @@ class SalesSyncError(Exception):
 
 class SalesSyncService:
     BATCH_SIZE = 500
+    reference_error_type = SalesSyncError
 
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -48,7 +48,9 @@ class SalesSyncService:
         )
 
         if not csv_path.exists():
-            raise SalesSyncError(f"상권-자치구 매핑 CSV를 찾을 수 없습니다: {csv_path}")
+            raise self.reference_error_type(
+                f"상권-자치구 매핑 CSV를 찾을 수 없습니다: {csv_path}"
+            )
 
         mapping: dict[str, str] = {}
 
@@ -226,7 +228,7 @@ class SalesSyncService:
             api_key = column_name.upper()
 
             if api_key not in row:
-                raise SalesSyncError("API 응답에 필요한 필드가 " f"없습니다: {api_key}")
+                raise SalesSyncError(f"API 응답에 필요한 필드가 없습니다: {api_key}")
 
             value = row[api_key]
 
@@ -242,7 +244,7 @@ class SalesSyncService:
                     ValueError,
                 ) as exc:
                     raise SalesSyncError(
-                        "숫자 변환에 실패했습니다: " f"{api_key}={value}"
+                        f"숫자 변환에 실패했습니다: {api_key}={value}"
                     ) from exc
 
         return sales_row
@@ -296,7 +298,7 @@ class SalesSyncService:
             trade_area["signgu_cd"] = signgu_cd
 
         if missing_codes:
-            raise SalesSyncError(
+            raise self.reference_error_type(
                 "DB와 CSV 모두에서 자치구 매핑을 "
                 "찾지 못한 상권이 존재합니다. "
                 f"count={len(missing_codes)}, "
@@ -416,7 +418,7 @@ class SalesSyncService:
             stmt = insert(SalesDataModel).values(batch)
 
             stmt = stmt.on_conflict_do_update(
-                constraint=("uq_sales_data_" "period_area_industry"),
+                constraint="uq_sales_data_period_area_industry",
                 set_={
                     column_name: getattr(
                         stmt.excluded,
@@ -434,7 +436,7 @@ class SalesSyncService:
             )
 
             logger.info(
-                "sales_data batch 적재 " "progress=%d/%d",
+                "sales_data batch 적재 progress=%d/%d",
                 current,
                 total,
             )

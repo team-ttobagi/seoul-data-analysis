@@ -1,5 +1,7 @@
-from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field
+from typing import Any, Dict, List, Literal, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
+from backend.app.domain.sales.scoring import ScoreLevel
 
 
 class ScoreComponent(BaseModel):
@@ -53,10 +55,18 @@ class RecommendationComponents(BaseModel):
 
 
 class RecommendationItemResponse(BaseModel):
-    rank: int = Field(description="선택 지역·검색어 조건의 추천 목록에서 ExplorationScore 내림차순으로 부여한 1부터 시작하는 표시 순번. 최대 100개이며 동점에도 연속 순번을 부여한다.")
-    trade_area_code: str = Field(description="추천 상권 코드. 상권 상세 조회와 비교 API의 trade_area_code로 사용한다.")
-    trade_area_name: str = Field(description="추천 카드에 표시할 상권명. 상권 메타데이터가 없으면 상권 코드를 표시한다.")
-    district: str = Field(description="상권이 속한 서울 자치구명. 자치구 정보가 없으면 '-'를 반환한다.")
+    rank: int = Field(
+        description="선택 지역·검색어 조건의 추천 목록에서 ExplorationScore 내림차순·상권 코드 오름차순으로 부여한 1부터 시작하는 표시 순번. 동점에도 연속 순번을 부여한다."
+    )
+    trade_area_code: str = Field(
+        description="추천 상권 코드. 상권 상세 조회와 비교 API의 trade_area_code로 사용한다."
+    )
+    trade_area_name: str = Field(
+        description="추천 카드에 표시할 상권명. 상권 메타데이터가 없으면 상권 코드를 표시한다."
+    )
+    district: str = Field(
+        description="상권이 속한 서울 자치구명. 자치구 정보가 없으면 '-'를 반환한다."
+    )
     score: int = Field(
         description=(
             "추천 카드의 ExplorationScore(0~100점)를 반올림한 값. GrowthScore × 0.40 + "
@@ -71,8 +81,12 @@ class RecommendationItemResponse(BaseModel):
             "competition의 high는 같은 업종 점포 수·점포당 거래건수·폐업률을 종합한 경쟁 여건이 상대적으로 우수하다는 뜻이다."
         ),
     )
-    components: RecommendationComponents = Field(description="추천 점수의 근거인 성장성·거래 활성도·경쟁 여건별 원본 값, 정규화 점수, 서울 비교 집단 내 상위 비율.")
-    insight: str = Field(description="GrowthScore·TransactionScore·CompetitionScore의 높음/보통/낮음 등급을 조합한 추천 카드의 규칙 기반 요약 문장.")
+    components: RecommendationComponents = Field(
+        description="추천 점수의 근거인 성장성·거래 활성도·경쟁 여건별 원본 값, 정규화 점수, 서울 비교 집단 내 상위 비율."
+    )
+    insight: str = Field(
+        description="GrowthScore·TransactionScore·CompetitionScore의 높음/보통/낮음 등급을 조합한 추천 카드의 규칙 기반 요약 문장."
+    )
     warning: Optional[str] = Field(
         default=None,
         description="CompetitionScore가 40 미만(경쟁 여건 낮음)이면 표시하는 경쟁 압박 경고. 해당 조건에 해당하지 않으면 null이다.",
@@ -80,10 +94,18 @@ class RecommendationItemResponse(BaseModel):
 
 
 class DistrictKpis(BaseModel):
-    estimated_sales: int = Field(description="선택한 분기·상권·업종의 분기 추정 매출액(원). 원천 필드명은 thsmon_selng_amt이며, 실제 의미는 분기당 매출 금액이다.")
-    estimated_sales_formatted: str = Field(description="상세 화면 KPI에 표시할 추정 매출액. 1억 원 이상은 '12.8억', 1만 원 이상은 '8500만'처럼 축약한다.")
-    transaction_count: int = Field(description="선택한 분기·상권·업종의 분기 거래건수(건). 원천 필드명은 thsmon_selng_co이며, 실제 의미는 분기당 매출 거래건수이다.")
-    transaction_count_formatted: str = Field(description="상세 화면 KPI에 표시할 거래건수. 1만 건 이상은 '45만'처럼 축약한다.")
+    estimated_sales: int = Field(
+        description="선택한 분기·상권·업종의 분기 추정 매출액(원). 원천 필드명은 thsmon_selng_amt이며, 실제 의미는 분기당 매출 금액이다."
+    )
+    estimated_sales_formatted: str = Field(
+        description="상세 화면 KPI에 표시할 추정 매출액. 1억 원 이상은 '12.8억', 1만 원 이상은 '8500만'처럼 축약한다."
+    )
+    transaction_count: int = Field(
+        description="선택한 분기·상권·업종의 분기 거래건수(건). 원천 필드명은 thsmon_selng_co이며, 실제 의미는 분기당 매출 거래건수이다."
+    )
+    transaction_count_formatted: str = Field(
+        description="상세 화면 KPI에 표시할 거래건수. 1만 건 이상은 '45만'처럼 축약한다."
+    )
     seoul_rank: Optional[int] = Field(
         default=None,
         description=(
@@ -96,7 +118,9 @@ class DistrictKpis(BaseModel):
         default=None,
         description="QoQ 매출 성장률(%). (현재 분기 매출 - 직전 분기 매출) / 직전 분기 매출 × 100이며, 직전 분기 데이터가 없거나 매출이 0 이하이면 null이다.",
     )
-    sales_percentile: int = Field(description="동일 분기·업종의 서울 상권 중 매출액 기준 상위 N%. 내림차순 최소 순위 / 비교 대상 수 × 100을 반올림하며 작을수록 매출 상위권이다.")
+    sales_percentile: int = Field(
+        description="동일 분기·업종의 서울 상권 중 매출액 기준 상위 N%. 내림차순 최소 순위 / 비교 대상 수 × 100을 반올림하며 작을수록 매출 상위권이다."
+    )
     growth_percentile: Optional[int] = Field(
         default=None,
         description=(
@@ -105,7 +129,9 @@ class DistrictKpis(BaseModel):
             "직전 분기 데이터가 없거나 매출이 0 이하여서 성장률을 구할 수 없으면 null이다."
         ),
     )
-    volume_percentile: int = Field(description="동일 분기·업종의 서울 상권 중 거래건수 기준 상위 N%. 내림차순 최소 순위 / 비교 대상 수 × 100을 반올림하며 작을수록 거래건수 상위권이다.")
+    volume_percentile: int = Field(
+        description="동일 분기·업종의 서울 상권 중 거래건수 기준 상위 N%. 내림차순 최소 순위 / 비교 대상 수 × 100을 반올림하며 작을수록 거래건수 상위권이다."
+    )
     store_count: Optional[int] = Field(
         default=None,
         description="선택한 분기·상권·업종의 현재 분기 동일 업종 점포 수(개). 현재 분기 점포 데이터가 없으면 null이다.",
@@ -133,16 +159,22 @@ class DistrictKpis(BaseModel):
 
 
 class DistrictRankingItem(BaseModel):
-    rank: int = Field(description="해당 지표의 상위 최대 5개 목록에서 1부터 시작하는 표시 순번. 지표 내림차순이며 동점에도 연속 순번을 부여한다.")
+    rank: int = Field(
+        description="해당 지표의 상위 최대 5개 목록에서 1부터 시작하는 표시 순번. 지표 내림차순이며 동점에도 연속 순번을 부여한다."
+    )
     trade_area_code: str = Field(description="순위에 포함된 상권의 코드.")
-    trade_area_name: str = Field(description="순위표에 표시할 상권명. 상권 메타데이터가 없으면 상권 코드를 표시한다.")
+    trade_area_name: str = Field(
+        description="순위표에 표시할 상권명. 상권 메타데이터가 없으면 상권 코드를 표시한다."
+    )
     sales_formatted: str = Field(
         description="순위표의 지표 표시값. by_sales는 매출액('12.8억'), by_volume은 거래건수('45만'), by_growth는 QoQ 매출 성장률('+8.2%'), by_score는 ExplorationScore('82점')이다.",
     )
     sales_raw: float = Field(
         description="순위표의 지표 값. by_sales는 매출액(원), by_volume은 거래건수(건), by_growth는 QoQ 매출 성장률(%), by_score는 반올림한 ExplorationScore(점)를 담는다.",
     )
-    is_current: bool = Field(description="현재 상세 조회 중인 상권과 일치하는지 여부. 화면에서 해당 순위 행을 강조하는 데 사용한다.")
+    is_current: bool = Field(
+        description="현재 상세 조회 중인 상권과 일치하는지 여부. 화면에서 해당 순위 행을 강조하는 데 사용한다."
+    )
     score: Optional[int] = Field(
         default=None,
         description="별도 ExplorationScore 필드. 현재 순위 응답에서는 값을 채우지 않아 null이며, by_score의 점수는 sales_raw와 sales_formatted에 담긴다.",
@@ -157,14 +189,93 @@ class DistrictRankingItem(BaseModel):
     )
 
 
+class OverviewInsightContext(BaseModel):
+    """검증을 마쳐 외부 인사이트 생성기에 전달하는 최종 분석 사실 데이터."""
+
+    model_config = ConfigDict(
+        allow_inf_nan=False,
+        extra="forbid",
+        frozen=True,
+        str_strip_whitespace=True,
+    )
+
+    trade_area_name: str = Field(min_length=1, max_length=100, pattern=r"^[^\r\n]+$")
+    district_name: str = Field(min_length=1, max_length=50, pattern=r"^[^\r\n]+$")
+    industry_name: str = Field(min_length=1, max_length=100, pattern=r"^[^\r\n]+$")
+    quarter: str = Field(pattern=r"^\d{4}[1-4]$")
+    # 진단: 기존 patterns endpoint가 계산한 대표 연령대·시간대·요일
+    strongest_age_group: Optional[str] = Field(default=None, max_length=50)
+    peak_slot: Optional[str] = Field(default=None, max_length=50)
+    peak_day: Optional[str] = Field(default=None, max_length=20)
+    # 리스크: 점포 요약 원천값과 관측된 QoQ 성장률. 값이 없으면 null을 유지한다.
+    closing_rate: Optional[float] = None
+    opening_rate: Optional[float] = None
+    franchise_ratio_percent: Optional[float] = None
+    store_count_change: Optional[int] = None
+    qoq_growth_rate: Optional[float] = None
+    growth_level: Optional[ScoreLevel] = None
+    transaction_level: Optional[ScoreLevel] = None
+    competition_level: Optional[ScoreLevel] = None
+
+
+class OverviewInsightResponse(BaseModel):
+    # Gemini 프롬프트·외부 출력은 100자 이내로 제한하지만, 내부 fallback과 기존 응답 호환을 위해 120자까지 허용한다.
+    summary: str = Field(
+        min_length=1,
+        max_length=120,
+        description="Gemini 또는 결정론적 fallback으로 생성한 상권 종합 인사이트 한 문장.",
+    )
+    source: Literal["gemini", "fallback"] = Field(
+        description="summary의 생성 출처. Gemini 성공이면 gemini, 그 외에는 fallback이다."
+    )
+    status: Literal["generated", "fallback"] = Field(
+        description="summary 생성 상태. Gemini 성공이면 generated, 그 외에는 fallback이다."
+    )
+
+
+class DistrictTakeaway(BaseModel):
+    score: Optional[int] = Field(
+        default=None,
+        description="반올림한 ExplorationScore. 구성 지표가 부족해 산출할 수 없으면 null이다.",
+    )
+    score_note: Optional[str] = Field(
+        default=None,
+        description="ExplorationScore 산출 불가 사유. 점수를 산출했으면 null이다.",
+    )
+    growth_tag: str = Field(description="QoQ 매출 성장률 표시 문구.")
+    volume_tag: str = Field(description="거래건수 표시 문구.")
+    competition_tag: str = Field(
+        description="CompetitionScore 기반 경쟁 여건 등급 표시 문구."
+    )
+    summary: str = Field(
+        min_length=1,
+        max_length=120,
+        description=(
+            "기존 overview 응답과의 호환을 위해 반환하는 결정론적 일반 텍스트. "
+            "Gemini 프롬프트·외부 출력은 100자 이내지만 내부 응답은 120자까지 허용한다."
+        ),
+    )
+    disclaimer: str = Field(description="탐색 지표의 한계를 알리는 고정 안내 문구.")
+
+
 class DistrictOverviewResponse(BaseModel):
     trade_area_code: str = Field(description="상세 분석 대상 상권 코드.")
-    trade_area_name: str = Field(description="상세 화면 제목에 표시할 상권명. 상권 메타데이터가 없으면 상권 코드를 표시한다.")
+    trade_area_name: str = Field(
+        description="상세 화면 제목에 표시할 상권명. 상권 메타데이터가 없으면 상권 코드를 표시한다."
+    )
     district: str = Field(description="상세 분석 대상 상권이 속한 서울 자치구명.")
-    industry_code: str = Field(description="분석 대상 서비스 업종 코드. 서울 상권 비교 집단과 매출 조회 범위를 결정한다.")
-    industry_name: str = Field(description="상세 화면에 표시할 서비스 업종명. 업종명을 조회할 수 없으면 업종 코드를 표시한다.")
-    quarter: str = Field(description="분석 대상 분기. 요청한 quarter 값을 그대로 반환하며, 기본 표기는 '2025 Q4'이다.")
-    kpis: DistrictKpis = Field(description="상세 화면 상단 KPI와 Benchmark 표시용 매출액, 거래건수, 서울 종합 순위, QoQ 매출 성장률 및 수준 등급.")
+    industry_code: str = Field(
+        description="분석 대상 서비스 업종 코드. 서울 상권 비교 집단과 매출 조회 범위를 결정한다."
+    )
+    industry_name: str = Field(
+        description="상세 화면에 표시할 서비스 업종명. 업종명을 조회할 수 없으면 업종 코드를 표시한다."
+    )
+    quarter: str = Field(
+        description="분석 대상 분기 코드(YYYYN). 요청한 quarter 값을 그대로 반환한다."
+    )
+    kpis: DistrictKpis = Field(
+        description="상세 화면 상단 KPI와 Benchmark 표시용 매출액, 거래건수, 서울 종합 순위, QoQ 매출 성장률 및 수준 등급."
+    )
     why_explore: Dict[str, Any] = Field(
         description=(
             "상세 화면의 탐색 이유. growth_rate는 QoQ 매출 성장률(%), growth_percentile은 성장률 상위 N%, "
@@ -181,44 +292,72 @@ class DistrictOverviewResponse(BaseModel):
             "유효 후보가 없으면 빈 목록이다. 현재 상권이 상위 5개 밖이면 별도 추가하지 않는다."
         ),
     )
-    takeaway: Dict[str, Any] = Field(
+    takeaway: DistrictTakeaway = Field(
         description=(
             "상세 화면 종합 인사이트. score는 반올림한 ExplorationScore "
             "(GrowthScore × 0.40 + TransactionScore × 0.35 + CompetitionScore × 0.25)이며 "
             "전분기 매출 또는 점포 수·폐업률 등 구성 지표가 부족하면 null이다. "
             "score_note는 점수 산출 불가 안내이며 점수를 구할 수 있으면 null이다. "
             "growth_tag는 매출 성장률 또는 산출 불가 문구, volume_tag는 거래건수, competition_tag는 경쟁 여건, "
-            "summary는 점수 등급을 조합한 요약, disclaimer는 탐색 지표가 실제 창업 성공 가능성을 뜻하지 않는다는 안내이다."
+            "summary는 /overview/insight 응답 전까지 'AI 인사이트 생성 중입니다.'를 반환하고, "
+            "생성 실패 시 결정론적 fallback 요약을 반환하며, "
+            "disclaimer는 탐색 지표가 실제 창업 성공 가능성을 뜻하지 않는다는 안내이다."
         ),
     )
 
 
 class TimeSlotSales(BaseModel):
-    slot: str = Field(description="매출 집계 시간대. '00-06시', '06-11시', '11-14시', '14-17시', '17-21시', '21-24시' 중 하나이다.")
-    percentage: int = Field(description="TimeShare: 전체 6개 시간대 매출 합계 중 해당 시간대 매출의 비중(%)을 반올림한 값. 합계가 0이면 0이다.")
-    is_peak: bool = Field(description="해당 시간대 매출이 최대인지 여부. 최대 매출이 같으면 모두 true이며, 전체 시간대 매출이 0인 경우도 모두 true이다.")
-    sales_amount: int = Field(description="선택 분기·상권·업종의 해당 시간대 매출액(원).")
+    slot: str = Field(
+        description="매출 집계 시간대. '00-06시', '06-11시', '11-14시', '14-17시', '17-21시', '21-24시' 중 하나이다."
+    )
+    percentage: int = Field(
+        description="TimeShare: 전체 6개 시간대 매출 합계 중 해당 시간대 매출의 비중(%)을 반올림한 값. 합계가 0이면 0이다."
+    )
+    is_peak: bool = Field(
+        description="해당 시간대 매출이 최대인지 여부. 최대 매출이 같으면 모두 true이며, 전체 시간대 매출이 0인 경우도 모두 true이다."
+    )
+    sales_amount: int = Field(
+        description="선택 분기·상권·업종의 해당 시간대 매출액(원)."
+    )
 
 
 class AgeGenderSales(BaseModel):
-    age_group: str = Field(description="매출 집계 연령대. '10대', '20대', '30대', '40대', '50대', '60대+' 중 하나이며 연령과 성별을 결합한 집단은 아니다.")
-    percentage: int = Field(description="AgeShare: 전체 연령대 매출 합계 중 해당 연령대 매출의 비중(%)을 반올림한 값. 합계가 0이면 0이다.")
-    is_primary: bool = Field(description="해당 연령대 매출이 최대인지 여부. 최대 매출이 같으면 모두 true이며, 전체 연령대 매출이 0인 경우도 모두 true이다.")
+    age_group: str = Field(
+        description="매출 집계 연령대. '10대', '20대', '30대', '40대', '50대', '60대+' 중 하나이며 연령과 성별을 결합한 집단은 아니다."
+    )
+    percentage: int = Field(
+        description="AgeShare: 전체 연령대 매출 합계 중 해당 연령대 매출의 비중(%)을 반올림한 값. 합계가 0이면 0이다."
+    )
+    is_primary: bool = Field(
+        description="해당 연령대 매출이 최대인지 여부. 최대 매출이 같으면 모두 true이며, 전체 연령대 매출이 0인 경우도 모두 true이다."
+    )
 
 
 class GenderSales(BaseModel):
-    female_ratio: int = Field(description="FemaleShare: 여성 매출 / (남성 매출 + 여성 매출) × 100을 반올림한 비중(%). 성별 매출 합계가 0이면 0이다.")
-    male_ratio: int = Field(description="남성 매출 비중(%). 현재 구현은 100 - female_ratio로 계산하므로 두 비중의 합은 100이며, 성별 매출 합계가 0인 경우에도 100이다.")
-    dominant_gender: str = Field(description="반올림된 성별 매출 비중이 더 높은 성별. 여성 비중이 남성 이상이면 'female', 그 외에는 'male'이며 동률은 'female'이다.")
+    female_ratio: int = Field(
+        description="FemaleShare: 여성 매출 / (남성 매출 + 여성 매출) × 100을 반올림한 비중(%). 성별 매출 합계가 0이면 0이다."
+    )
+    male_ratio: int = Field(
+        description="남성 매출 비중(%). 현재 구현은 100 - female_ratio로 계산하므로 두 비중의 합은 100이며, 성별 매출 합계가 0인 경우에도 100이다."
+    )
+    dominant_gender: str = Field(
+        description="반올림된 성별 매출 비중이 더 높은 성별. 여성 비중이 남성 이상이면 'female', 그 외에는 'male'이며 동률은 'female'이다."
+    )
 
 
 class DaySales(BaseModel):
-    day: str = Field(description="매출 집계 요일. '월', '화', '수', '목', '금', '토', '일' 중 하나이다.")
-    percentage: int = Field(description="DayShare: 월~일 전체 매출 합계 중 해당 요일 매출의 비중(%)을 반올림한 값. 합계가 0이면 0이다.")
+    day: str = Field(
+        description="매출 집계 요일. '월', '화', '수', '목', '금', '토', '일' 중 하나이다."
+    )
+    percentage: int = Field(
+        description="DayShare: 월~일 전체 매출 합계 중 해당 요일 매출의 비중(%)을 반올림한 값. 합계가 0이면 0이다."
+    )
     diff_from_average: int = Field(
         description="DayDiff: (해당 요일 매출 - 월~일 평균 매출) / 월~일 평균 매출 × 100을 반올림한 값(%). 현재 구현은 전체 요일 매출이 0이면 합계를 1로 보정하여 -100을 반환한다.",
     )
-    is_peak: bool = Field(description="해당 요일 매출이 최대인지 여부. 최대 매출이 같으면 모두 true이며, 전체 요일 매출이 0인 경우도 모두 true이다.")
+    is_peak: bool = Field(
+        description="해당 요일 매출이 최대인지 여부. 최대 매출이 같으면 모두 true이며, 전체 요일 매출이 0인 경우도 모두 true이다."
+    )
 
 
 class DistrictPatternsResponse(BaseModel):
@@ -256,7 +395,9 @@ class DistrictPatternsResponse(BaseModel):
 
 
 class DistrictCompetitionResponse(BaseModel):
-    trade_area_code: str = Field(description="경쟁 여건 분석 대상 상권 코드. 분석 데이터가 없어도 요청 코드를 대문자로 반환한다.")
+    trade_area_code: str = Field(
+        description="경쟁 여건 분석 대상 상권 코드. 분석 데이터가 없어도 요청 코드를 대문자로 반환한다."
+    )
     store_count: Optional[int] = Field(
         default=None,
         description="선택한 분기·상권·업종의 현재 분기 동일 업종 점포 수(개). 현재 분기 점포 데이터가 없으면 null이다.",
@@ -290,8 +431,12 @@ class DistrictCompetitionResponse(BaseModel):
 
 class CompareDistrictData(BaseModel):
     trade_area_code: str = Field(description="비교표의 분석 대상 상권 코드.")
-    trade_area_name: str = Field(description="비교표에 표시할 상권명. 상권 메타데이터가 없으면 상권 코드를 표시한다.")
-    district: str = Field(description="상권이 속한 서울 자치구명. 자치구 정보가 없으면 '-'를 반환한다.")
+    trade_area_name: str = Field(
+        description="비교표에 표시할 상권명. 상권 메타데이터가 없으면 상권 코드를 표시한다."
+    )
+    district: str = Field(
+        description="상권이 속한 서울 자치구명. 자치구 정보가 없으면 '-'를 반환한다."
+    )
     exploration_score: Optional[int] = Field(
         default=None,
         description=(
@@ -300,10 +445,18 @@ class CompareDistrictData(BaseModel):
             "0 이하인 경우, 점포 데이터·폐업률이 없거나 점포 수가 0 이하인 경우 구성 점수를 구할 수 없으면 null이다."
         ),
     )
-    estimated_sales_formatted: str = Field(description="비교표에 표시할 분기 추정 매출액. '12.8억', '8500만'처럼 축약한 문자열이다.")
-    estimated_sales: int = Field(description="선택 분기·상권·업종의 분기 추정 매출액(원). 원천 필드명은 thsmon_selng_amt이며, 실제 의미는 분기당 매출 금액이다.")
-    transaction_count_formatted: str = Field(description="비교표에 표시할 분기 거래건수. 1만 건 이상은 '45만'처럼 축약한다.")
-    transaction_count: int = Field(description="선택 분기·상권·업종의 분기 거래건수(건). 원천 필드명은 thsmon_selng_co이며, 실제 의미는 분기당 매출 거래건수이다.")
+    estimated_sales_formatted: str = Field(
+        description="비교표에 표시할 분기 추정 매출액. '12.8억', '8500만'처럼 축약한 문자열이다."
+    )
+    estimated_sales: int = Field(
+        description="선택 분기·상권·업종의 분기 추정 매출액(원). 원천 필드명은 thsmon_selng_amt이며, 실제 의미는 분기당 매출 금액이다."
+    )
+    transaction_count_formatted: str = Field(
+        description="비교표에 표시할 분기 거래건수. 1만 건 이상은 '45만'처럼 축약한다."
+    )
+    transaction_count: int = Field(
+        description="선택 분기·상권·업종의 분기 거래건수(건). 원천 필드명은 thsmon_selng_co이며, 실제 의미는 분기당 매출 거래건수이다."
+    )
     growth_rate: Optional[float] = Field(
         default=None,
         description="QoQ 매출 성장률(%). overview의 kpis.qoq_growth_rate와 같은 계산값이며, 직전 분기 데이터가 없거나 매출이 0 이하이면 null이다.",
@@ -316,9 +469,15 @@ class CompareDistrictData(BaseModel):
         default=None,
         description="비교 대상 상권의 동일 업종 점포 수 전분기 대비 증감 수(개). 현재 또는 직전 분기 점포 데이터가 없으면 null이다.",
     )
-    strongest_age_group: str = Field(description="최대 매출 연령대와 AgeShare를 '20대 (45%)'처럼 표시한 값. 동률이면 연령대 순서상 첫 항목이며, 연령대 데이터를 조회할 수 없으면 '-'이다.")
-    strongest_time_period: str = Field(description="최대 매출 시간대(PeakTime)와 TimeShare를 '17-21시 (36%)'처럼 표시한 값. 동률이면 시간대 순서상 첫 항목이며, 시간대 데이터를 조회할 수 없으면 '-'이다.")
-    strongest_day: str = Field(description="최대 매출 요일(PeakDay)과 월~일 평균 대비 증감률(DayDiff)을 '금 (+21%)'처럼 표시한 값. 동률이면 월~일 순서상 첫 항목이며, 요일 데이터를 조회할 수 없으면 '-'이다.")
+    strongest_age_group: str = Field(
+        description="최대 매출 연령대와 AgeShare를 '20대 (45%)'처럼 표시한 값. 동률이면 연령대 순서상 첫 항목이며, 연령대 데이터를 조회할 수 없으면 '-'이다."
+    )
+    strongest_time_period: str = Field(
+        description="최대 매출 시간대(PeakTime)와 TimeShare를 '17-21시 (36%)'처럼 표시한 값. 동률이면 시간대 순서상 첫 항목이며, 시간대 데이터를 조회할 수 없으면 '-'이다."
+    )
+    strongest_day: str = Field(
+        description="최대 매출 요일(PeakDay)과 월~일 평균 대비 증감률(DayDiff)을 '금 (+21%)'처럼 표시한 값. 동률이면 월~일 순서상 첫 항목이며, 요일 데이터를 조회할 수 없으면 '-'이다."
+    )
     competition_level: Optional[str] = Field(
         default=None,
         description=(
@@ -327,4 +486,6 @@ class CompareDistrictData(BaseModel):
             "점포 데이터·폐업률이 없거나 점포 수가 0 이하이면 CompetitionScore를 산출할 수 없어 null이다."
         ),
     )
-    key_insight: str = Field(description="비교표의 상권별 핵심 요약. GrowthScore·TransactionScore·CompetitionScore 중 산출 가능한 지표의 높음/보통/낮음 등급을 조합한 문장이다.")
+    key_insight: str = Field(
+        description="비교표의 상권별 핵심 요약. GrowthScore·TransactionScore·CompetitionScore 중 산출 가능한 지표의 높음/보통/낮음 등급을 조합한 문장이다."
+    )
