@@ -18,6 +18,7 @@ import {
 import {
   MOCK_DISTRICTS,
   MOCK_INDUSTRIES,
+  MOCK_QUARTERS,
   MOCK_TRADE_AREAS,
   getMockDistrictOverview,
   getMockDistrictOverviewInsight,
@@ -152,9 +153,14 @@ export const api = {
   /**
    * 업종 목록
    */
+  /**
+   * 기준 분기 목록 — [연동] GET /sales/quarters 는 sales_data(48만 행)를 SELECT DISTINCT 로
+   * 매번 스캔해 요청마다 300~500ms 가 걸리는데, 분기는 3개월에 한 번만 늘어나는 값이라
+   * 실제 API를 호출하지 않고 항상 MOCK_QUARTERS(mockData.ts, 현재 조회되는 데이터 기준으로 고정)를
+   * 반환한다. USE_MOCK 여부와 무관하게 항상 이 값을 쓴다.
+   */
   getQuarters: async (): Promise<QuarterOption[]> => {
-    const response = await apiClient.get<QuarterOption[]>("/sales/quarters");
-    return response.data;
+    return MOCK_QUARTERS;
   },
 
   getIndustries: async (): Promise<Industry[]> => {

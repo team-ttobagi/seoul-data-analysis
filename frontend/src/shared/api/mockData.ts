@@ -10,6 +10,7 @@ import {
   TradeAreaResponse,
   District,
   Industry,
+  QuarterOption,
   RecommendationItem,
   DistrictOverview,
   DistrictOverviewInsight,
@@ -17,6 +18,36 @@ import {
   DistrictCompetition,
   CompareDistrictData,
 } from "../types";
+
+// [연동] GET /api/v1/sales/quarters 응답을 그대로 고정한 값이다(2026-09-16 기준 실제 조회 결과).
+// 분기는 3개월에 한 번만 늘어나는 값인데, 백엔드가 sales_data(48만 행)를 SELECT DISTINCT로
+// 매번 훑어서(PostgreSQL이 DISTINCT skip-scan을 지원하지 않음) 요청마다 300~500ms 가 걸린다.
+// 그래서 기준 분기 목록은 항상 이 mock 값을 사용하고 실제 API를 호출하지 않는다
+// (client.ts api.getQuarters 참고). 최신 분기가 추가되면 이 배열 맨 앞에 추가해주면 된다.
+export const MOCK_QUARTERS: QuarterOption[] = [
+  { code: "20262", value: "2026 Q2" },
+  { code: "20261", value: "2026 Q1" },
+  { code: "20254", value: "2025 Q4" },
+  { code: "20253", value: "2025 Q3" },
+  { code: "20252", value: "2025 Q2" },
+  { code: "20251", value: "2025 Q1" },
+  { code: "20244", value: "2024 Q4" },
+  { code: "20243", value: "2024 Q3" },
+  { code: "20242", value: "2024 Q2" },
+  { code: "20241", value: "2024 Q1" },
+  { code: "20234", value: "2023 Q4" },
+  { code: "20233", value: "2023 Q3" },
+  { code: "20232", value: "2023 Q2" },
+  { code: "20231", value: "2023 Q1" },
+  { code: "20224", value: "2022 Q4" },
+  { code: "20223", value: "2022 Q3" },
+  { code: "20222", value: "2022 Q2" },
+  { code: "20221", value: "2022 Q1" },
+  { code: "20214", value: "2021 Q4" },
+  { code: "20213", value: "2021 Q3" },
+  { code: "20212", value: "2021 Q2" },
+  { code: "20211", value: "2021 Q1" },
+];
 
 export const MOCK_DISTRICTS: District[] = [
   { signgu_cd: "11110", signgu_cd_nm: "종로구" },

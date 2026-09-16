@@ -28,6 +28,14 @@ import { useCompareStore } from "../../shared/lib/store";
 //   store_count_change
 /* ----------------------------- */
 
+// [연동] 백엔드 quarter 코드(YYYYN, 예: "20254")를 화면 표시용 "2025 Q4" 형식으로 변환한다.
+// GET /api/v1/sales/quarters 가 내려주는 value 포맷과 동일하게 맞춘다.
+// API 호출·URL 파라미터에는 원래 코드(quarter)를 그대로 쓰고, 화면에 보여줄 때만 이 함수를 거친다.
+function formatQuarterLabel(code: string): string {
+  if (!/^\d{5}$/.test(code)) return code;
+  return `${code.slice(0, 4)} Q${code.slice(4)}`;
+}
+
 export const DistrictDetailPage: React.FC = () => {
   const { tradeAreaCode = "SEONGSU" } = useParams<{ tradeAreaCode: string }>();
   const [searchParams] = useSearchParams();
@@ -171,7 +179,7 @@ export const DistrictDetailPage: React.FC = () => {
               서울 &gt; {overview.trade_area_name} &gt; {overview.industry_name}
             </span>
             <span>|</span>
-            <span>{overview.quarter}</span>
+            <span>{formatQuarterLabel(overview.quarter)}</span>
           </div>
         </div>
       </section>
