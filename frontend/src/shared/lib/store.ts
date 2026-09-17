@@ -63,14 +63,22 @@ export const useCompareStore = create<CompareState>((set, get) => ({
 interface ExploreState {
   selectedDistrictCode: string;
   keyword: string;
+  // 업종 카테고리/기준 분기 — 첫 진입 시에는 빈 값이라 ExplorePage 기본값(CS100010/최신 분기)이
+  // 적용되지만, 사용자가 직접 선택하면 Compare 화면을 오갔다 돌아와도 그 선택이 유지된다.
+  industryCode: string;
+  quarterCode: string;
 
   setDistrict: (code: string) => void;
   setKeyword: (keyword: string) => void;
+  setIndustry: (code: string) => void;
+  setQuarter: (code: string) => void;
 }
 
 export const useExploreStore = create<ExploreState>((set) => ({
   selectedDistrictCode: "",
   keyword: "",
+  industryCode: "",
+  quarterCode: "",
 
   setDistrict: (code) => {
     set({
@@ -81,5 +89,13 @@ export const useExploreStore = create<ExploreState>((set) => ({
 
   setKeyword: (keyword) => {
     set({ keyword });
+  },
+
+  setIndustry: (code) => {
+    set({ industryCode: code });
+  },
+
+  setQuarter: (code) => {
+    set({ quarterCode: code });
   },
 }));
