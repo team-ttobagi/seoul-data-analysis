@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   useParams,
   useSearchParams,
@@ -29,6 +29,7 @@ import {
 } from "../../shared/lib/format";
 import { getApiErrorMessage } from "../../shared/lib/apiError";
 import { StatusBlock, StatusInline } from "../../shared/ui/QueryState";
+import { useIsFreshDirectEntry } from "../../shared/lib/navigationOrigin";
 
 /* ----------------------------- */
 // Update by SoO 2026.09.07
@@ -51,6 +52,18 @@ export const DistrictDetailPage: React.FC = () => {
   const { isDistrictSelected, toggleDistrict } = useCompareStore();
   const isChecked = isDistrictSelected(tradeAreaCode);
 
+  // [연동] 주소창에 완성된 URL(예: /district/3120088?industry=...&quarter=...)을 직접 입력하거나
+  // 새로고침/북마크로 곧바로 들어온 경우(이 세션에서 앱 내부 이동이 한 번도 없었던 POP)엔, 상세
+  // 데이터를 조회하지 않고 Explore로 즉시 돌려보낸다. Explore/Compare 등 앱 내부에서 이동해온
+  // 경우(PUSH/REPLACE)나 그런 이동 이후의 브라우저 뒤로가기(POP)는 리다이렉트하지 않는다.
+  const shouldRedirectToExplore = useIsFreshDirectEntry();
+
+  useEffect(() => {
+    if (shouldRedirectToExplore) {
+      navigate("/explore", { replace: true });
+    }
+  }, [shouldRedirectToExplore, navigate]);
+
   const {
     data: overview,
     isLoading: isOverviewLoading,
@@ -64,6 +77,7 @@ export const DistrictDetailPage: React.FC = () => {
         industry_code: industryCode,
         quarter,
       }),
+    enabled: !shouldRedirectToExplore,
   });
 
   // [연동] Gemini 인사이트는 별도 /overview/insight 호출로 받아온다(최대 수 초 소요, 나머지 화면을 막지 않음).
@@ -75,6 +89,7 @@ export const DistrictDetailPage: React.FC = () => {
         industry_code: industryCode,
         quarter,
       }),
+    enabled: !shouldRedirectToExplore,
   });
 
   const {
@@ -89,6 +104,7 @@ export const DistrictDetailPage: React.FC = () => {
         industry_code: industryCode,
         quarter,
       }),
+    enabled: !shouldRedirectToExplore,
   });
 
   const {
@@ -103,12 +119,18 @@ export const DistrictDetailPage: React.FC = () => {
         industry_code: industryCode,
         quarter,
       }),
+    enabled: !shouldRedirectToExplore,
   });
 
   const { data: tradeAreas = [] } = useQuery({
     queryKey: ["trade-areas"],
     queryFn: ({ signal }) => api.getTradeAreas(signal),
   });
+
+  // Explore로 리다이렉트되는 동안 로딩/상세 화면이 잠깐 보이지 않도록 아무것도 그리지 않는다.
+  if (shouldRedirectToExplore) {
+    return null;
+  }
 
   // [연동] overview 는 데이터가 없으면 404 SALES_DATA_NOT_FOUND 를 내려주는 실제 에러 상태다
   // (patterns/competition 처럼 200 + 빈 배열/null 로 내려오지 않음). loading/error/empty 를

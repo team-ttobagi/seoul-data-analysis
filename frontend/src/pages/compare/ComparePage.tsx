@@ -3,16 +3,35 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Trash2, ArrowUpRight, ExternalLink } from "lucide-react";
 import { api } from "../../shared/api/client";
-import { useCompareStore } from "../../shared/lib/store";
+import { useCompareStore, useExploreStore } from "../../shared/lib/store";
 import { ScorePill } from "../../shared/ui/Signals";
 import { getApiErrorMessage } from "../../shared/lib/apiError";
 import { StatusBlock, StatusInline } from "../../shared/ui/QueryState";
+import { useIsFreshDirectEntry } from "../../shared/lib/navigationOrigin";
 
 export const ComparePage: React.FC = () => {
   const navigate = useNavigate();
   const { selectedCodes, areaNamesByCode } = useCompareStore();
-  const [selectedIndustry] = useState("CS100010");
-  const [selectedQuarter] = useState("20254");
+
+  // [연동] 주소창 직접 입력/새로고침/북마크로 /compare 에 곧바로 들어온 경우(이 세션에서 앱 내부
+  // 이동이 한 번도 없었던 POP)엔, 빈 비교표를 보여주는 대신 상권을 고를 수 있는 Explore로 즉시
+  // 돌려보낸다. Explore/Compare 등 앱 내부에서 이동해온 경우(PUSH/REPLACE)나, 그런 이동 이후의
+  // 브라우저 뒤로가기(POP)는 리다이렉트하지 않는다.
+  const shouldRedirectToExplore = useIsFreshDirectEntry();
+
+  useEffect(() => {
+    if (shouldRedirectToExplore) {
+      navigate("/explore", { replace: true });
+    }
+  }, [shouldRedirectToExplore, navigate]);
+
+  // [연동] Explore에서 선택한 업종/분기(useExploreStore)를 그대로 이어받는다 — 이전엔
+  // CS100010/20254로 고정돼 있어, Explore에서 다른 업종으로 조회한 상권을 비교표로 넘기면
+  // 실제로는 전혀 다른 업종·분기 기준으로 재조회되어 Score 등 지표가 달라 보이는 문제가 있었다.
+  // Explore를 거치지 않고 곧바로 /compare 로 들어와 store가 비어있는 경우, 임의의 기본값으로
+  // 대체하지 않고 "비교할 상권이 선택되지 않았습니다" 빈 상태로 보여준다.
+  const selectedIndustry = useExploreStore((state) => state.industryCode);
+  const selectedQuarter = useExploreStore((state) => state.quarterCode);
 
   // 선택은 최대 7개까지 가능하지만, 비교표에는 선택한 순서대로 최대 3개만 표시한다.
   // 이미 표시 중이던 항목은 selectedCodes 가 바뀌어도(추가/Explore에서 넘어옴 등) 그대로 유지하고,
@@ -49,7 +68,7 @@ export const ComparePage: React.FC = () => {
         industry_code: selectedIndustry,
         quarter: selectedQuarter,
       }),
-    enabled: selectedCodes.length > 0,
+    enabled: selectedCodes.length > 0 && Boolean(selectedIndustry && selectedQuarter),
   });
 
   // 비교표 컬럼은 데이터 로딩 여부와 무관하게 displayedCodes(최대 3개) 순서로 즉시 그린다.
@@ -98,6 +117,11 @@ export const ComparePage: React.FC = () => {
     <span className="text-gray-400 text-xs">데이터 없음</span>
   );
   const cellFallback = isLoading ? <Placeholder /> : <NoDataCell />;
+
+  // Explore로 리다이렉트되는 동안 빈 비교표 화면이 잠깐 보이지 않도록 아무것도 그리지 않는다.
+  if (shouldRedirectToExplore) {
+    return null;
+  }
 
   return (
     <div className="w-full bg-[#f5f5f0] min-h-[calc(100vh-4rem)] pb-16">
@@ -172,8 +196,10 @@ export const ComparePage: React.FC = () => {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
         {/* 비교표에 표시 중인 상권이 0개면(전체 미선택 포함) 빈 상태 화면을 보여준다.
             선택은 남아있지만 전부 숨겨진 경우에도 동일하게 이 화면을 보여주고,
-            "상권 추가"의 "보기" 버튼으로 다시 표시할 수 있다. */}
-        {displayedCodes.length === 0 ? (
+            "상권 추가"의 "보기" 버튼으로 다시 표시할 수 있다. Explore를 거치지 않고 곧바로
+            /compare 로 들어와 업종/분기(selectedIndustry/selectedQuarter)가 비어있는 경우도
+            같은 빈 상태로 처리한다. */}
+        {displayedCodes.length === 0 || !selectedIndustry || !selectedQuarter ? (
           <StatusBlock
             kind="empty"
             title="비교할 상권이 선택되지 않았습니다."

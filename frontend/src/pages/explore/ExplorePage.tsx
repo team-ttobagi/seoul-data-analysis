@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -372,6 +372,14 @@ export const ExplorePage: React.FC = () => {
   const searchKeyword = keyword.trim();
   const [submittedKeyword, setSubmittedKeyword] = useState("");
 
+  // 업종 카테고리/기준 분기는 Zustand store(useExploreStore)에 보관해서, 비교 화면으로 넘어갔다
+  // 돌아와도 직전 조회 조건이 유지된다. 최초 진입 시에는 store 값이 빈 문자열이라 아래 fallback
+  // 로직(CS100010/최신 분기)이 적용되고, 그 결과는 아래 useEffect로 다시 store에 기록된다.
+  const industryChoice = useExploreStore((state) => state.industryCode);
+  const setSelectedIndustry = useExploreStore((state) => state.setIndustry);
+  const quarterChoice = useExploreStore((state) => state.quarterCode);
+  const setSelectedQuarter = useExploreStore((state) => state.setQuarter);
+
   const {
     data: districts = [],
     isPending: isDistrictsPending,
@@ -389,14 +397,29 @@ export const ExplorePage: React.FC = () => {
     queryKey: ["quarters"],
     queryFn: api.getQuarters,
   });
-  const [industryChoice, setSelectedIndustry] = useState("");
-  const [quarterChoice, setSelectedQuarter] = useState("");
   const selectedIndustry = industries.some((item) => item.code === industryChoice)
     ? industryChoice
     : (industries.find((item) => item.code === "CS100010") ?? industries[0])?.code ?? "";
   const selectedQuarter = quarterData.some((item) => item.code === quarterChoice)
     ? quarterChoice
     : quarterData[0]?.code ?? "";
+
+  // store(industryChoice/quarterChoice)가 비어있어 기본값(CS100010/최신 분기)으로 대체된
+  // 경우에도, 실제로 조회에 쓰인 값을 store에 반영해둔다. ComparePage는 이 store 값을 그대로
+  // 신뢰해서 조회하므로, 사용자가 필터를 한 번도 건드리지 않고 바로 비교로 넘어가도 방금 화면에
+  // 보이던 것과 동일한 업종/분기로 비교된다.
+  useEffect(() => {
+    if (selectedIndustry && selectedIndustry !== industryChoice) {
+      setSelectedIndustry(selectedIndustry);
+    }
+  }, [selectedIndustry, industryChoice, setSelectedIndustry]);
+
+  useEffect(() => {
+    if (selectedQuarter && selectedQuarter !== quarterChoice) {
+      setSelectedQuarter(selectedQuarter);
+    }
+  }, [selectedQuarter, quarterChoice, setSelectedQuarter]);
+
   const selectedRegion = districts.find((item) => item.signgu_cd === selectedDistrictCode)?.signgu_cd_nm ?? "서울 전체";
   const [activeItemCode, setActiveItemCode] = useState<string>("");
 
