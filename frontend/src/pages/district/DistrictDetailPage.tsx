@@ -7,6 +7,7 @@ import {
 } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
+  AlertTriangle,
   ArrowLeft,
   CheckSquare,
   Square,
@@ -26,6 +27,8 @@ import {
   formatQuarterLabel,
   formatSignedPercent,
 } from "../../shared/lib/format";
+import { getApiErrorMessage } from "../../shared/lib/apiError";
+import { StatusBlock, StatusInline } from "../../shared/ui/QueryState";
 
 /* ----------------------------- */
 // Update by SoO 2026.09.07
@@ -48,7 +51,13 @@ export const DistrictDetailPage: React.FC = () => {
   const { isDistrictSelected, toggleDistrict } = useCompareStore();
   const isChecked = isDistrictSelected(tradeAreaCode);
 
-  const { data: overview, isLoading: isOverviewLoading } = useQuery({
+  const {
+    data: overview,
+    isLoading: isOverviewLoading,
+    isError: isOverviewError,
+    error: overviewError,
+    refetch: refetchOverview,
+  } = useQuery({
     queryKey: ["district-overview", tradeAreaCode, industryCode, quarter],
     queryFn: () =>
       api.getDistrictOverview(tradeAreaCode, {
@@ -68,7 +77,12 @@ export const DistrictDetailPage: React.FC = () => {
       }),
   });
 
-  const { data: patterns, isLoading: isPatternsLoading } = useQuery({
+  const {
+    data: patterns,
+    isLoading: isPatternsLoading,
+    isError: isPatternsError,
+    error: patternsError,
+  } = useQuery({
     queryKey: ["district-patterns", tradeAreaCode, industryCode, quarter],
     queryFn: () =>
       api.getDistrictPatterns(tradeAreaCode, {
@@ -77,7 +91,12 @@ export const DistrictDetailPage: React.FC = () => {
       }),
   });
 
-  const { data: competition, isLoading: isCompLoading } = useQuery({
+  const {
+    data: competition,
+    isLoading: isCompLoading,
+    isError: isCompError,
+    error: competitionError,
+  } = useQuery({
     queryKey: ["district-competition", tradeAreaCode, industryCode, quarter],
     queryFn: () =>
       api.getDistrictCompetition(tradeAreaCode, {
@@ -91,10 +110,41 @@ export const DistrictDetailPage: React.FC = () => {
     queryFn: ({ signal }) => api.getTradeAreas(signal),
   });
 
-  if (isOverviewLoading || !overview) {
+  // [연동] overview 는 데이터가 없으면 404 SALES_DATA_NOT_FOUND 를 내려주는 실제 에러 상태다
+  // (patterns/competition 처럼 200 + 빈 배열/null 로 내려오지 않음). loading/error/empty 를
+  // 명확히 구분해서, 에러가 정상 데이터 화면으로 오인되지 않게 한다.
+  if (isOverviewLoading) {
     return (
-      <div className="max-w-7xl mx-auto p-12 text-center font-mono">
-        상권 데이터 로딩 중...
+      <div className="max-w-7xl mx-auto p-12">
+        <StatusBlock kind="loading" title="상권 데이터를 불러오는 중입니다..." />
+      </div>
+    );
+  }
+
+  if (isOverviewError) {
+    return (
+      <div className="max-w-7xl mx-auto p-12">
+        <StatusBlock
+          kind="error"
+          title="상권 데이터를 불러오지 못했습니다."
+          description={getApiErrorMessage(overviewError)}
+          action={
+            <button
+              onClick={() => refetchOverview()}
+              className="px-4 py-2 bg-black text-white font-bold font-mono text-sm hover:bg-red-600 transition-colors"
+            >
+              다시 시도
+            </button>
+          }
+        />
+      </div>
+    );
+  }
+
+  if (!overview) {
+    return (
+      <div className="max-w-7xl mx-auto p-12">
+        <StatusBlock kind="empty" title="표시할 상권 데이터가 없습니다." />
       </div>
     );
   }
@@ -268,35 +318,69 @@ export const DistrictDetailPage: React.FC = () => {
 
             {/* Metric Level List matching Reference 2 */}
             {/* [연동] sales_level/volume_level/competition_level 은 경쟁·폐업률 데이터 부족 시
-                백엔드가 null 을 내려주는 Optional 필드다. 로딩 중(isCompLoading)엔 중립 placeholder를,
-                로딩이 끝났는데 null이면 가짜 예시값 대신 "-"를 보여준다. */}
+                백엔드가 null 을 내려주는 Optional 필드다. loading("…") / error("오류", 빨간 배지) /
+                empty(null → "-") 를 구분해서, API 에러가 정상 "-" 화면으로 오인되지 않게 한다. */}
             <div className="divide-y divide-gray-800 border-t border-b border-gray-800 font-mono text-xs sm:text-sm">
               <div className="flex justify-between items-center py-2.5">
                 <span className="text-gray-300">매출 수준</span>
-                <span className="bg-white text-black px-2 py-0.5 font-bold text-xs">
-                  {isCompLoading ? "…" : (competition?.sales_level ?? "-")}
+                <span
+                  className={`px-2 py-0.5 font-bold text-xs ${
+                    isCompError ? "bg-red-600 text-white" : "bg-white text-black"
+                  }`}
+                >
+                  {isCompLoading
+                    ? "…"
+                    : isCompError
+                      ? "오류"
+                      : formatNullable(competition?.sales_level)}
                 </span>
               </div>
 
               <div className="flex justify-between items-center py-2.5">
                 <span className="text-gray-300">거래량</span>
-                <span className="bg-white text-black px-2 py-0.5 font-bold text-xs">
-                  {isCompLoading ? "…" : (competition?.volume_level ?? "-")}
+                <span
+                  className={`px-2 py-0.5 font-bold text-xs ${
+                    isCompError ? "bg-red-600 text-white" : "bg-white text-black"
+                  }`}
+                >
+                  {isCompLoading
+                    ? "…"
+                    : isCompError
+                      ? "오류"
+                      : formatNullable(competition?.volume_level)}
                 </span>
               </div>
 
               <div className="flex justify-between items-center py-2.5">
                 <span className="text-gray-300">경쟁 강도</span>
                 <span className="bg-[#ff3b30] text-white px-2 py-0.5 font-bold text-xs">
-                  {isCompLoading ? "…" : (competition?.competition_level ?? "-")}
+                  {isCompLoading
+                    ? "…"
+                    : isCompError
+                      ? "오류"
+                      : formatNullable(competition?.competition_level)}
                 </span>
               </div>
             </div>
 
+            {/* Error note — 경쟁 데이터 자체를 못 불러왔을 때, 아래 warning_text(정상 안내 문구)와
+                혼동되지 않도록 별도의 경고 아이콘/문구로 표시한다. */}
+            {isCompError && (
+              <div className="flex items-center gap-1.5 text-xs text-red-400 font-sans">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <span>
+                  {getApiErrorMessage(
+                    competitionError,
+                    "경쟁 데이터를 불러오지 못했습니다.",
+                  )}
+                </span>
+              </div>
+            )}
+
             {/* Warning Interpretation
-                [연동] warning_text 는 경쟁 여건이 낮음일 때만 채워지는 Optional 필드라, 로딩 중이거나
+                [연동] warning_text 는 경쟁 여건이 낮음일 때만 채워지는 Optional 필드라, 로딩/에러 중이거나
                 null이면(경고할 내용이 없으면) 가짜 문구를 보여주지 않고 문단 자체를 숨긴다. */}
-            {!isCompLoading && competition?.warning_text && (
+            {!isCompLoading && !isCompError && competition?.warning_text && (
               <p className="text-xs text-gray-400 leading-relaxed font-sans">
                 {competition.warning_text}
               </p>
@@ -449,21 +533,34 @@ export const DistrictDetailPage: React.FC = () => {
               </p>
             </div>
 
-            {/* Time Bar Chart */}
-            {patterns && (
-              <div className="my-2">
-                <TimeBarChart
-                  slots={patterns.when.slots}
-                  peakSlot={patterns.when.peak_slot}
-                />
-              </div>
+            {/* [연동] patterns 는 소스 데이터가 없어도 404 없이 200 + 빈 배열로 내려온다.
+                loading / error / empty(slots=[])를 구분해서, 로딩/에러 중에 예시 문구가 정상
+                인사이트처럼 보이지 않게 한다. */}
+            {isPatternsLoading ? (
+              <StatusInline kind="loading" message="시간대별 데이터를 불러오는 중입니다." />
+            ) : isPatternsError ? (
+              <StatusInline
+                kind="error"
+                message={getApiErrorMessage(
+                  patternsError,
+                  "시간대별 데이터를 불러오지 못했습니다.",
+                )}
+              />
+            ) : patterns && patterns.when.slots.length > 0 ? (
+              <>
+                <div className="my-2">
+                  <TimeBarChart
+                    slots={patterns.when.slots}
+                    peakSlot={patterns.when.peak_slot}
+                  />
+                </div>
+                <div className="border-l-4 border-[#d4ff00] pl-3 py-1 text-xs sm:text-sm font-medium text-black">
+                  {patterns.when.insight}
+                </div>
+              </>
+            ) : (
+              <StatusInline kind="empty" message="시간대별 데이터가 없습니다." />
             )}
-
-            {/* Insight quote */}
-            <div className="border-l-4 border-[#d4ff00] pl-3 py-1 text-xs sm:text-sm font-medium text-black">
-              {patterns?.when.insight ||
-                "저녁 17–21시에 소비가 가장 집중됩니다."}
-            </div>
           </div>
         </div>
 
@@ -475,33 +572,47 @@ export const DistrictDetailPage: React.FC = () => {
               <h2 className="text-xl sm:text-2xl font-black text-black">
                 누가 가장 많이 살까?
               </h2>
-
-              {/* [연동] 성별 구분 없이 연령대(primary_age_group)만 표시.
-                  backend who.gender(female_ratio/male_ratio)는 화면에서 사용하지 않는다. */}
-              <div className="mt-4 flex items-center gap-3">
-                <span className="text-3xl sm:text-4xl font-black text-black tracking-tight">
-                  {patterns?.who.primary_age_group ?? "-"}
-                </span>
-                <span className="bg-[#d4ff00] text-black border border-black px-2 py-0.5 text-xs font-mono font-bold">
-                  주요 소비 연령대
-                  {patterns?.who.primary_age_percentage != null
-                    ? ` (${patterns.who.primary_age_percentage}%)`
-                    : ""}
-                </span>
-              </div>
             </div>
 
-            {/* Demographics Bar Breakdown */}
-            {patterns && (
-              <div className="my-2">
-                <AgeBarChart demographics={patterns.who.demographics} />
-              </div>
+            {/* [연동] 성별 구분 없이 연령대(primary_age_group)만 표시.
+                backend who.gender(female_ratio/male_ratio)는 화면에서 사용하지 않는다.
+                patterns 는 소스 데이터가 없어도 404 없이 200 + 빈 배열로 내려오므로
+                loading / error / empty(demographics=[])를 구분해서 표시한다. */}
+            {isPatternsLoading ? (
+              <StatusInline kind="loading" message="연령대별 데이터를 불러오는 중입니다." />
+            ) : isPatternsError ? (
+              <StatusInline
+                kind="error"
+                message={getApiErrorMessage(
+                  patternsError,
+                  "연령대별 데이터를 불러오지 못했습니다.",
+                )}
+              />
+            ) : patterns && patterns.who.demographics.length > 0 ? (
+              <>
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl sm:text-4xl font-black text-black tracking-tight">
+                    {patterns.who.primary_age_group}
+                  </span>
+                  <span className="bg-[#d4ff00] text-black border border-black px-2 py-0.5 text-xs font-mono font-bold">
+                    주요 소비 연령대
+                    {patterns.who.primary_age_percentage != null
+                      ? ` (${patterns.who.primary_age_percentage}%)`
+                      : ""}
+                  </span>
+                </div>
+
+                <div className="my-2">
+                  <AgeBarChart demographics={patterns.who.demographics} />
+                </div>
+
+                <div className="border-l-4 border-[#d4ff00] pl-3 py-1 text-xs sm:text-sm font-medium text-black">
+                  {patterns.who.insight}
+                </div>
+              </>
+            ) : (
+              <StatusInline kind="empty" message="연령대별 데이터가 없습니다." />
             )}
-
-            {/* Insight quote */}
-            <div className="border-l-4 border-[#d4ff00] pl-3 py-1 text-xs sm:text-sm font-medium text-black">
-              {patterns?.who.insight || "20대 소비 비중이 가장 높습니다."}
-            </div>
           </div>
 
           {/* Middle Right: 어느 요일이 강할까? (DAY) */}
@@ -515,22 +626,34 @@ export const DistrictDetailPage: React.FC = () => {
               </p>
             </div>
 
-            {/* Day Bar Chart */}
-            {patterns && (
-              <div className="my-2">
-                <DayBarChart
-                  days={patterns.day.days}
-                  peakDay={patterns.day.peak_day}
-                  peakDiffBadge={patterns.day.peak_diff_badge}
-                />
-              </div>
+            {/* [연동] patterns 는 소스 데이터가 없어도 404 없이 200 + 빈 배열로 내려온다.
+                loading / error / empty(days=[])를 구분해서 표시한다. */}
+            {isPatternsLoading ? (
+              <StatusInline kind="loading" message="요일별 데이터를 불러오는 중입니다." />
+            ) : isPatternsError ? (
+              <StatusInline
+                kind="error"
+                message={getApiErrorMessage(
+                  patternsError,
+                  "요일별 데이터를 불러오지 못했습니다.",
+                )}
+              />
+            ) : patterns && patterns.day.days.length > 0 ? (
+              <>
+                <div className="my-2">
+                  <DayBarChart
+                    days={patterns.day.days}
+                    peakDay={patterns.day.peak_day}
+                    peakDiffBadge={patterns.day.peak_diff_badge}
+                  />
+                </div>
+                <div className="border-l-4 border-[#d4ff00] pl-3 py-1 text-xs sm:text-sm font-medium text-black">
+                  {patterns.day.insight}
+                </div>
+              </>
+            ) : (
+              <StatusInline kind="empty" message="요일별 데이터가 없습니다." />
             )}
-
-            {/* Insight quote */}
-            <div className="border-l-4 border-[#d4ff00] pl-3 py-1 text-xs sm:text-sm font-medium text-black">
-              {patterns?.day.insight ||
-                "금요일 매출이 주중 평균보다 21% 높습니다."}
-            </div>
           </div>
         </div>
       </section>

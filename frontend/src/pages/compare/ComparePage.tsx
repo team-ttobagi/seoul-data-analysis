@@ -1,21 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowLeft,
-  Trash2,
-  ArrowUpRight,
-  ExternalLink,
-  Loader2,
-} from "lucide-react";
+import { ArrowLeft, Trash2, ArrowUpRight, ExternalLink } from "lucide-react";
 import { api } from "../../shared/api/client";
 import { useCompareStore } from "../../shared/lib/store";
 import { ScorePill } from "../../shared/ui/Signals";
+import { getApiErrorMessage } from "../../shared/lib/apiError";
+import { StatusBlock, StatusInline } from "../../shared/ui/QueryState";
 
 export const ComparePage: React.FC = () => {
   const navigate = useNavigate();
-  const { selectedCodes, clearDistricts, areaNamesByCode } =
-    useCompareStore();
+  const { selectedCodes, areaNamesByCode } = useCompareStore();
   const [selectedIndustry] = useState("CS100010");
   const [selectedQuarter] = useState("20254");
 
@@ -35,7 +30,13 @@ export const ComparePage: React.FC = () => {
     });
   }, [selectedCodes]);
 
-  const { data: compareList = [], isLoading } = useQuery({
+  const {
+    data: compareList = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: [
       "compare-data",
       selectedCodes,
@@ -83,13 +84,20 @@ export const ComparePage: React.FC = () => {
     setDisplayedCodes((current) => current.filter((c) => c !== code));
   };
 
-  const handleClearDistricts = () => {
+  // "선택 초기화"는 비교표(표시) 만 초기화하고, "상권 추가"의 선택 정보(selectedCodes)는 유지한다.
+  const handleClearDisplayed = () => {
     setDisplayedCodes([]);
-    clearDistricts();
   };
 
   // compareList 가 아직 로딩 중인 컬럼(data undefined)에 표시할 자리표시자.
   const Placeholder = () => <span className="text-gray-300">…</span>;
+
+  // [연동] GET /compare 는 요청한 trade_area_code 중 데이터가 없는 항목을 에러 없이 결과 배열에서
+  // 조용히 제외한다. 로딩 중("…")과 "조회는 성공했지만 이 상권 데이터가 없음"을 구분해서 보여준다.
+  const NoDataCell = () => (
+    <span className="text-gray-400 text-xs">데이터 없음</span>
+  );
+  const cellFallback = isLoading ? <Placeholder /> : <NoDataCell />;
 
   return (
     <div className="w-full bg-[#f5f5f0] min-h-[calc(100vh-4rem)] pb-16">
@@ -114,7 +122,7 @@ export const ComparePage: React.FC = () => {
 
           {selectedCodes.length > 0 && (
             <button
-              onClick={handleClearDistricts}
+              onClick={handleClearDisplayed}
               className="px-3 py-1.5 border border-black font-mono text-xs font-bold bg-white hover:bg-black hover:text-white transition-colors flex items-center gap-1"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -166,25 +174,45 @@ export const ComparePage: React.FC = () => {
             선택은 남아있지만 전부 숨겨진 경우에도 동일하게 이 화면을 보여주고,
             "상권 추가"의 "보기" 버튼으로 다시 표시할 수 있다. */}
         {displayedCodes.length === 0 ? (
-          <div className="border-2 border-black p-12 text-center bg-white space-y-4">
-            <p className="font-mono text-base font-bold text-gray-800">
-              비교할 상권이 선택되지 않았습니다.
-            </p>
-            <Link
-              to="/explore"
-              className="inline-block px-4 py-2 bg-[#d4ff00] text-black border border-black font-bold font-mono text-sm hover:bg-black hover:text-white transition-colors"
-            >
-              탐색 목록에서 상권 담기
-            </Link>
-          </div>
+          <StatusBlock
+            kind="empty"
+            title="비교할 상권이 선택되지 않았습니다."
+            action={
+              <Link
+                to="/explore"
+                className="inline-block px-4 py-2 bg-[#d4ff00] text-black border border-black font-bold font-mono text-sm hover:bg-black hover:text-white transition-colors"
+              >
+                탐색 목록에서 상권 담기
+              </Link>
+            }
+          />
+        ) : isError ? (
+          // [연동] compareList 조회 자체가 실패한 경우(네트워크/타임아웃/5xx 등) 표를 그리지 않고
+          // 에러 화면으로 명확히 대체한다 — 정상 데이터 화면(검은 테두리 표)과 절대 혼동되지 않도록
+          // 빨간 테두리로 구분한다.
+          <StatusBlock
+            kind="error"
+            title="비교 데이터를 불러오지 못했습니다."
+            description={getApiErrorMessage(error)}
+            action={
+              <button
+                onClick={() => refetch()}
+                className="px-4 py-2 bg-black text-white font-bold font-mono text-sm hover:bg-red-600 transition-colors"
+              >
+                다시 시도
+              </button>
+            }
+          />
         ) : (
           <>
             {/* [연동] compareList 조회(useQuery)의 isLoading 동안 표 위에 로딩 안내를 띄운다.
                 표 자체(컬럼/자리표시자)는 이미 즉시 그려지므로 이 배너는 보조 안내다. */}
             {isLoading && (
-              <div className="mb-3 flex items-center gap-2 border-2 border-black bg-white px-4 py-3 font-mono text-xs sm:text-sm font-bold text-gray-700">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>비교할 상권데이터를 가져오는 중입니다.</span>
+              <div className="mb-3">
+                <StatusInline
+                  kind="loading"
+                  message="비교할 상권데이터를 가져오는 중입니다."
+                />
               </div>
             )}
             <div className="border-2 border-black bg-white overflow-x-auto">
@@ -202,7 +230,7 @@ export const ComparePage: React.FC = () => {
                       <div className="flex items-center justify-between">
                         <div>
                           <span className="text-xs text-gray-500 block font-normal">
-                            {data?.district ?? <Placeholder />}
+                            {data?.district ?? cellFallback}
                           </span>
                           <span className="text-lg sm:text-xl font-black">
                             {data?.trade_area_name ?? name}
@@ -242,7 +270,7 @@ export const ComparePage: React.FC = () => {
                           </span>
                         </div>
                       ) : (
-                        <Placeholder />
+                        cellFallback
                       )}
                     </td>
                   ))}
@@ -258,7 +286,7 @@ export const ComparePage: React.FC = () => {
                       key={code}
                       className="p-4 border-r-2 border-black last:border-r-0 font-bold text-base text-black"
                     >
-                      {data ? data.estimated_sales_formatted : <Placeholder />}
+                      {data ? data.estimated_sales_formatted : cellFallback}
                     </td>
                   ))}
                 </tr>
@@ -273,7 +301,7 @@ export const ComparePage: React.FC = () => {
                       key={code}
                       className="p-4 border-r-2 border-black last:border-r-0 font-bold text-black"
                     >
-                      {data ? `${data.transaction_count_formatted}건` : <Placeholder />}
+                      {data ? `${data.transaction_count_formatted}건` : cellFallback}
                     </td>
                   ))}
                 </tr>
@@ -296,7 +324,7 @@ export const ComparePage: React.FC = () => {
                             : `${data.growth_rate > 0 ? "+" : ""}${data.growth_rate.toFixed(1)}%`}
                         </span>
                       ) : (
-                        <Placeholder />
+                        cellFallback
                       )}
                     </td>
                   ))}
@@ -335,7 +363,7 @@ export const ComparePage: React.FC = () => {
                           </span>
                         </>
                       ) : (
-                        <Placeholder />
+                        cellFallback
                       )}
                     </td>
                   ))}
@@ -351,7 +379,7 @@ export const ComparePage: React.FC = () => {
                       key={code}
                       className="p-4 border-r-2 border-black last:border-r-0 font-bold text-black"
                     >
-                      {data ? data.strongest_age_group : <Placeholder />}
+                      {data ? data.strongest_age_group : cellFallback}
                     </td>
                   ))}
                 </tr>
@@ -366,7 +394,7 @@ export const ComparePage: React.FC = () => {
                       key={code}
                       className="p-4 border-r-2 border-black last:border-r-0 font-bold text-black"
                     >
-                      {data ? data.strongest_time_period : <Placeholder />}
+                      {data ? data.strongest_time_period : cellFallback}
                     </td>
                   ))}
                 </tr>
@@ -381,7 +409,7 @@ export const ComparePage: React.FC = () => {
                       key={code}
                       className="p-4 border-r-2 border-black last:border-r-0 font-bold text-black"
                     >
-                      {data ? data.strongest_day : <Placeholder />}
+                      {data ? data.strongest_day : cellFallback}
                     </td>
                   ))}
                 </tr>
@@ -396,7 +424,7 @@ export const ComparePage: React.FC = () => {
                       key={code}
                       className="p-4 border-r-2 border-black last:border-r-0 text-xs font-sans text-gray-800 leading-relaxed"
                     >
-                      {data ? data.key_insight : <Placeholder />}
+                      {data ? data.key_insight : cellFallback}
                     </td>
                   ))}
                 </tr>
