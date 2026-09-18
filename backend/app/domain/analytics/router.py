@@ -181,7 +181,7 @@ async def get_recommendations(
     ExplorationScore를 산출할 수 없는 상권은 후보에서 제외하고, 산출 가능한
     점수의 내림차순·상권 코드 오름차순으로 순위(1부터 시작)를 부여합니다.
     조회된 데이터나 조건에 맞는 후보가 없으면 404 대신 빈 목록을 반환합니다.
-    warning은 경쟁 여건이 '낮음'일 때만 제공하며 그 외에는 null입니다.
+    warning은 경쟁 여건이 '나쁨'일 때만 제공하며 그 외에는 null입니다.
     점수는 실제 창업 성공 가능성을 의미하지 않습니다.
     """
     return await service.get_recommendations(industry_code, quarter, region, keyword)
@@ -328,11 +328,11 @@ async def get_district_competition(
     계산합니다. 점포 수와 폐업률은 역 Min-Max, 점포당 거래건수는 정 Min-Max하며,
     같은 업종 점포가 적고 점포당 거래건수가 많으며 폐업률이 낮을수록 점수가 높습니다.
 
-    competition_level은 CompetitionScore가 70 이상이면 '높음',
-    40 이상 70 미만이면 '보통', 40 미만이면 '낮음'입니다.
+    competition_level은 CompetitionScore가 70 이상이면 '좋음',
+    40 이상 70 미만이면 '보통', 40 미만이면 '나쁨'입니다.
     sales_level과 volume_level은 각각 100 - Sales Percentile,
     100 - Transaction Volume Percentile에 같은 구간 기준을 적용합니다.
-    warning_text는 competition_level이 '낮음'일 때만 제공하고 그 외에는 null입니다.
+    warning_text는 competition_level이 '나쁨'일 때만 제공하고 그 외에는 null입니다.
 
     매출 데이터가 조회되지 않으면 404 대신 상권 코드와 나머지 필드가 null인
     객체를 반환합니다. 매출은 있어도 점포 데이터·폐업률이 없거나 점포 수가 0 이하여

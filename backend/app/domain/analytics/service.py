@@ -90,7 +90,7 @@ def _build_insight(
 
 
 def _build_warning(competition_grade: Optional[str]) -> Optional[str]:
-    if competition_grade == "낮음":
+    if competition_grade == "나쁨":
         return "동일 업종 경쟁 압박이 상대적으로 높은 상권입니다."
     return None
 
@@ -252,7 +252,7 @@ class AnalyticsService:
             qoq_growth_rate=_optional_float(row.get("growth_rate")),
             growth_level=scoring.grade_from_score(row["growth_score"]),
             transaction_level=scoring.grade_from_score(row["transaction_score"]),
-            competition_level=scoring.grade_from_score(row["competition_score"]),
+            competition_level=scoring.competition_grade_from_score(row["competition_score"]),
         )
 
     async def _get_overview_insight_patterns(
@@ -349,7 +349,7 @@ class AnalyticsService:
         *,
         growth_level: Optional[scoring.ScoreLevel],
         transaction_level: Optional[scoring.ScoreLevel],
-        competition_level: Optional[scoring.ScoreLevel],
+        competition_level: Optional[scoring.CompetitionLevel],
     ) -> str:
         return _build_insight(
             growth_level,
@@ -373,7 +373,7 @@ class AnalyticsService:
         fallback = self._build_overview_fallback_summary(
             growth_level=scoring.grade_from_score(row["growth_score"]),
             transaction_level=scoring.grade_from_score(row["transaction_score"]),
-            competition_level=scoring.grade_from_score(row["competition_score"]),
+            competition_level=scoring.competition_grade_from_score(row["competition_score"]),
         )
         if self.insight_generator is None:
             return OverviewInsightResponse(
@@ -657,10 +657,10 @@ class AnalyticsService:
                     insight=_build_insight(
                         scoring.grade_from_score(row["growth_score"]),
                         scoring.grade_from_score(row["transaction_score"]),
-                        scoring.grade_from_score(row["competition_score"]),
+                        scoring.competition_grade_from_score(row["competition_score"]),
                     ),
                     warning=_build_warning(
-                        scoring.grade_from_score(row["competition_score"])
+                        scoring.competition_grade_from_score(row["competition_score"])
                     ),
                 )
             )
@@ -690,7 +690,7 @@ class AnalyticsService:
             volume_percentile=round(row["volume_percentile"]),
             store_count=store_trend.store_count if store_trend else None,
             store_count_change=store_trend.store_count_change if store_trend else None,
-            competition_level=scoring.grade_from_score(row["competition_score"]),
+            competition_level=scoring.competition_grade_from_score(row["competition_score"]),
             sales_level=scoring.grade_from_score(100 - row["sales_percentile"]),
             volume_level=scoring.grade_from_score(100 - row["volume_percentile"]),
         )
@@ -904,7 +904,7 @@ class AnalyticsService:
             )
 
         row = matched.iloc[0]
-        competition_grade = scoring.grade_from_score(row["competition_score"])
+        competition_grade = scoring.competition_grade_from_score(row["competition_score"])
         return DistrictCompetitionResponse(
             trade_area_code=code,
             store_count=store_trend.store_count if store_trend else None,
@@ -953,7 +953,7 @@ class AnalyticsService:
             days = await self.sales_repo.get_sales_by_day(code, industry_code, quarter)
             peak_day = next((d for d in days if d["is_peak"]), None)
 
-            competition_grade = scoring.grade_from_score(row["competition_score"])
+            competition_grade = scoring.competition_grade_from_score(row["competition_score"])
 
             results.append(
                 CompareDistrictData(

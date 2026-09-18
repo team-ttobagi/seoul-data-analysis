@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
-from backend.app.domain.sales.scoring import ScoreLevel
+from backend.app.domain.sales.scoring import CompetitionLevel, ScoreLevel
 
 
 class ScoreComponent(BaseModel):
@@ -78,18 +78,18 @@ class RecommendationItemResponse(BaseModel):
         description=(
             "추천 카드의 세 가지 신호. growth는 GrowthScore, transaction은 TransactionScore, "
             "competition은 CompetitionScore의 등급이며 70 이상 high, 40 이상 70 미만 medium, 40 미만 low이다. "
-            "competition의 high는 같은 업종 점포 수·점포당 거래건수·폐업률을 종합한 경쟁 여건이 상대적으로 우수하다는 뜻이다."
+            "competition의 high는 프론트 계약상 영문 신호이며, 경쟁 등급 '좋음'에 해당한다."
         ),
     )
     components: RecommendationComponents = Field(
         description="추천 점수의 근거인 성장성·거래 활성도·경쟁 여건별 원본 값, 정규화 점수, 서울 비교 집단 내 상위 비율."
     )
     insight: str = Field(
-        description="GrowthScore·TransactionScore·CompetitionScore의 높음/보통/낮음 등급을 조합한 추천 카드의 규칙 기반 요약 문장."
+        description="GrowthScore·TransactionScore의 높음/보통/낮음 등급과 CompetitionScore의 좋음/보통/나쁨 등급을 조합한 추천 카드의 규칙 기반 요약 문장."
     )
     warning: Optional[str] = Field(
         default=None,
-        description="CompetitionScore가 40 미만(경쟁 여건 낮음)이면 표시하는 경쟁 압박 경고. 해당 조건에 해당하지 않으면 null이다.",
+        description="CompetitionScore가 40 미만(경쟁 여건 나쁨)이면 표시하는 경쟁 압박 경고. 해당 조건에 해당하지 않으면 null이다.",
     )
 
 
@@ -140,11 +140,11 @@ class DistrictKpis(BaseModel):
         default=None,
         description="동일 업종 점포 수의 전분기 대비 증감 수(개). 현재 또는 직전 분기 점포 데이터가 없으면 null이다.",
     )
-    competition_level: Optional[str] = Field(
+    competition_level: Optional[CompetitionLevel] = Field(
         default=None,
         description=(
-            "CompetitionScore 기준 경쟁 여건 등급. 70 이상 높음, 40 이상 70 미만 보통, 40 미만 낮음이며 "
-            "높음은 상대적으로 점포 수·폐업률이 낮고 점포당 거래건수가 높은 여건을 뜻한다. "
+            "CompetitionScore 기준 경쟁 여건 등급. 70 이상 좋음, 40 이상 70 미만 보통, 40 미만 나쁨이며 "
+            "좋음은 상대적으로 점포 수·폐업률이 낮고 점포당 거래건수가 높은 여건을 뜻한다. "
             "점포 데이터·폐업률이 없거나 점포 수가 0 이하이면 null이다."
         ),
     )
@@ -215,7 +215,7 @@ class OverviewInsightContext(BaseModel):
     qoq_growth_rate: Optional[float] = None
     growth_level: Optional[ScoreLevel] = None
     transaction_level: Optional[ScoreLevel] = None
-    competition_level: Optional[ScoreLevel] = None
+    competition_level: Optional[CompetitionLevel] = None
 
 
 class OverviewInsightResponse(BaseModel):
@@ -406,10 +406,10 @@ class DistrictCompetitionResponse(BaseModel):
         default=None,
         description="동일 업종 점포 수의 전분기 대비 증감 수(개). 현재 또는 직전 분기 점포 데이터가 없으면 null이다.",
     )
-    competition_level: Optional[str] = Field(
+    competition_level: Optional[CompetitionLevel] = Field(
         default=None,
         description=(
-            "CompetitionScore 기준 경쟁 여건. 70 이상 높음, 40 이상 70 미만 보통, 40 미만 낮음이다. "
+            "CompetitionScore 기준 경쟁 여건. 70 이상 좋음, 40 이상 70 미만 보통, 40 미만 나쁨이다. "
             "같은 업종 점포가 적고 점포당 거래건수가 많으며 폐업률이 낮을수록 점수가 높다. "
             "동일 분기·업종 상권의 점포 수·점포당 거래건수·폐업률을 Min-Max 비교한 상대 점수이다. "
             "해당 분기·상권·업종의 점포 데이터·폐업률이 없거나 점포 수가 0 이하이면 null이다."
@@ -425,7 +425,7 @@ class DistrictCompetitionResponse(BaseModel):
     )
     warning_text: Optional[str] = Field(
         default=None,
-        description="CompetitionScore가 40 미만(경쟁 여건 낮음)이면 표시하는 경쟁 압박 경고. 경쟁 여건이 보통/높음이거나 분석 데이터 또는 구성 지표가 없어 등급을 구할 수 없으면 null이다.",
+        description="CompetitionScore가 40 미만(경쟁 여건 나쁨)이면 표시하는 경쟁 압박 경고. 경쟁 여건이 보통/좋음이거나 분석 데이터 또는 구성 지표가 없어 등급을 구할 수 없으면 null이다.",
     )
 
 
@@ -478,14 +478,14 @@ class CompareDistrictData(BaseModel):
     strongest_day: str = Field(
         description="최대 매출 요일(PeakDay)과 월~일 평균 대비 증감률(DayDiff)을 '금 (+21%)'처럼 표시한 값. 동률이면 월~일 순서상 첫 항목이며, 요일 데이터를 조회할 수 없으면 '-'이다."
     )
-    competition_level: Optional[str] = Field(
+    competition_level: Optional[CompetitionLevel] = Field(
         default=None,
         description=(
-            "CompetitionScore 기준 경쟁 여건 등급. 70 이상 높음, 40 이상 70 미만 보통, 40 미만 낮음이며 "
-            "높음은 점포 수·폐업률이 상대적으로 낮고 점포당 거래건수가 높은 여건을 뜻한다. "
+            "CompetitionScore 기준 경쟁 여건 등급. 70 이상 좋음, 40 이상 70 미만 보통, 40 미만 나쁨이며 "
+            "좋음은 점포 수·폐업률이 상대적으로 낮고 점포당 거래건수가 높은 여건을 뜻한다. "
             "점포 데이터·폐업률이 없거나 점포 수가 0 이하이면 CompetitionScore를 산출할 수 없어 null이다."
         ),
     )
     key_insight: str = Field(
-        description="비교표의 상권별 핵심 요약. GrowthScore·TransactionScore·CompetitionScore 중 산출 가능한 지표의 높음/보통/낮음 등급을 조합한 문장이다."
+        description="비교표의 상권별 핵심 요약. GrowthScore·TransactionScore는 높음/보통/낮음, CompetitionScore는 좋음/보통/나쁨 등급을 조합한 문장이다."
     )
