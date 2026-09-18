@@ -83,7 +83,12 @@ export const DistrictDetailPage: React.FC = () => {
   // [연동] Gemini 인사이트는 별도 /overview/insight 호출로 받아온다(최대 수 초 소요, 나머지 화면을 막지 않음).
   // 응답 전까지는 overview.takeaway.summary 의 고정 문구("AI 인사이트 생성 중입니다.")를 그대로 보여준다.
   const { data: overviewInsight } = useQuery({
-    queryKey: ["district-overview-insight", tradeAreaCode, industryCode, quarter],
+    queryKey: [
+      "district-overview-insight",
+      tradeAreaCode,
+      industryCode,
+      quarter,
+    ],
     queryFn: () =>
       api.getDistrictOverviewInsight(tradeAreaCode, {
         industry_code: industryCode,
@@ -138,7 +143,10 @@ export const DistrictDetailPage: React.FC = () => {
   if (isOverviewLoading) {
     return (
       <div className="max-w-7xl mx-auto p-12">
-        <StatusBlock kind="loading" title="상권 데이터를 불러오는 중입니다..." />
+        <StatusBlock
+          kind="loading"
+          title="상권 데이터를 불러오는 중입니다..."
+        />
       </div>
     );
   }
@@ -288,7 +296,15 @@ export const DistrictDetailPage: React.FC = () => {
                 <span className="bg-[#d4ff00] text-black px-2.5 py-1 font-bold">
                   {overview.takeaway.volume_tag}
                 </span>
-                <span className="border border-red-500 text-red-400 px-2.5 py-1 font-bold">
+                <span
+                  className={`border px-2.5 py-1 font-bold ${
+                    overview.takeaway.competition_tag === "경쟁 여건 좋음"
+                      ? "border-[#4ade80] text-[#4ade80]"
+                      : overview.takeaway.competition_tag === "경쟁 여건 보통"
+                        ? "border-white text-white"
+                        : "border-red-500 text-red-400"
+                  }`}
+                >
                   {overview.takeaway.competition_tag}
                 </span>
               </div>
@@ -347,7 +363,9 @@ export const DistrictDetailPage: React.FC = () => {
                 <span className="text-gray-300">매출 수준</span>
                 <span
                   className={`px-2 py-0.5 font-bold text-xs ${
-                    isCompError ? "bg-red-600 text-white" : "bg-white text-black"
+                    isCompError
+                      ? "bg-red-600 text-white"
+                      : "bg-white text-black"
                   }`}
                 >
                   {isCompLoading
@@ -362,7 +380,9 @@ export const DistrictDetailPage: React.FC = () => {
                 <span className="text-gray-300">거래량</span>
                 <span
                   className={`px-2 py-0.5 font-bold text-xs ${
-                    isCompError ? "bg-red-600 text-white" : "bg-white text-black"
+                    isCompError
+                      ? "bg-red-600 text-white"
+                      : "bg-white text-black"
                   }`}
                 >
                   {isCompLoading
@@ -374,8 +394,20 @@ export const DistrictDetailPage: React.FC = () => {
               </div>
 
               <div className="flex justify-between items-center py-2.5">
-                <span className="text-gray-300">경쟁 강도</span>
-                <span className="bg-[#ff3b30] text-white px-2 py-0.5 font-bold text-xs">
+                <span className="text-gray-300">경쟁 여건</span>
+                <span
+                  className={`px-2 py-0.5 font-bold text-xs ${
+                    !isCompLoading &&
+                    !isCompError &&
+                    competition?.competition_level === "좋음"
+                      ? "bg-[#4ade80] text-black"
+                      : !isCompLoading &&
+                          !isCompError &&
+                          competition?.competition_level === "보통"
+                        ? "bg-white text-black"
+                        : "bg-[#ff3b30] text-white"
+                  }`}
+                >
                   {isCompLoading
                     ? "…"
                     : isCompError
@@ -559,7 +591,10 @@ export const DistrictDetailPage: React.FC = () => {
                 loading / error / empty(slots=[])를 구분해서, 로딩/에러 중에 예시 문구가 정상
                 인사이트처럼 보이지 않게 한다. */}
             {isPatternsLoading ? (
-              <StatusInline kind="loading" message="시간대별 데이터를 불러오는 중입니다." />
+              <StatusInline
+                kind="loading"
+                message="시간대별 데이터를 불러오는 중입니다."
+              />
             ) : isPatternsError ? (
               <StatusInline
                 kind="error"
@@ -581,7 +616,10 @@ export const DistrictDetailPage: React.FC = () => {
                 </div>
               </>
             ) : (
-              <StatusInline kind="empty" message="시간대별 데이터가 없습니다." />
+              <StatusInline
+                kind="empty"
+                message="시간대별 데이터가 없습니다."
+              />
             )}
           </div>
         </div>
@@ -601,7 +639,10 @@ export const DistrictDetailPage: React.FC = () => {
                 patterns 는 소스 데이터가 없어도 404 없이 200 + 빈 배열로 내려오므로
                 loading / error / empty(demographics=[])를 구분해서 표시한다. */}
             {isPatternsLoading ? (
-              <StatusInline kind="loading" message="연령대별 데이터를 불러오는 중입니다." />
+              <StatusInline
+                kind="loading"
+                message="연령대별 데이터를 불러오는 중입니다."
+              />
             ) : isPatternsError ? (
               <StatusInline
                 kind="error"
@@ -633,7 +674,10 @@ export const DistrictDetailPage: React.FC = () => {
                 </div>
               </>
             ) : (
-              <StatusInline kind="empty" message="연령대별 데이터가 없습니다." />
+              <StatusInline
+                kind="empty"
+                message="연령대별 데이터가 없습니다."
+              />
             )}
           </div>
 
@@ -651,7 +695,10 @@ export const DistrictDetailPage: React.FC = () => {
             {/* [연동] patterns 는 소스 데이터가 없어도 404 없이 200 + 빈 배열로 내려온다.
                 loading / error / empty(days=[])를 구분해서 표시한다. */}
             {isPatternsLoading ? (
-              <StatusInline kind="loading" message="요일별 데이터를 불러오는 중입니다." />
+              <StatusInline
+                kind="loading"
+                message="요일별 데이터를 불러오는 중입니다."
+              />
             ) : isPatternsError ? (
               <StatusInline
                 kind="error"
