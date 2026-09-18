@@ -1,14 +1,12 @@
-# SPOT LADER (스팟 레이더)
+# SPOT RADAR (스팟 레이더)
 
 > **서울시 상권분석 오픈데이터를 기반으로 예비 창업자가 원하는 업종의 유망 상권과 소비 패턴을 직관적으로 탐색할 수 있는 데이터 저널리즘 스타일의 풀스택 상권 분석 서비스**
-
-- 기획: https://chatgpt.com/share/6a97ca24-5b58-83ee-ae73-3d98534e55c5
 
 ---
 
 ## 📸 Overview & Design Philosophy
 
-SEOUL DATA PLAYGROUND는 데이터 저널리즘 에디토리얼 스타일(Swiss grid, Restrained Neo-brutalism)을 적용하여, 정보의 위계와 가독성을 극대화한 상권 탐색 인터페이스를 제공합니다.
+SPOT RADAR는 데이터 저널리즘 에디토리얼 스타일(Swiss grid, Restrained Neo-brutalism)을 적용하여, 정보의 위계와 가독성을 극대화한 상권 탐색 인터페이스를 제공합니다.
 
 - **색상 시스템**: 따뜻한 오프화이트 캔버스 (`#F8F7F2`), 고대비 블랙 텍스트 (`#121212`), 네온 라임 액센트 (`#CCFF00`), 리스크 경고 레드 (`#FF3B30`)
 - **타이포그래피**: 국문 본문 및 제목용 **Pretendard**, 수치 및 메타데이터용 **Space Grotesk** / **JetBrains Mono**
@@ -29,7 +27,7 @@ SEOUL DATA PLAYGROUND는 데이터 저널리즘 에디토리얼 스타일(Swiss 
 - **KPI 지표 요약**: 추정 매출(12.8억), 거래 건수(45만), 서울 상권 순위(7위), 전분기 대비 성장률(+8.2%)
 - **상권 순위 비교 (어디가 강할까?)**: 매출순, 거래건수순, 성장률순, 탐색점수순 정렬 막대 차트
 - **소비 시간대 분석 (언제 가장 많이 팔릴까?)**: 06-11시, 11-14시, 14-17시, 17-21시(피크), 21-24시 매출 분포
-- **주요 고객층 분석 (누가 가장 많이 살까?)**: 연령대/성별 소비 비중
+- **주요 고객층 분석 (누가 가장 많이 살까?)**: 연령대별 소비 비중
 - **요일별 매출 분석 (어느 요일이 강할까?)**: 주중 평균 대비 금요일(+21%) 등 피크 요일 시각화
 - **경쟁 강도 & 종합 점수 (경쟁은 어떨까? / Overall Insight)**: 경쟁 강도(매우 높음), 종합 탐색 점수(SCORE 82/100) 및 데이터 테이크어웨이
 
@@ -41,7 +39,7 @@ SEOUL DATA PLAYGROUND는 데이터 저널리즘 에디토리얼 스타일(Swiss 
 ## 🛠 Tech Stack & Architecture
 
 ### Frontend
-- **Framework**: React 18, TypeScript, Vite
+- **Framework**: React 19, TypeScript, Vite
 - **State Management**: TanStack Query v5 (서버 상태 캐싱), Zustand (비교함 클라이언트 상태)
 - **Styling**: Tailwind CSS v4, Lucide React Icons
 - **Visualization**: Recharts, Custom High-contrast Data Bars
