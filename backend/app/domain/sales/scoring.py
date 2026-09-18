@@ -20,6 +20,7 @@ BENCHMARK_PERCENTILE_COLUMNS = [
 ]
 
 ScoreLevel = Literal["높음", "보통", "낮음"]
+CompetitionLevel = Literal["좋음", "보통", "나쁨"]
 
 
 def safe_minmax(series: pd.Series, neutral: float = 0.5) -> pd.Series:
@@ -125,6 +126,17 @@ def grade_from_score(score: Optional[float]) -> Optional[ScoreLevel]:
     if score >= 40:
         return "보통"
     return "낮음"
+
+
+def competition_grade_from_score(score: Optional[float]) -> Optional[CompetitionLevel]:
+    """CompetitionScore 전용 등급 — 70 이상 좋음 / 40~70 보통 / 40 미만 나쁨."""
+    if score is None or pd.isna(score):
+        return None
+    if score >= 70:
+        return "좋음"
+    if score >= 40:
+        return "보통"
+    return "나쁨"
 
 
 def none_if_nan(value):

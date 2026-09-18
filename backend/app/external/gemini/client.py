@@ -37,6 +37,8 @@ _CATEGORY_VALUE = re.compile(
     r"높(?:음|은\s*(?:편|수준)|고|지만|으며|습니다|다)"
     r"|보통"
     r"|낮(?:음|은\s*(?:편|수준)|고|지만|으며|습니다|다)"
+    r"|좋(?:음|은\s*(?:편|수준)|고|지만|으며|습니다|다)"
+    r"|나쁨|나쁜\s*(?:편|수준)|나쁘(?:고|지만|며|습니다|다)"
     r"|비교적\s*유리(?:한|하다|합니다)?"
     r"|비교적\s*불리(?:한|하다|합니다)?"
 )
@@ -75,10 +77,18 @@ def _load_context(prompt: str) -> dict[str, Any]:
 
 def _category_value_level(value: str, field: str) -> str | None:
     normalized = value.replace(" ", "")
+    if field == "competition_level":
+        if normalized.startswith("좋") or "유리" in normalized:
+            return "좋음"
+        if normalized == "보통":
+            return "보통"
+        if normalized == "나쁨" or normalized.startswith("나쁘") or "불리" in normalized:
+            return "나쁨"
+        return None
     if "유리" in normalized:
-        return "높음" if field == "competition_level" else None
+        return None
     if "불리" in normalized:
-        return "낮음" if field == "competition_level" else None
+        return None
     if normalized.startswith("높"):
         return "높음"
     if normalized == "보통":
