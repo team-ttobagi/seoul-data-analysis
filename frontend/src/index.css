@@ -56,3 +56,16 @@
   background: #000000;
 }
 
+/* 산출 로직 자세히 보기 모달처럼 부분적으로 그레이 톤 스크롤바가 필요한 곳에 쓴다 —
+   기존 --muted/--muted-foreground 토큰을 그대로 재사용해 서비스 색상과 통일한다. */
+.scrollbar-gray {
+  scrollbar-color: var(--muted-foreground) var(--muted);
+  scrollbar-width: thin;
+}
+.scrollbar-gray::-webkit-scrollbar-thumb {
+  background: var(--muted-foreground);
+}
+.scrollbar-gray::-webkit-scrollbar-track {
+  background: var(--muted);
+}
+
