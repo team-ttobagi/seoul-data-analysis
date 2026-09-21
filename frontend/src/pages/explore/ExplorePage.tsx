@@ -833,13 +833,13 @@ function TradeAreaResults({ areas, onSelect }: {
   };
 
   return (
-    <div>
-      <p className="mb-2">
+    <div className="border border-gray-300 bg-white">
+      <p className="mb-0 border-b border-gray-300 bg-white py-3 pl-3.5 pr-3 text-left">
         전체 {areas.length}개 중 {visibleAreas.length}개 표시
       </p>
 
       <div
-        className="max-h-80 overflow-y-auto border border-black bg-white"
+        className="max-h-80 overflow-y-auto bg-white"
         onScroll={(event) => {
           const element = event.currentTarget;
           const nearBottom =
@@ -859,12 +859,12 @@ function TradeAreaResults({ areas, onSelect }: {
               return (
                 <li
                   key={area.code}
-                  className="border-b border-black last:border-b-0"
+                  className="border-b border-gray-300 last:border-b-0"
                 >
                   <button
                     type="button"
                     onClick={() => onSelect(area)}
-                    className="flex w-full items-center justify-between gap-3 p-3 text-left focus:outline-2 focus:outline-black bg-white hover:bg-[#F8F7F2]"
+                    className="flex w-full items-center justify-between gap-3 bg-white p-3 text-left focus:outline-2 focus:outline-black hover:bg-[#F8F7F2]"
                   >
                     <span>
                       <span className="font-bold">{area.name}</span>
@@ -873,9 +873,7 @@ function TradeAreaResults({ areas, onSelect }: {
                       </span>
                     </span>
 
-                    <span className="shrink-0 text-xs font-bold">
-                      검색어 선택
-                    </span>
+                    <span className="shrink-0 text-xs font-bold">선택</span>
                   </button>
                 </li>
               );
@@ -887,7 +885,7 @@ function TradeAreaResults({ areas, onSelect }: {
           <button
             type="button"
             onClick={showMore}
-            className="w-full border-t border-black p-3 font-bold hover:bg-[#CCFF00]"
+            className="w-full border-t border-gray-300 p-3 font-bold hover:bg-[#CCFF00]"
           >
             결과 더 보기
           </button>
