@@ -75,14 +75,16 @@ export const Header: React.FC = () => {
             {/* Brand */}
             <Link
               to="/explore"
-              className="flex items-center gap-2 text-xl font-extrabold tracking-tight font-display hover:opacity-85 transition-opacity shrink-0"
+              className="flex shrink-0 items-center gap-2 transition-opacity hover:opacity-85"
+              aria-label="스팟 레이더 홈"
             >
-              <span className="bg-black text-white px-2 py-0.5 text-xs font-mono tracking-widest mr-1">
-                {/* SDP */}
-                SR
-              </span>
-              <span className="tracking-tighter font-black text-lg sm:text-xl">
-                {/* SEOUL DATA PLAYGROUND */}
+              <img
+                src="/brand/spot-radar-loupe-icon-light.svg"
+                alt=""
+                className="h-9 w-9 shrink-0 sm:h-10 sm:w-10"
+                aria-hidden="true"
+              />
+              <span className="whitespace-nowrap font-display text-lg font-black tracking-tighter text-black sm:text-xl">
                 SPOT RADAR
               </span>
             </Link>
@@ -715,9 +717,14 @@ export const Footer: React.FC = () => {
   return (
     <footer className="border-t-2 border-black bg-[#121212] text-white py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 font-mono text-xs">
-        <div className="flex items-center gap-2">
-          <span className="font-extrabold text-sm sm:text-base tracking-tighter text-[#d4ff00]">
-            {/* SEOUL DATA PLAYGROUND */}
+        <div className="flex items-center gap-3">
+          <img
+            src="/brand/spot-radar-loupe-icon-dark.svg"
+            alt=""
+            className="h-11 w-11 shrink-0 sm:h-12 sm:w-12"
+            aria-hidden="true"
+          />
+          <span className="whitespace-nowrap font-mono text-sm font-extrabold tracking-tighter text-[#d4ff00] sm:text-base">
             SPOT RADAR
           </span>
         </div>
