@@ -1,5 +1,10 @@
 import React from "react";
-import { DistrictRankingItem, TimeSlotSales, AgeShare, DaySales } from "../types";
+import {
+  DistrictRankingItem,
+  TimeSlotSales,
+  AgeShare,
+  DaySales,
+} from "../types";
 
 // 1. Rank Bar Chart for "어디가 강할까?" (Matching Reference 2 Top Left)
 interface RankBarChartProps {
@@ -21,13 +26,19 @@ export const RankBarChart: React.FC<RankBarChartProps> = ({
     <div className="space-y-2.5 font-mono">
       {items.map((item, idx) => {
         const isCurrent =
-          item.is_current || item.trade_area_code.toUpperCase() === currentCode.toUpperCase();
-        const widthPercent = Math.max(15, Math.min(100, (item.sales_raw / maxVal) * 100));
+          item.is_current ||
+          item.trade_area_code.toUpperCase() === currentCode.toUpperCase();
+        const widthPercent = Math.max(
+          15,
+          Math.min(100, (item.sales_raw / maxVal) * 100),
+        );
 
         return (
           <div
             key={`${item.trade_area_code}-${idx}`}
-            onClick={() => onSelectDistrict && onSelectDistrict(item.trade_area_code)}
+            onClick={() =>
+              onSelectDistrict && onSelectDistrict(item.trade_area_code)
+            }
             className={`flex items-center gap-3 text-sm group ${
               onSelectDistrict ? "cursor-pointer" : ""
             }`}
@@ -42,7 +53,9 @@ export const RankBarChart: React.FC<RankBarChartProps> = ({
               {/* Filled Portion */}
               <div
                 className={`absolute left-0 top-0 bottom-0 transition-all duration-500 border-r border-black/40 ${
-                  isCurrent ? "bg-[#d4ff00]" : "bg-[#dbdad2] group-hover:bg-[#d0cfc6]"
+                  isCurrent
+                    ? "bg-[#d4ff00]"
+                    : "bg-[#dbdad2] group-hover:bg-[#d0cfc6]"
                 }`}
                 style={{ width: `${widthPercent}%` }}
               />
@@ -76,7 +89,10 @@ interface TimeBarChartProps {
   peakSlot: string | null;
 }
 
-export const TimeBarChart: React.FC<TimeBarChartProps> = ({ slots, peakSlot }) => {
+export const TimeBarChart: React.FC<TimeBarChartProps> = ({
+  slots,
+  peakSlot,
+}) => {
   const maxPercent = Math.max(...slots.map((s) => s.percentage), 1);
 
   return (
@@ -87,10 +103,16 @@ export const TimeBarChart: React.FC<TimeBarChartProps> = ({ slots, peakSlot }) =
             slot.is_peak ||
             (peakSlot != null &&
               (slot.slot.includes(peakSlot) || peakSlot.includes(slot.slot)));
-          const heightPercent = Math.max(18, (slot.percentage / maxPercent) * 90);
+          const heightPercent = Math.max(
+            18,
+            (slot.percentage / maxPercent) * 90,
+          );
 
           return (
-            <div key={slot.slot} className="flex-1 flex flex-col items-center h-full justify-end relative">
+            <div
+              key={slot.slot}
+              className="flex-1 flex flex-col items-center h-full justify-end relative"
+            >
               {/* Peak Tooltip / Pill Badge */}
               {isPeak && peakSlot != null && (
                 <div className="absolute -top-1 bg-white border border-black px-2 py-0.5 text-[11px] font-mono font-bold text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] z-10">
@@ -146,10 +168,15 @@ export const AgeBarChart: React.FC<AgeBarChartProps> = ({ demographics }) => {
             {/* Bar Container */}
             <div className="flex-1 h-8 border border-black bg-[#e5e5de] relative overflow-hidden">
               <div
+<<<<<<< Updated upstream
                 className={`h-full transition-all duration-500 ${
                   demo.is_primary
                     ? "bg-[#d4ff00]"
                     : "bg-[#dbdad2]"
+=======
+                className={`h-full transition-all duration-500 border-r border-black/40 ${
+                  demo.is_primary ? "bg-[#d4ff00]" : "bg-[#dbdad2]"
+>>>>>>> Stashed changes
                 }`}
                 style={{ width: `${widthPercent}%` }}
               />
@@ -174,12 +201,17 @@ interface DayBarChartProps {
   peakDiffBadge: string | null;
 }
 
-export const DayBarChart: React.FC<DayBarChartProps> = ({ days, peakDay, peakDiffBadge }) => {
+export const DayBarChart: React.FC<DayBarChartProps> = ({
+  days,
+  peakDay,
+  peakDiffBadge,
+}) => {
   const maxPercent = Math.max(...days.map((d) => d.percentage), 1);
   const peakDayShort = peakDay?.replace("요일", "") ?? null;
 
   return (
     <div className="w-full">
+<<<<<<< Updated upstream
       <div className="border border-black bg-white p-4 h-48 flex items-end justify-between gap-1.5 sm:gap-3 relative">
         {days.map((day) => {
           const isPeak = day.is_peak || day.day === peakDayShort;
@@ -204,6 +236,52 @@ export const DayBarChart: React.FC<DayBarChartProps> = ({ days, peakDay, peakDif
             </div>
           );
         })}
+=======
+      <div className="border border-black bg-white p-4 h-48 relative">
+        {/* 막대와 같은 박스 안에서 같은 % 기준으로 그려야 높이가 정확히 맞는다. */}
+        <div className="h-full flex items-end justify-between gap-1.5 sm:gap-3 relative">
+          {weekAvgHeightPercent != null && (
+            <div
+              className="absolute left-0 right-0 border-t-2 border-dashed border-gray-500 z-20 pointer-events-none"
+              style={{ bottom: `${weekAvgHeightPercent}%` }}
+            >
+              <span className="absolute right-0 -top-4 text-[10px] font-mono font-bold text-gray-500 bg-white px-1">
+                1주 평균
+              </span>
+            </div>
+          )}
+
+          {days.map((day) => {
+            const isPeak = day.is_peak || day.day === peakDayShort;
+            const heightPercent = Math.max(
+              20,
+              (day.percentage / maxPercent) * 90,
+            );
+
+            return (
+              <div
+                key={day.day}
+                className="flex-1 flex flex-col items-center h-full justify-end relative"
+              >
+                {/* Peak Tag */}
+                {isPeak && (
+                  <div className="absolute -top-1 bg-white border border-black px-1.5 py-0.5 text-[11px] font-mono font-bold text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] z-10">
+                    {peakDiffBadge ?? "-"}
+                  </div>
+                )}
+
+                {/* Bar */}
+                <div
+                  className={`w-full border border-black transition-all duration-500 ${
+                    isPeak ? "bg-[#d4ff00]" : "bg-[#e5e5de] hover:bg-[#dbdad2]"
+                  }`}
+                  style={{ height: `${heightPercent}%` }}
+                />
+              </div>
+            );
+          })}
+        </div>
+>>>>>>> Stashed changes
       </div>
 
       {/* Axis: Mon - Sun */}

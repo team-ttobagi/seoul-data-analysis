@@ -614,7 +614,14 @@ export const DistrictDetailPage: React.FC = () => {
                 {formatNullable(overview.kpis.seoul_rank, "위")}
               </span>
               <span className="text-gray-500">
-                상위 {overview.kpis.sales_percentile}%
+                {rankTab === "sales" &&
+                  `상위 ${overview.kpis.sales_percentile}%`}
+                {rankTab === "volume" &&
+                  `상위 ${overview.kpis.volume_percentile}%`}
+                {/* {rankTab === "growth" &&
+                  `상위 ${overview.kpis.growth_percentile}%`}
+                {rankTab === "score" && 
+                  `상위 ${overview.kpis.exploration_percentile}%`} */}
               </span>
             </div>
           </div>
