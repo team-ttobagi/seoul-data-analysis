@@ -389,20 +389,33 @@ export const ExplorePage: React.FC = () => {
     queryFn: () => api.getDistricts(),
   });
 
-  const { data: industries = [], isPending: industriesPending, isError: industriesError } = useQuery({
+  const {
+    data: industries = [],
+    isPending: industriesPending,
+    isError: industriesError,
+  } = useQuery({
     queryKey: ["industries"],
     queryFn: api.getIndustries,
   });
-  const { data: quarterData = [], isPending: quartersPending, isError: quartersError } = useQuery({
+  const {
+    data: quarterData = [],
+    isPending: quartersPending,
+    isError: quartersError,
+  } = useQuery({
     queryKey: ["quarters"],
     queryFn: api.getQuarters,
   });
-  const selectedIndustry = industries.some((item) => item.code === industryChoice)
+  const selectedIndustry = industries.some(
+    (item) => item.code === industryChoice,
+  )
     ? industryChoice
-    : (industries.find((item) => item.code === "CS100010") ?? industries[0])?.code ?? "";
-  const selectedQuarter = quarterData.some((item) => item.code === quarterChoice)
+    : ((industries.find((item) => item.code === "CS100010") ?? industries[0])
+        ?.code ?? "");
+  const selectedQuarter = quarterData.some(
+    (item) => item.code === quarterChoice,
+  )
     ? quarterChoice
-    : quarterData[0]?.code ?? "";
+    : (quarterData[0]?.code ?? "");
 
   const selectedCodes = useCompareStore((state) => state.selectedCodes);
   const clearCompareDistricts = useCompareStore(
@@ -472,7 +485,9 @@ export const ExplorePage: React.FC = () => {
     }
   }, [selectedQuarter, quarterChoice, setSelectedQuarter]);
 
-  const selectedRegion = districts.find((item) => item.signgu_cd === selectedDistrictCode)?.signgu_cd_nm ?? "서울 전체";
+  const selectedRegion =
+    districts.find((item) => item.signgu_cd === selectedDistrictCode)
+      ?.signgu_cd_nm ?? "서울 전체";
   const [activeItemCode, setActiveItemCode] = useState<string>("");
 
   const {
@@ -602,7 +617,6 @@ export const ExplorePage: React.FC = () => {
             먼저 살펴볼 상권을 찾았습니다.
           </p>
         </div>
-
       </section>
 
       <div
@@ -834,7 +848,7 @@ export const ExplorePage: React.FC = () => {
                 </div>
                 <div className="flex justify-between py-3">
                   <span className="text-black font-medium">
-                    경쟁 강도 (Competition Intensity)
+                    경쟁 여건 (Competition Intensity)
                   </span>
                   <span className="font-extrabold text-black">25%</span>
                 </div>
@@ -888,9 +902,9 @@ export const ExplorePage: React.FC = () => {
               id="compare-reset-description"
               className="py-5 text-sm font-medium leading-relaxed text-gray-800"
             >
-              비교 상권 트레이의 상권은 동일 업종, 기준 분기만 담을 수
-              있습니다. 업종 또는 분기가 변경되면 비교 상권 트레이는 초기화
-              됩니다. 초기화 하시겠습니까?
+              비교 상권 트레이의 상권은 동일 업종, 기준 분기만 담을 수 있습니다.
+              업종 또는 분기가 변경되면 비교 상권 트레이는 초기화 됩니다. 초기화
+              하시겠습니까?
             </p>
 
             <div className="grid grid-cols-2 gap-3">
@@ -917,7 +931,10 @@ export const ExplorePage: React.FC = () => {
   );
 };
 
-function TradeAreaResults({ areas, onSelect }: {
+function TradeAreaResults({
+  areas,
+  onSelect,
+}: {
   areas: TradeArea[];
   onSelect: (area: TradeArea) => void;
 }) {
