@@ -13,6 +13,7 @@ import {
   Square,
   Layers,
   ChevronDown,
+  Loader2,
 } from "lucide-react";
 import { api } from "../../shared/api/client";
 import {
@@ -225,6 +226,23 @@ export const DistrictDetailPage: React.FC = () => {
 
   return (
     <div className="w-full bg-[#f5f5f0] min-h-[calc(100vh-4rem)] pb-12">
+      {/* [연동] patterns(WHEN/WHO/DAY) 조회의 isLoading 동안 화면 중앙에 액티비티 인디케이터를
+          띄운다 — Compare 화면과 동일한 스타일. 각 섹션(WHEN/WHO/DAY)은 이미 즉시 그려지므로
+          이 인디케이터는 보조 안내이며, 세 섹션이 각자 로딩 배너를 중복으로 띄우지 않는다. */}
+      {isPatternsLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="flex flex-col items-center gap-3 bg-[#f5f5f0] border-2 border-black px-8 py-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+            <span className="bg-[#d4ff00] text-black px-2 py-0.5 font-mono text-[10px] font-bold border border-black uppercase tracking-widest">
+              Loading
+            </span>
+            <Loader2 className="w-6 h-6 animate-spin text-black" />
+            <p className="font-mono text-sm font-bold text-black text-center">
+              소비 패턴 데이터를 가져오는 중입니다.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Top Breadcrumb & Switcher Bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex flex-wrap items-center justify-between gap-4">
         <Link
@@ -618,10 +636,6 @@ export const DistrictDetailPage: React.FC = () => {
                   `상위 ${overview.kpis.sales_percentile}%`}
                 {rankTab === "volume" &&
                   `상위 ${overview.kpis.volume_percentile}%`}
-                {/* {rankTab === "growth" &&
-                  `상위 ${overview.kpis.growth_percentile}%`}
-                {rankTab === "score" && 
-                  `상위 ${overview.kpis.exploration_percentile}%`} */}
               </span>
             </div>
           </div>
@@ -640,12 +654,7 @@ export const DistrictDetailPage: React.FC = () => {
             {/* [연동] patterns 는 소스 데이터가 없어도 404 없이 200 + 빈 배열로 내려온다.
                 loading / error / empty(slots=[])를 구분해서, 로딩/에러 중에 예시 문구가 정상
                 인사이트처럼 보이지 않게 한다. */}
-            {isPatternsLoading ? (
-              <StatusInline
-                kind="loading"
-                message="시간대별 데이터를 불러오는 중입니다."
-              />
-            ) : isPatternsError ? (
+            {isPatternsLoading ? null : isPatternsError ? (
               <StatusInline
                 kind="error"
                 message={getApiErrorMessage(
@@ -688,12 +697,7 @@ export const DistrictDetailPage: React.FC = () => {
                 backend who.gender(female_ratio/male_ratio)는 화면에서 사용하지 않는다.
                 patterns 는 소스 데이터가 없어도 404 없이 200 + 빈 배열로 내려오므로
                 loading / error / empty(demographics=[])를 구분해서 표시한다. */}
-            {isPatternsLoading ? (
-              <StatusInline
-                kind="loading"
-                message="연령대별 데이터를 불러오는 중입니다."
-              />
-            ) : isPatternsError ? (
+            {isPatternsLoading ? null : isPatternsError ? (
               <StatusInline
                 kind="error"
                 message={getApiErrorMessage(
@@ -744,12 +748,7 @@ export const DistrictDetailPage: React.FC = () => {
 
             {/* [연동] patterns 는 소스 데이터가 없어도 404 없이 200 + 빈 배열로 내려온다.
                 loading / error / empty(days=[])를 구분해서 표시한다. */}
-            {isPatternsLoading ? (
-              <StatusInline
-                kind="loading"
-                message="요일별 데이터를 불러오는 중입니다."
-              />
-            ) : isPatternsError ? (
+            {isPatternsLoading ? null : isPatternsError ? (
               <StatusInline
                 kind="error"
                 message={getApiErrorMessage(

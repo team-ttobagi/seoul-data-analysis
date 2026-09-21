@@ -20,7 +20,12 @@ export const RankBarChart: React.FC<RankBarChartProps> = ({
   metricLabel = "매출",
   onSelectDistrict,
 }) => {
-  const maxVal = Math.max(...items.map((i) => i.sales_raw || 1), 1);
+  // 탐색점수는 0~100점 고정 척도이므로, 다른 지표처럼 목록 내 최댓값이 아니라
+  // 항상 100점을 기준으로 막대 길이를 계산한다.
+  const maxVal =
+    metricLabel === "score"
+      ? 100
+      : Math.max(...items.map((i) => i.sales_raw || 1), 1);
 
   return (
     <div className="space-y-2.5 font-mono">
@@ -168,15 +173,8 @@ export const AgeBarChart: React.FC<AgeBarChartProps> = ({ demographics }) => {
             {/* Bar Container */}
             <div className="flex-1 h-8 border border-black bg-[#e5e5de] relative overflow-hidden">
               <div
-<<<<<<< Updated upstream
-                className={`h-full transition-all duration-500 ${
-                  demo.is_primary
-                    ? "bg-[#d4ff00]"
-                    : "bg-[#dbdad2]"
-=======
                 className={`h-full transition-all duration-500 border-r border-black/40 ${
                   demo.is_primary ? "bg-[#d4ff00]" : "bg-[#dbdad2]"
->>>>>>> Stashed changes
                 }`}
                 style={{ width: `${widthPercent}%` }}
               />
@@ -209,36 +207,21 @@ export const DayBarChart: React.FC<DayBarChartProps> = ({
   const maxPercent = Math.max(...days.map((d) => d.percentage), 1);
   const peakDayShort = peakDay?.replace("요일", "") ?? null;
 
+  // 1주일(7일) 전체 평균 — 막대와 동일한 정규화 공식(20~90% 클램프)을 그대로 적용해야
+  // "이 요일이 평균선보다 아래" 비교가 실제 막대 높이와 어긋나지 않는다.
+  const weekAvgPercentage =
+    days.length > 0
+      ? days.reduce((sum, d) => sum + d.percentage, 0) / days.length
+      : null;
+  const weekAvgHeightPercent =
+    weekAvgPercentage != null
+      ? Math.max(20, (weekAvgPercentage / maxPercent) * 90)
+      : null;
+
   return (
     <div className="w-full">
-<<<<<<< Updated upstream
-      <div className="border border-black bg-white p-4 h-48 flex items-end justify-between gap-1.5 sm:gap-3 relative">
-        {days.map((day) => {
-          const isPeak = day.is_peak || day.day === peakDayShort;
-          const heightPercent = Math.max(20, (day.percentage / maxPercent) * 90);
-
-          return (
-            <div key={day.day} className="flex-1 flex flex-col items-center h-full justify-end relative">
-              {/* Peak Tag */}
-              {isPeak && (
-                <div className="absolute -top-1 bg-white border border-black px-1.5 py-0.5 text-[11px] font-mono font-bold text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] z-10">
-                  {peakDiffBadge ?? "-"}
-                </div>
-              )}
-
-              {/* Bar */}
-              <div
-                className={`w-full border border-black transition-all duration-500 ${
-                  isPeak ? "bg-[#d4ff00]" : "bg-[#e5e5de] hover:bg-[#dbdad2]"
-                }`}
-                style={{ height: `${heightPercent}%` }}
-              />
-            </div>
-          );
-        })}
-=======
       <div className="border border-black bg-white p-4 h-48 relative">
-        {/* 막대와 같은 박스 안에서 같은 % 기준으로 그려야 높이가 정확히 맞는다. */}
+        {/* 막대와 같은 박스 안에서 같은 %기준으로 그려야 높이가 정확히 맞는다. */}
         <div className="h-full flex items-end justify-between gap-1.5 sm:gap-3 relative">
           {weekAvgHeightPercent != null && (
             <div
@@ -253,16 +236,10 @@ export const DayBarChart: React.FC<DayBarChartProps> = ({
 
           {days.map((day) => {
             const isPeak = day.is_peak || day.day === peakDayShort;
-            const heightPercent = Math.max(
-              20,
-              (day.percentage / maxPercent) * 90,
-            );
+            const heightPercent = Math.max(20, (day.percentage / maxPercent) * 90);
 
             return (
-              <div
-                key={day.day}
-                className="flex-1 flex flex-col items-center h-full justify-end relative"
-              >
+              <div key={day.day} className="flex-1 flex flex-col items-center h-full justify-end relative">
                 {/* Peak Tag */}
                 {isPeak && (
                   <div className="absolute -top-1 bg-white border border-black px-1.5 py-0.5 text-[11px] font-mono font-bold text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] z-10">
@@ -281,7 +258,6 @@ export const DayBarChart: React.FC<DayBarChartProps> = ({
             );
           })}
         </div>
->>>>>>> Stashed changes
       </div>
 
       {/* Axis: Mon - Sun */}
