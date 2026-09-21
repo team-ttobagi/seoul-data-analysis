@@ -211,7 +211,7 @@ export const Header: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div
             ref={methodologyCardRef}
-            className="bg-[#f5f5f0] border-2 border-black w-full max-w-lg p-6 space-y-4 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]"
+            className="bg-[#f5f5f0] border-2 border-black w-full max-w-lg p-6 space-y-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)]"
             style={{
               transform: `translate(${methodologyDrag.pos.x}px, ${methodologyDrag.pos.y}px)`,
             }}
@@ -231,7 +231,14 @@ export const Header: React.FC = () => {
                     e.stopPropagation();
                     const rect = methodologyCardRef.current?.getBoundingClientRect();
                     if (rect) {
-                      detailsDrag.setPos({ x: rect.left + 10, y: rect.top });
+                      // DETAIL 모달(max-w-2xl = 672px)이 화면 오른쪽 밖으로 나가지
+                      // 않도록, 화면 폭이 좁으면 오른쪽 여백 16px에 맞춰 x를 눌러준다.
+                      const DETAIL_MODAL_WIDTH = 672;
+                      const maxX = window.innerWidth - DETAIL_MODAL_WIDTH - 16;
+                      detailsDrag.setPos({
+                        x: Math.min(rect.left + rect.width + 10, Math.max(16, maxX)),
+                        y: rect.top,
+                      });
                     }
                     setDetailsOpen(true);
                   }}
@@ -301,7 +308,7 @@ export const Header: React.FC = () => {
       {detailsOpen && (
         <div className="fixed inset-0 z-[60] pointer-events-none">
           <div
-            className="pointer-events-auto fixed bg-white border-2 border-black w-full max-w-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]"
+            className="pointer-events-auto fixed bg-white border-2 border-black w-full max-w-2xl shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)]"
             style={{
               top: detailsDrag.pos.y,
               left: detailsDrag.pos.x,
@@ -325,7 +332,7 @@ export const Header: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-4 space-y-4 font-mono text-[11px] text-gray-800 max-h-[75vh] overflow-y-auto">
+            <div className="scrollbar-gray p-4 space-y-4 font-mono text-[11px] text-gray-800 max-h-[75vh] overflow-y-auto">
               <div className="bg-[#d4ff00] border border-black px-3 py-2 font-bold text-black">
                 핵심 대원칙: 모든 점수는 높을수록 진입하기 유리한 좋은
                 상권입니다.
