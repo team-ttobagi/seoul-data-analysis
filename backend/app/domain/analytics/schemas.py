@@ -203,11 +203,27 @@ class OverviewInsightContext(BaseModel):
     district_name: str = Field(min_length=1, max_length=50, pattern=r"^[^\r\n]+$")
     industry_name: str = Field(min_length=1, max_length=100, pattern=r"^[^\r\n]+$")
     quarter: str = Field(pattern=r"^\d{4}[1-4]$")
-    # 진단: 기존 patterns endpoint가 계산한 대표 연령대·시간대·요일
+    # 하위 호환용 필드. Gemini 입력에는 원본 대표 패턴을 전달하지 않는다.
     strongest_age_group: Optional[str] = Field(default=None, max_length=50)
     peak_slot: Optional[str] = Field(default=None, max_length=50)
     peak_day: Optional[str] = Field(default=None, max_length=20)
-    # 리스크: 점포 요약 원천값과 관측된 QoQ 성장률. 값이 없으면 null을 유지한다.
+    # Gemini가 관계를 선택할 수 있도록 백엔드가 검증한 현재·직전 집계값과 파생값.
+    current_sales: Optional[float] = None
+    previous_sales: Optional[float] = None
+    transaction_count: Optional[float] = None
+    previous_transaction_count: Optional[float] = None
+    sales_change_amount: Optional[float] = None
+    transaction_change_count: Optional[float] = None
+    transaction_qoq_rate: Optional[float] = None
+    sales_per_transaction_current: Optional[float] = None
+    sales_per_transaction_previous: Optional[float] = None
+    sales_per_transaction_qoq_rate: Optional[float] = None
+    transactions_per_store_current: Optional[float] = None
+    transactions_per_store_previous: Optional[float] = None
+    transactions_per_store_qoq_rate: Optional[float] = None
+    store_count: Optional[float] = None
+    previous_store_count: Optional[float] = None
+    # 점포 요약 원천값과 관측된 QoQ 성장률. 값이 없으면 null을 유지한다.
     closing_rate: Optional[float] = None
     opening_rate: Optional[float] = None
     franchise_ratio_percent: Optional[float] = None
@@ -216,20 +232,29 @@ class OverviewInsightContext(BaseModel):
     growth_level: Optional[ScoreLevel] = None
     transaction_level: Optional[ScoreLevel] = None
     competition_level: Optional[CompetitionLevel] = None
+    tag_candidates: List[str] = Field(
+        default_factory=list,
+        max_length=3,
+        description="백엔드가 대표성을 검증해 Gemini에 허용한 소비 패턴 태그 후보.",
+    )
 
 
 class OverviewInsightResponse(BaseModel):
-    # Gemini 프롬프트·외부 출력은 100자 이내로 제한하지만, 내부 fallback과 기존 응답 호환을 위해 120자까지 허용한다.
+    # Gemini prompt는 100자 이내를 목표로 하며, 응답 검증과 fallback은
+    # 120자까지 허용한다.
     summary: str = Field(
         min_length=1,
         max_length=120,
-        description="Gemini 또는 결정론적 fallback으로 생성한 상권 종합 인사이트 한 문장.",
+        description="Gemini 또는 결정론적 fallback으로 생성한 태그 포함 120자 이내의 상권 종합 인사이트.",
     )
     source: Literal["gemini", "fallback"] = Field(
         description="summary의 생성 출처. Gemini 성공이면 gemini, 그 외에는 fallback이다."
     )
     status: Literal["generated", "fallback"] = Field(
         description="summary 생성 상태. Gemini 성공이면 generated, 그 외에는 fallback이다."
+    )
+    extreme: bool = Field(
+        description="주요 분석 지표의 변동 폭이 이례적이어서 별도 현장 확인이 필요한지 여부."
     )
 
 
@@ -252,7 +277,7 @@ class DistrictTakeaway(BaseModel):
         max_length=120,
         description=(
             "기존 overview 응답과의 호환을 위해 반환하는 결정론적 일반 텍스트. "
-            "Gemini 프롬프트·외부 출력은 100자 이내지만 내부 응답은 120자까지 허용한다."
+            "Gemini prompt는 100자 이내를 목표로 하며, 내부 응답은 120자까지 허용한다."
         ),
     )
     disclaimer: str = Field(description="탐색 지표의 한계를 알리는 고정 안내 문구.")

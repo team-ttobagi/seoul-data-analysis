@@ -48,14 +48,20 @@ class SalesDataNotFoundException(AppException):
         )
 
 
-async def app_exception_handler(request: Request, exc: AppException):
+async def app_exception_handler(request: Request, exc: Exception):
+    if not isinstance(exc, AppException):
+        raise TypeError("app_exception_handler received an unexpected exception")
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": {"code": exc.code, "message": exc.message}},
     )
 
 
-async def generic_http_exception_handler(request: Request, exc: HTTPException):
+async def generic_http_exception_handler(request: Request, exc: Exception):
+    if not isinstance(exc, HTTPException):
+        raise TypeError(
+            "generic_http_exception_handler received an unexpected exception"
+        )
     return JSONResponse(
         status_code=exc.status_code,
         content={

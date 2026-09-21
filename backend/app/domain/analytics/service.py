@@ -3,7 +3,16 @@ import logging
 import math
 import re
 import time
-from typing import Dict, List, Optional, Protocol, SupportsFloat, SupportsIndex
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Protocol,
+    SupportsFloat,
+    SupportsIndex,
+    cast,
+)
 
 import pandas as pd
 
@@ -21,6 +30,14 @@ from backend.app.domain.analytics.schemas import (
     OverviewInsightContext,
     OverviewInsightResponse,
 )
+from backend.app.domain.analytics.insight_policy import (
+    InsightMetrics,
+    PatternFacts,
+    PatternShare,
+    derive_insight_metrics,
+    is_extreme_metrics,
+    select_tag_candidates,
+)
 from backend.app.domain.sales import scoring
 from backend.app.domain.trade_area.repository import TradeAreaRepository
 from backend.app.domain.sales.repository import SalesRepository
@@ -31,7 +48,8 @@ from backend.app.core.exceptions import SalesDataNotFoundException
 
 logger = logging.getLogger(__name__)
 
-# Gemini 프롬프트·외부 출력은 100자 이내이며, 내부 생성 결과 검증과 fallback은 120자까지 허용한다.
+# Gemini prompt는 100자 이내를 목표로 하며, 내부 검증과 fallback은
+# prompt 초과 응답에 대비해 120자까지 허용한다.
 MAX_GENERATED_SUMMARY_LENGTH = 120
 OVERVIEW_INSIGHT_PENDING_SUMMARY = "AI 인사이트 생성 중입니다."
 _SENTENCE_TERMINATOR = re.compile(r"(?<!\d)[.!?。！？]")
@@ -48,7 +66,7 @@ class OverviewInsightGenerator(Protocol):
     """Gemini 통합 어댑터가 구현하는 비동기 경계."""
 
     async def generate(self, context: OverviewInsightContext) -> str:
-        """검증된 사실 데이터로 평문 종합 요약 한 문장을 생성한다."""
+        """검증된 사실 데이터로 평문 종합 요약을 최대 두 문장 생성한다."""
         ...
 
 
@@ -104,14 +122,14 @@ def _validate_generated_summary(value: object) -> str:
     if len(summary) > MAX_GENERATED_SUMMARY_LENGTH:
         raise ValueError("generated summary is too long")
     if "\n" in summary or "\r" in summary:
-        raise ValueError("generated summary must be one sentence")
+        raise ValueError("generated summary must be one or two sentences")
     if not re.search(r"[가-힣]", summary):
         raise ValueError("generated summary must contain Korean text")
     if _FORBIDDEN_GENERATED_CLAIMS.search(summary):
         raise ValueError("generated summary contains a forbidden claim")
     terminators = list(_SENTENCE_TERMINATOR.finditer(summary))
-    if len(terminators) != 1 or not summary.endswith(terminators[0].group()):
-        raise ValueError("generated summary must be one sentence")
+    if not 1 <= len(terminators) <= 2 or not summary.endswith(terminators[-1].group()):
+        raise ValueError("generated summary must contain one or two sentences")
     return summary
 
 
@@ -153,14 +171,45 @@ def _franchise_ratio_percent(
     return franchise_count / total_count * 100
 
 
-def _first_pattern_value(items: object, key: str, flag: str) -> Optional[str]:
-    if not isinstance(items, list):
+def _build_pattern_share(
+    facts: dict,
+    category: str,
+    *,
+    display_labels: Optional[dict[str, str]] = None,
+    coverage_pct: Optional[float] = None,
+) -> Optional[PatternShare]:
+    values = facts.get(category)
+    if not isinstance(values, dict) or not values:
         return None
-    for item in items:
-        if isinstance(item, dict) and item.get(flag):
-            value = item.get(key)
-            return value if isinstance(value, str) and value.strip() else None
-    return None
+    return PatternShare.from_values(
+        values,
+        display_labels=display_labels,
+        coverage_pct=coverage_pct,
+    )
+
+
+def _build_pattern_facts(facts: object) -> PatternFacts:
+    if not isinstance(facts, dict):
+        return PatternFacts(age=None, day=None, time=None)
+    return PatternFacts(
+        age=_build_pattern_share(
+            facts,
+            "age",
+            display_labels={"60대+": "60대 이상"},
+            coverage_pct=_optional_float(
+                facts.get("age_identified_sales_coverage_pct")
+            ),
+        ),
+        day=_build_pattern_share(
+            facts,
+            "day",
+            display_labels={
+                label: f"{label}요일"
+                for label in ("월", "화", "수", "목", "금", "토", "일")
+            },
+        ),
+        time=_build_pattern_share(facts, "time"),
+    )
 
 
 class AnalyticsService:
@@ -222,11 +271,13 @@ class AnalyticsService:
         industry_name: str,
         quarter: str,
         row: pd.Series,
-        patterns: tuple[Optional[str], Optional[str], Optional[str]],
+        metrics: InsightMetrics,
+        tag_candidates: list[str],
         store_summary: Optional[StoreSummarySchema],
         store_trend: Optional[StoreTrendSchema],
     ) -> OverviewInsightContext:
-        strongest_age_group, peak_slot, peak_day = patterns
+        # pandas iterrows/Series scalars are dynamically typed; narrow only at this boundary.
+        row_values = cast(Any, row)
         franchise_ratio_percent = _franchise_ratio_percent(
             store_summary.franchise_store_count if store_summary else None,
             store_summary.store_count if store_summary else None,
@@ -236,9 +287,21 @@ class AnalyticsService:
             district_name=district_name,
             industry_name=industry_name,
             quarter=quarter,
-            strongest_age_group=strongest_age_group,
-            peak_slot=peak_slot,
-            peak_day=peak_day,
+            current_sales=metrics.current_sales,
+            previous_sales=metrics.previous_sales,
+            transaction_count=metrics.transaction_count,
+            previous_transaction_count=metrics.previous_transaction_count,
+            sales_change_amount=metrics.sales_change_amount,
+            transaction_change_count=metrics.transaction_change_count,
+            transaction_qoq_rate=metrics.transaction_qoq_rate,
+            sales_per_transaction_current=metrics.sales_per_transaction_current,
+            sales_per_transaction_previous=metrics.sales_per_transaction_previous,
+            sales_per_transaction_qoq_rate=metrics.sales_per_transaction_qoq_rate,
+            transactions_per_store_current=metrics.transactions_per_store_current,
+            transactions_per_store_previous=metrics.transactions_per_store_previous,
+            transactions_per_store_qoq_rate=metrics.transactions_per_store_qoq_rate,
+            store_count=metrics.store_count,
+            previous_store_count=metrics.previous_store_count,
             closing_rate=_optional_float(
                 store_summary.closing_rate if store_summary else None
             ),
@@ -247,32 +310,33 @@ class AnalyticsService:
             ),
             franchise_ratio_percent=franchise_ratio_percent,
             store_count_change=(
-                store_trend.store_count_change if store_trend else None
+                int(metrics.store_count_change)
+                if metrics.store_count_change is not None
+                else None
             ),
-            qoq_growth_rate=_optional_float(row.get("growth_rate")),
-            growth_level=scoring.grade_from_score(row["growth_score"]),
-            transaction_level=scoring.grade_from_score(row["transaction_score"]),
-            competition_level=scoring.competition_grade_from_score(row["competition_score"]),
+            qoq_growth_rate=metrics.qoq_growth_rate,
+            growth_level=scoring.grade_from_score(row_values["growth_score"]),
+            transaction_level=scoring.grade_from_score(row_values["transaction_score"]),
+            competition_level=scoring.competition_grade_from_score(
+                row_values["competition_score"]
+            ),
+            tag_candidates=tag_candidates,
         )
 
-    async def _get_overview_insight_patterns(
+    async def _get_overview_insight_pattern_facts(
         self,
         trade_area_code: str,
         industry_code: str,
         quarter: str,
-    ) -> tuple[Optional[str], Optional[str], Optional[str]]:
-        """기존 SalesRepository 패턴 조회에서 insight용 대표값만 추출한다."""
+    ) -> Optional[dict]:
+        """원천 패턴 facts를 조회하고, 조회 실패는 None으로 구분한다."""
         try:
-            # 하나의 AsyncSession을 공유하므로 원천 조회를 동시에 실행하지 않는다.
-            time_slots = await self.sales_repo.get_sales_by_time(
+            facts = await self.sales_repo.get_insight_pattern_facts(
                 trade_area_code, industry_code, quarter
             )
-            demographics = await self.sales_repo.get_sales_by_age_gender(
-                trade_area_code, industry_code, quarter
-            )
-            days = await self.sales_repo.get_sales_by_day(
-                trade_area_code, industry_code, quarter
-            )
+            if not isinstance(facts, dict):
+                raise TypeError("pattern facts must be a dictionary")
+            return facts
         except Exception:
             logger.exception(
                 "인사이트 패턴 원천 데이터 조회에 실패했다 (reason=patterns_error)",
@@ -284,13 +348,7 @@ class AnalyticsService:
                     "quarter": quarter,
                 },
             )
-            return None, None, None
-
-        return (
-            _first_pattern_value(demographics, "age_group", "is_primary"),
-            _first_pattern_value(time_slots, "slot", "is_peak"),
-            _first_pattern_value(days, "day", "is_peak"),
-        )
+            return None
 
     async def _get_overview_insight_store_summary(
         self,
@@ -350,11 +408,46 @@ class AnalyticsService:
         growth_level: Optional[scoring.ScoreLevel],
         transaction_level: Optional[scoring.ScoreLevel],
         competition_level: Optional[scoring.CompetitionLevel],
+        tag_candidates: list[str],
     ) -> str:
-        return _build_insight(
+        summary = _build_insight(
             growth_level,
             transaction_level,
             competition_level,
+        )
+        if not tag_candidates:
+            return summary
+        return f"[{'·'.join(tag_candidates[:3])} 중심] {summary}"
+
+    def _build_overview_insight_metrics(
+        self,
+        row: pd.Series,
+        store_trend: Optional[StoreTrendSchema],
+    ) -> InsightMetrics:
+        row_values = cast(Any, row)
+        current_store_count = (
+            store_trend.store_count
+            if store_trend is not None
+            else row.get("store_count")
+        )
+        store_count_change = (
+            store_trend.store_count_change
+            if store_trend is not None
+            else row.get("store_count_change")
+        )
+        previous_store_count = row.get("previous_store_count")
+        current_store_number = _optional_float(current_store_count)
+        store_change_number = _optional_float(store_count_change)
+        if previous_store_count is None:
+            previous_store_count = (
+                current_store_number - store_change_number
+                if current_store_number is not None and store_change_number is not None
+                else None
+            )
+        return derive_insight_metrics(
+            row_values,
+            store_count=current_store_count,
+            previous_store_count=previous_store_count,
         )
 
     async def _get_overview_insight_response(
@@ -370,21 +463,48 @@ class AnalyticsService:
         store_trend: Optional[StoreTrendSchema],
     ) -> OverviewInsightResponse:
         """분리된 /overview/insight 응답으로 Gemini 또는 fallback을 생성한다."""
+        row_values = cast(Any, row)
+        metrics = self._build_overview_insight_metrics(row, store_trend)
+        extreme = is_extreme_metrics(metrics)
+        raw_pattern_facts = await self._get_overview_insight_pattern_facts(
+            trade_area_code, industry_code, quarter
+        )
+        if raw_pattern_facts is None:
+            tag_candidates = []
+        else:
+            tag_candidates = select_tag_candidates(
+                _build_pattern_facts(raw_pattern_facts),
+                metrics.transaction_count,
+                extreme,
+            )
+            if not tag_candidates:
+                logger.info(
+                    "인사이트 패턴 조회는 성공했지만 허용 후보가 없다 "
+                    "(reason=patterns_no_candidates)",
+                    extra={
+                        "event": "analytics.overview_insight_patterns_empty",
+                        "reason": "patterns_no_candidates",
+                        "trade_area_code": trade_area_code,
+                        "industry_code": industry_code,
+                        "quarter": quarter,
+                    },
+                )
         fallback = self._build_overview_fallback_summary(
-            growth_level=scoring.grade_from_score(row["growth_score"]),
-            transaction_level=scoring.grade_from_score(row["transaction_score"]),
-            competition_level=scoring.competition_grade_from_score(row["competition_score"]),
+            growth_level=scoring.grade_from_score(row_values["growth_score"]),
+            transaction_level=scoring.grade_from_score(row_values["transaction_score"]),
+            competition_level=scoring.competition_grade_from_score(
+                row_values["competition_score"]
+            ),
+            tag_candidates=tag_candidates,
         )
         if self.insight_generator is None:
             return OverviewInsightResponse(
                 summary=fallback,
                 source="fallback",
                 status="fallback",
+                extreme=extreme,
             )
 
-        patterns = await self._get_overview_insight_patterns(
-            trade_area_code, industry_code, quarter
-        )
         store_summary = await self._get_overview_insight_store_summary(
             trade_area_code, industry_code, quarter
         )
@@ -394,7 +514,8 @@ class AnalyticsService:
             industry_name=industry_name,
             quarter=quarter,
             row=row,
-            patterns=patterns,
+            metrics=metrics,
+            tag_candidates=tag_candidates,
             store_summary=store_summary,
             store_trend=store_trend,
         )
@@ -404,6 +525,7 @@ class AnalyticsService:
             quarter=quarter,
             context=context,
             fallback=fallback,
+            extreme=extreme,
         )
 
     async def _generate_overview_insight(
@@ -414,6 +536,7 @@ class AnalyticsService:
         quarter: str,
         context: OverviewInsightContext,
         fallback: str,
+        extreme: bool,
     ) -> OverviewInsightResponse:
         log_context = {
             "event": "analytics.overview_insight_fallback",
@@ -435,10 +558,11 @@ class AnalyticsService:
                 summary=fallback,
                 source="fallback",
                 status="fallback",
+                extreme=extreme,
             )
 
+        started_at = time.monotonic()
         try:
-            started_at = time.monotonic()
             generated = await asyncio.wait_for(
                 self.insight_generator.generate(context),
                 timeout=self.insight_timeout_seconds,
@@ -475,6 +599,7 @@ class AnalyticsService:
                 summary=fallback,
                 source="fallback",
                 status="fallback",
+                extreme=extreme,
             )
         except Exception:
             logger.exception(
@@ -493,6 +618,7 @@ class AnalyticsService:
                 summary=fallback,
                 source="fallback",
                 status="fallback",
+                extreme=extreme,
             )
 
         try:
@@ -512,6 +638,7 @@ class AnalyticsService:
                 summary=validated,
                 source="gemini",
                 status="generated",
+                extreme=extreme,
             )
         except ValueError:
             logger.warning(
@@ -527,6 +654,7 @@ class AnalyticsService:
                 summary=fallback,
                 source="fallback",
                 status="fallback",
+                extreme=extreme,
             )
 
     async def _get_store_trend(
@@ -690,7 +818,9 @@ class AnalyticsService:
             volume_percentile=round(row["volume_percentile"]),
             store_count=store_trend.store_count if store_trend else None,
             store_count_change=store_trend.store_count_change if store_trend else None,
-            competition_level=scoring.competition_grade_from_score(row["competition_score"]),
+            competition_level=scoring.competition_grade_from_score(
+                row["competition_score"]
+            ),
             sales_level=scoring.grade_from_score(100 - row["sales_percentile"]),
             volume_level=scoring.grade_from_score(100 - row["volume_percentile"]),
         )
@@ -760,8 +890,8 @@ class AnalyticsService:
         industry_code: str = "CS100010",
         quarter: str = "20254",
     ) -> OverviewInsightResponse:
-        code, ta_name, district_name, industry_name, _, row = await self._get_overview_data(
-            trade_area_code, industry_code, quarter
+        code, ta_name, district_name, industry_name, _, row = (
+            await self._get_overview_data(trade_area_code, industry_code, quarter)
         )
         store_trend = await self._get_overview_insight_store_trend(
             code, industry_code, quarter
@@ -904,7 +1034,9 @@ class AnalyticsService:
             )
 
         row = matched.iloc[0]
-        competition_grade = scoring.competition_grade_from_score(row["competition_score"])
+        competition_grade = scoring.competition_grade_from_score(
+            row["competition_score"]
+        )
         return DistrictCompetitionResponse(
             trade_area_code=code,
             store_count=store_trend.store_count if store_trend else None,
@@ -953,7 +1085,9 @@ class AnalyticsService:
             days = await self.sales_repo.get_sales_by_day(code, industry_code, quarter)
             peak_day = next((d for d in days if d["is_peak"]), None)
 
-            competition_grade = scoring.competition_grade_from_score(row["competition_score"])
+            competition_grade = scoring.competition_grade_from_score(
+                row["competition_score"]
+            )
 
             results.append(
                 CompareDistrictData(
