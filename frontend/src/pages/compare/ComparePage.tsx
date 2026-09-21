@@ -1,12 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Trash2, ArrowUpRight, ExternalLink } from "lucide-react";
+import {
+  ArrowLeft,
+  Trash2,
+  ArrowUpRight,
+  ExternalLink,
+  Loader2,
+} from "lucide-react";
 import { api } from "../../shared/api/client";
 import { useCompareStore, useExploreStore } from "../../shared/lib/store";
 import { ScorePill } from "../../shared/ui/Signals";
 import { getApiErrorMessage } from "../../shared/lib/apiError";
-import { StatusBlock, StatusInline } from "../../shared/ui/QueryState";
+import { StatusBlock } from "../../shared/ui/QueryState";
 import { useIsFreshDirectEntry } from "../../shared/lib/navigationOrigin";
 
 export const ComparePage: React.FC = () => {
@@ -109,14 +115,30 @@ export const ComparePage: React.FC = () => {
   };
 
   // compareList 가 아직 로딩 중인 컬럼(data undefined)에 표시할 자리표시자.
-  const Placeholder = () => <span className="text-gray-300">…</span>;
+  // 눈에 잘 띄도록 흐릿한 "…" 텍스트 대신 펄스 애니메이션이 있는 스켈레톤 바를 보여준다.
+  const Placeholder = ({ lines = 1 }: { lines?: number }) => (
+    <span className="inline-flex flex-col gap-1.5 w-full max-w-35">
+      {Array.from({ length: lines }).map((_, i) => (
+        <span
+          key={i}
+          className="h-3 rounded-sm bg-gray-300 animate-pulse"
+          style={lines > 1 && i === lines - 1 ? { width: "60%" } : undefined}
+        />
+      ))}
+    </span>
+  );
 
   // [연동] GET /compare 는 요청한 trade_area_code 중 데이터가 없는 항목을 에러 없이 결과 배열에서
-  // 조용히 제외한다. 로딩 중("…")과 "조회는 성공했지만 이 상권 데이터가 없음"을 구분해서 보여준다.
+  // 조용히 제외한다. 로딩 중(스켈레톤)과 "조회는 성공했지만 이 상권 데이터가 없음"을 구분해서 보여준다.
   const NoDataCell = () => (
     <span className="text-gray-400 text-xs">데이터 없음</span>
   );
   const cellFallback = isLoading ? <Placeholder /> : <NoDataCell />;
+  const keyInsightFallback = isLoading ? (
+    <Placeholder lines={3} />
+  ) : (
+    <NoDataCell />
+  );
 
   // Explore로 리다이렉트되는 동안 빈 비교표 화면이 잠깐 보이지 않도록 아무것도 그리지 않는다.
   if (shouldRedirectToExplore) {
@@ -231,14 +253,19 @@ export const ComparePage: React.FC = () => {
           />
         ) : (
           <>
-            {/* [연동] compareList 조회(useQuery)의 isLoading 동안 표 위에 로딩 안내를 띄운다.
-                표 자체(컬럼/자리표시자)는 이미 즉시 그려지므로 이 배너는 보조 안내다. */}
+            {/* [연동] compareList 조회(useQuery)의 isLoading 동안 화면 중앙에 액티비티 인디케이터를
+                띄운다. 표 자체(컬럼/스켈레톤)는 이미 즉시 그려지므로 이 인디케이터는 보조 안내다. */}
             {isLoading && (
-              <div className="mb-3">
-                <StatusInline
-                  kind="loading"
-                  message="비교할 상권데이터를 가져오는 중입니다."
-                />
+              <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+                <div className="flex flex-col items-center gap-3 bg-[#f5f5f0] border-2 border-black px-8 py-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+                  <span className="bg-[#d4ff00] text-black px-2 py-0.5 font-mono text-[10px] font-bold border border-black uppercase tracking-widest">
+                    Loading
+                  </span>
+                  <Loader2 className="w-6 h-6 animate-spin text-black" />
+                  <p className="font-mono text-sm font-bold text-black text-center">
+                    비교할 상권데이터를 가져오는 중입니다.
+                  </p>
+                </div>
               </div>
             )}
             <div className="border-2 border-black bg-white overflow-x-auto">
@@ -450,7 +477,7 @@ export const ComparePage: React.FC = () => {
                       key={code}
                       className="p-4 border-r-2 border-black last:border-r-0 text-xs font-sans text-gray-800 leading-relaxed"
                     >
-                      {data ? data.key_insight : cellFallback}
+                      {data ? data.key_insight : keyInsightFallback}
                     </td>
                   ))}
                 </tr>
