@@ -8,7 +8,7 @@ import {
   Info,
   FileQuestionMark,
 } from "lucide-react";
-import { useCompareStore } from "../lib/store";
+import { useCompareStore, useHeaderBreadcrumbStore } from "../lib/store";
 
 type DragPos = { x: number; y: number };
 
@@ -51,6 +51,7 @@ export const Header: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [methodologyOpen, setMethodologyOpen] = useState(false);
   const { selectedCodes } = useCompareStore();
+  const { breadcrumb, visible: breadcrumbVisible } = useHeaderBreadcrumbStore();
 
   // Methodology 모달은 중앙 정렬된 카드를 기준으로 한 translate 오프셋(드래그 델타)을 쓴다.
   // DETAIL 모달은 열릴 때마다 Methodology 카드의 실제 화면 좌표(getBoundingClientRect)를
@@ -70,20 +71,36 @@ export const Header: React.FC = () => {
     <>
       <header className="sticky top-0 z-40 bg-[#f5f5f0] border-b-2 border-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          {/* Brand */}
-          <Link
-            to="/explore"
-            className="flex items-center gap-2 text-xl font-extrabold tracking-tight font-display hover:opacity-85 transition-opacity"
-          >
-            <span className="bg-black text-white px-2 py-0.5 text-xs font-mono tracking-widest mr-1">
-              {/* SDP */}
-              SR
-            </span>
-            <span className="tracking-tighter font-black text-lg sm:text-xl">
-              {/* SEOUL DATA PLAYGROUND */}
-              SPOT RADAR
-            </span>
-          </Link>
+          <div className="flex items-center gap-6 min-w-0">
+            {/* Brand */}
+            <Link
+              to="/explore"
+              className="flex items-center gap-2 text-xl font-extrabold tracking-tight font-display hover:opacity-85 transition-opacity shrink-0"
+            >
+              <span className="bg-black text-white px-2 py-0.5 text-xs font-mono tracking-widest mr-1">
+                {/* SDP */}
+                SR
+              </span>
+              <span className="tracking-tighter font-black text-lg sm:text-xl">
+                {/* SEOUL DATA PLAYGROUND */}
+                SPOT RADAR
+              </span>
+            </Link>
+
+            {/* 상권 상세 화면의 브레드크럼이 스크롤로 헤더 밑에 가리면 여기 같은 내용을 보여준다.
+                DistrictDetailPage.tsx의 원본과 동일한 폰트/사이즈(text-xs sm:text-sm font-mono)를 쓴다. */}
+            {breadcrumbVisible && breadcrumb && (
+              <div className="hidden md:flex items-center gap-2 text-xs sm:text-sm font-mono text-gray-700 min-w-0">
+                <span className="font-bold text-black truncate">
+                  {breadcrumb.pathLabel}
+                </span>
+                <span>|</span>
+                <span className="whitespace-nowrap">
+                  {breadcrumb.quarterLabel}
+                </span>
+              </div>
+            )}
+          </div>
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center space-x-8 font-mono text-sm font-bold">
