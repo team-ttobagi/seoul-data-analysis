@@ -224,7 +224,14 @@ export const DistrictDetailPage: React.FC = () => {
   };
 
   return (
-    <div className="w-full bg-[#f5f5f0] min-h-[calc(100vh-4rem)] pb-12">
+    <div
+      className="w-full bg-[#f5f5f0] min-h-[calc(100vh-4rem)] pb-12"
+      onClickCapture={(e) => {
+        if ((e.target as HTMLElement).closest("button")) {
+          console.log("sales_percentile:", overview.kpis.sales_percentile);
+        }
+      }}
+    >
       {/* Top Breadcrumb & Switcher Bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex flex-wrap items-center justify-between gap-4">
         <Link
@@ -614,7 +621,14 @@ export const DistrictDetailPage: React.FC = () => {
                 {formatNullable(overview.kpis.seoul_rank, "위")}
               </span>
               <span className="text-gray-500">
-                상위 {overview.kpis.sales_percentile}%
+                {rankTab === "sales" &&
+                  `상위 ${overview.kpis.sales_percentile}%`}
+                {rankTab === "volume" &&
+                  `상위 ${overview.kpis.volume_percentile}%`}
+                {/* {rankTab === "growth" &&
+                  `상위 ${overview.kpis.growth_percentile}%`}
+                {rankTab === "score" &&
+                  `상위 ${overview.kpis.exploration_percentile}%`} */}
               </span>
             </div>
           </div>
