@@ -834,7 +834,7 @@ export const ExplorePage: React.FC = () => {
                 </div>
                 <div className="flex justify-between py-3">
                   <span className="text-black font-medium">
-                    경쟁 강도 (Competition Intensity)
+                    경쟁 점수 (Competition Score)
                   </span>
                   <span className="font-extrabold text-black">25%</span>
                 </div>
