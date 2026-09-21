@@ -404,6 +404,58 @@ export const ExplorePage: React.FC = () => {
     ? quarterChoice
     : quarterData[0]?.code ?? "";
 
+  const selectedCodes = useCompareStore((state) => state.selectedCodes);
+  const clearCompareDistricts = useCompareStore(
+    (state) => state.clearDistricts,
+  );
+  const [pendingCompareReset, setPendingCompareReset] = useState<{
+    filter: "industry" | "quarter";
+    value: string;
+  } | null>(null);
+
+  const requestFilterChange = (
+    filter: "industry" | "quarter",
+    value: string,
+    currentValue: string,
+  ) => {
+    if (value === currentValue) return;
+
+    if (selectedCodes.length > 0) {
+      setPendingCompareReset({ filter, value });
+      return;
+    }
+
+    if (filter === "industry") {
+      setSelectedIndustry(value);
+    } else {
+      setSelectedQuarter(value);
+    }
+  };
+
+  const handleIndustryChange = (code: string) => {
+    requestFilterChange("industry", code, selectedIndustry);
+  };
+
+  const handleQuarterChange = (code: string) => {
+    requestFilterChange("quarter", code, selectedQuarter);
+  };
+
+  const confirmCompareReset = () => {
+    if (!pendingCompareReset) return;
+
+    clearCompareDistricts();
+    if (pendingCompareReset.filter === "industry") {
+      setSelectedIndustry(pendingCompareReset.value);
+    } else {
+      setSelectedQuarter(pendingCompareReset.value);
+    }
+    setPendingCompareReset(null);
+  };
+
+  const cancelCompareReset = () => {
+    setPendingCompareReset(null);
+  };
+
   // store(industryChoice/quarterChoice)가 비어있어 기본값(CS100010/최신 분기)으로 대체된
   // 경우에도, 실제로 조회에 쓰인 값을 store에 반영해둔다. ComparePage는 이 store 값을 그대로
   // 신뢰해서 조회하므로, 사용자가 필터를 한 번도 건드리지 않고 바로 비교로 넘어가도 방금 화면에
@@ -464,8 +516,7 @@ export const ExplorePage: React.FC = () => {
     }
   };
 
-  const { isDistrictSelected, toggleDistrict, selectedCodes } =
-    useCompareStore();
+  const { isDistrictSelected, toggleDistrict } = useCompareStore();
 
   const {
     data: recommendations = [],
@@ -577,7 +628,7 @@ export const ExplorePage: React.FC = () => {
                   : "등록된 분기 없음"
             }
             selectedIndustry={selectedIndustry}
-            setSelectedIndustry={setSelectedIndustry}
+            setSelectedIndustry={handleIndustryChange}
             districts={districts}
             selectedDistrictCode={selectedDistrictCode}
             setDistrict={setDistrict}
@@ -603,7 +654,7 @@ export const ExplorePage: React.FC = () => {
               }
             }}
             selectedQuarter={selectedQuarter}
-            setSelectedQuarter={setSelectedQuarter}
+            setSelectedQuarter={handleQuarterChange}
             recommendations={recommendations}
             selectedCodes={selectedCodes}
             toggleDistrict={toggleDistrict}
@@ -816,6 +867,52 @@ export const ExplorePage: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {pendingCompareReset && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="compare-reset-title"
+          aria-describedby="compare-reset-description"
+        >
+          <div className="w-full max-w-lg border-2 border-black bg-[#f5f5f0] p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+            <div className="flex items-center gap-2 border-b border-black pb-3">
+              <Info className="h-5 w-5 shrink-0" aria-hidden="true" />
+              <h2 id="compare-reset-title" className="text-lg font-extrabold">
+                비교 조건 변경 안내
+              </h2>
+            </div>
+
+            <p
+              id="compare-reset-description"
+              className="py-5 text-sm font-medium leading-relaxed text-gray-800"
+            >
+              비교 상권 트레이의 상권은 동일 업종, 기준 분기만 담을 수
+              있습니다. 업종 또는 분기가 변경되면 비교 상권 트레이는 초기화
+              됩니다. 초기화 하시겠습니까?
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={cancelCompareReset}
+                className="border border-black bg-white py-2.5 text-sm font-bold text-black transition-colors hover:bg-gray-200"
+                autoFocus
+              >
+                아니오
+              </button>
+              <button
+                type="button"
+                onClick={confirmCompareReset}
+                className="border border-black bg-black py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#d4ff00] hover:text-black"
+              >
+                예
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
