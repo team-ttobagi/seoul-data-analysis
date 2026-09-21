@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-labelledby="sr03-title sr03-desc" style="--sr-ink:#F8F7F2;--sr-paper:#131813;--sr-accent:#CCFF00">
+  <title id="sr03-title">스팟 레이더 — 디텍티브 렌즈</title>
+  <desc id="sr03-desc">정교한 돋보기 안에서 레이더가 천천히 회전하고, 발견한 장소가 은은하게 빛나는 애니메이션 로고.</desc>
+  <style>
+    .sr03-scan { transform-box: view-box; transform-origin: 53px 53px; animation: sr03-turn 6.5s linear infinite; }
+    .sr03-signal { transform-box: view-box; transform-origin: 65px 39px; animation: sr03-pulse 3.25s ease-out infinite; }
+    @keyframes sr03-turn { from { transform: rotate(-35deg); } to { transform: rotate(325deg); } }
+    @keyframes sr03-pulse { 0%, 12% { opacity: .6; transform: scale(.78); } 68%, 100% { opacity: 0; transform: scale(1.85); } }
+    @media (prefers-reduced-motion: reduce) { .sr03-scan, .sr03-signal { animation: none !important; } .sr03-scan { transform: rotate(-35deg); } .sr03-signal { opacity: .3; } }
+  </style>
+  <!-- The solid lens and handle stay still, keeping the mark legible at small sizes. -->
+  <path d="M78 83 84 77l29 26a5.5 5.5 0 0 1 .2 8l-2.4 2.4a5.5 5.5 0 0 1-8-.2Z" fill="var(--sr-ink)"/>
+  <path d="m96 98 9 9" fill="none" stroke="var(--sr-accent)" stroke-width="2.6" stroke-linecap="round"/>
+  <circle cx="53" cy="53" r="36" fill="none" stroke="var(--sr-ink)" stroke-width="6.5"/>
+  <circle cx="53" cy="53" r="28.5" fill="none" stroke="var(--sr-ink)" stroke-width="1.1" opacity=".28"/>
+  <circle cx="53" cy="53" r="17" fill="none" stroke="var(--sr-ink)" stroke-width="1" stroke-dasharray="2 4" opacity=".22"/>
+  <path d="M53 18v6M18 53h6m58 0h6M53 82v6" fill="none" stroke="var(--sr-ink)" stroke-width="2"/>
+  <g class="sr03-scan">
+    <path d="M53 53V25a28 28 0 0 1 28 28Z" fill="var(--sr-accent)" opacity=".24"/>
+    <path d="M53 25a28 28 0 0 1 28 28" fill="none" stroke="var(--sr-accent)" stroke-width="3" stroke-linecap="round"/>
+    <path d="M53 53V26" fill="none" stroke="var(--sr-ink)" stroke-width="1.65" stroke-linecap="round"/>
+    <path d="M53 26v7" fill="none" stroke="var(--sr-accent)" stroke-width="2.6" stroke-linecap="round"/>
+  </g>
+  <circle class="sr03-signal" cx="65" cy="39" r="6.5" fill="none" stroke="var(--sr-accent)" stroke-width="1.5"/>
+  <circle cx="65" cy="39" r="4.5" fill="var(--sr-accent)" stroke="var(--sr-ink)" stroke-width="1.6"/>
+  <circle cx="40" cy="63" r="2" fill="var(--sr-ink)" opacity=".42"/>
+  <circle cx="53" cy="53" r="2.6" fill="var(--sr-ink)"/>
+</svg>
