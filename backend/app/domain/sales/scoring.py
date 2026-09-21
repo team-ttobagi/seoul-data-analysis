@@ -7,7 +7,7 @@ DB에 접근하지 않는 순수 함수로만 구성하며, 입력은 하나의 
 사용 경로가 공통으로 호출하므로 모든 API에서 CompetitionScore가 동일하게 계산된다.
 """
 
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, cast
 
 import numpy as np
 import pandas as pd
@@ -62,7 +62,7 @@ def growth_score(series: pd.Series) -> pd.Series:
 
 def transaction_score(series: pd.Series) -> pd.Series:
     """산출 정의서 4.5 — log1p 변환 후 0~100 Min-Max 정규화."""
-    log_values = np.log1p(series.clip(lower=0))
+    log_values = cast(pd.Series, np.log1p(series.clip(lower=0)))
     return safe_minmax(log_values) * 100
 
 
@@ -94,7 +94,9 @@ def competition_score(
     return store_count * 0.50 + demand_per_store * 0.30 + closing_rate * 0.20
 
 
-def exploration_score(growth: pd.Series, transaction: pd.Series, competition: pd.Series) -> pd.Series:
+def exploration_score(
+    growth: pd.Series, transaction: pd.Series, competition: pd.Series
+) -> pd.Series:
     """산출 정의서 4.7 — 성장성 40% + 거래 활성도 35% + 경쟁 여건 25%."""
     return growth * 0.40 + transaction * 0.35 + competition * 0.25
 
@@ -109,11 +111,17 @@ def percentile_and_rank(df: pd.DataFrame, value_col: str, prefix: str) -> pd.Dat
     return result
 
 
-def seoul_rank(df: pd.DataFrame, percentile_cols: List[str] = BENCHMARK_PERCENTILE_COLUMNS) -> pd.DataFrame:
+def seoul_rank(
+    df: pd.DataFrame, percentile_cols: List[str] = BENCHMARK_PERCENTILE_COLUMNS
+) -> pd.DataFrame:
     """산출 정의서 5.5 — 4개 벤치마크 백분위 평균 기반 종합 순위."""
     result = df.copy()
-    result["overall_benchmark_percentile"] = result[percentile_cols].mean(axis=1, skipna=False)
-    result["seoul_rank"] = result["overall_benchmark_percentile"].rank(method="min", ascending=True)
+    result["overall_benchmark_percentile"] = result[percentile_cols].mean(
+        axis=1, skipna=False
+    )
+    result["seoul_rank"] = result["overall_benchmark_percentile"].rank(
+        method="min", ascending=True
+    )
     return result
 
 
