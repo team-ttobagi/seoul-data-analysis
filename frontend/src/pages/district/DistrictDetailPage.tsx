@@ -274,8 +274,11 @@ export const DistrictDetailPage: React.FC = () => {
               {/* Giant Score */}
               {/* [연동] score 는 성장률/거래량/경쟁 구성 지표 부족 시 null → "-" 폴백, score_note 로 사유 안내 */}
               <div className="flex items-baseline gap-2 mt-2">
-                <span className="text-5xl sm:text-7xl font-black text-[#d4ff00] tracking-tighter">
-                  SCORE {formatNullable(overview.takeaway.score)}
+                <span className="text-5xl sm:text-7xl font-black text-gray-500 tracking-tighter">
+                  SCORE{" "}
+                  <span className="text-white">
+                    {formatNullable(overview.takeaway.score)}
+                  </span>
                 </span>
                 <span className="text-xl sm:text-2xl font-mono text-gray-500 font-bold">
                   /100

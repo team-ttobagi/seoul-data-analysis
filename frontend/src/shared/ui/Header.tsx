@@ -52,10 +52,14 @@ export const Header: React.FC = () => {
   const [methodologyOpen, setMethodologyOpen] = useState(false);
   const { selectedCodes } = useCompareStore();
 
-  // Methodology 모달과 "산출 로직 자세히 보기" 모달 모두 헤더바를 드래그해 옮길 수 있다.
-  // 후자는 전자 위에 겹쳐서 뜨므로 기본 위치를 대각선으로 살짝 오프셋해 카스케이드처럼 보이게 한다.
+  // Methodology 모달은 중앙 정렬된 카드를 기준으로 한 translate 오프셋(드래그 델타)을 쓴다.
+  // DETAIL 모달은 열릴 때마다 Methodology 카드의 실제 화면 좌표(getBoundingClientRect)를
+  // 기준으로 절대 top/left를 계산해야 카드 크기가 서로 달라도(폭 512px vs 672px)
+  // "top 동일, left +10px"이 실제 화면에서 정확히 맞는다 — 두 카드 모두 같은 중앙 정렬
+  // translate만 쓰면 폭 차이의 절반만큼 어긋난다.
   const methodologyDrag = useDraggablePosition({ x: 0, y: 0 });
-  const detailsDrag = useDraggablePosition({ x: 40, y: 40 });
+  const methodologyCardRef = useRef<HTMLDivElement>(null);
+  const detailsDrag = useDraggablePosition({ x: 100, y: 100 });
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   const isExplore =
@@ -189,6 +193,7 @@ export const Header: React.FC = () => {
       {methodologyOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div
+            ref={methodologyCardRef}
             className="bg-[#f5f5f0] border-2 border-black w-full max-w-lg p-6 space-y-4 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]"
             style={{
               transform: `translate(${methodologyDrag.pos.x}px, ${methodologyDrag.pos.y}px)`,
@@ -207,7 +212,10 @@ export const Header: React.FC = () => {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    detailsDrag.setPos({ x: 40, y: 40 });
+                    const rect = methodologyCardRef.current?.getBoundingClientRect();
+                    if (rect) {
+                      detailsDrag.setPos({ x: rect.left + 10, y: rect.top });
+                    }
                     setDetailsOpen(true);
                   }}
                   onMouseDown={(e) => e.stopPropagation()}
@@ -274,11 +282,12 @@ export const Header: React.FC = () => {
           자리를 옮길 수 있다. 바깥 래퍼는 pointer-events-none으로 비워둬 카드 밖 클릭은
           아래 Methodology 모달까지 그대로 전달되게 한다. */}
       {detailsOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-none">
+        <div className="fixed inset-0 z-[60] pointer-events-none">
           <div
-            className="pointer-events-auto bg-white border-2 border-black w-full max-w-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]"
+            className="pointer-events-auto fixed bg-white border-2 border-black w-full max-w-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]"
             style={{
-              transform: `translate(${detailsDrag.pos.x}px, ${detailsDrag.pos.y}px)`,
+              top: detailsDrag.pos.y,
+              left: detailsDrag.pos.x,
             }}
           >
             <div
