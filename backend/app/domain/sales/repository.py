@@ -44,8 +44,10 @@ class SalesRepository:
     ) -> Optional[dict]:
         """AnalyticsService와 동일한 통합 점수 파이프라인을 사용한다.
 
-        따라서 이 메서드의 seoul_rank와 percentile은 /trade-areas/{code}/overview와
-        동일하며, 엔드포인트마다 순위 정의를 별도로 계산하지 않는다.
+        따라서 이 메서드의 seoul_rank와 백분위는 /trade-areas/{code}/overview와 동일한
+        통합 점수 테이블을 사용하며, 엔드포인트마다 순위 정의를 별도로 계산하지 않는다.
+        응답에는 매출·성장률·거래건수·ExplorationScore Percentile을 제공하고,
+        CompetitionScore Percentile은 seoul_rank 산정용 내부 값으로만 유지한다.
         """
         code = trade_area_code.upper()
         metrics_df = await self.get_metrics_dataframe(quarter, industry_code)
@@ -68,7 +70,11 @@ class SalesRepository:
             "qoq_growth_rate": scoring.none_if_nan(row["growth_rate"]),
             "seoul_rank": scoring.none_if_nan_round(row["seoul_rank"]),
             "sales_percentile": round(row["sales_percentile"]),
+            "growth_percentile": scoring.none_if_nan_round(row["growth_percentile"]),
             "volume_percentile": round(row["volume_percentile"]),
+            "exploration_percentile": scoring.none_if_nan_round(
+                row["exploration_percentile"]
+            ),
         }
 
     async def get_sales_by_time(
