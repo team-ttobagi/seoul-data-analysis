@@ -40,13 +40,13 @@ class _StrictModel(BaseModel):
 
 
 class OverviewTakeawayInsight(_StrictModel):
-    # 프롬프트는 100자 이내를 지시하지만, 어댑터 내부 응답 검증은 120자까지 허용한다.
+    # prompt는 100자 이내를 목표로 하며, 내부 응답 검증은 120자까지 허용한다.
     summary: str = Field(
         min_length=1,
         max_length=120,
         description=(
-            "overview insight에 사용할 내부 허용 범위 120자 이내의 한국어 평문 한 문장. "
-            "현황 진단·리스크 요인·즉시 실행 과제를 순서대로 연결하며, "
+            "overview insight에 사용할 태그 포함 120자 이내의 한국어 평문 최대 두 문장. "
+            "핵심 관계와 현재 상태를 연결하며, "
             "점수·등급을 새로 계산하거나 성공을 단정하지 않는다."
         ),
     )
@@ -67,8 +67,10 @@ class OverviewTakeawayInsight(_StrictModel):
         if not re.search(r"[가-힣]", summary):
             raise ValueError("summary must contain Korean text")
         terminators = list(_SENTENCE_TERMINATOR.finditer(summary))
-        if len(terminators) != 1 or not summary.endswith(terminators[0].group()):
-            raise ValueError("summary must be one sentence")
+        if not 1 <= len(terminators) <= 2 or not summary.endswith(
+            terminators[-1].group()
+        ):
+            raise ValueError("summary must contain one or two sentences")
         if _FORBIDDEN_CLAIMS.search(summary):
             raise ValueError("summary must not make promotional or guaranteed claims")
         if is_misleading_competition(summary):
