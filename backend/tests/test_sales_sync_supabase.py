@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from sqlalchemy import func, select
 
@@ -7,6 +9,11 @@ from backend.app.domain.sales.sync_service import SalesSyncService
 from backend.app.external.seoul_openapi import SeoulOpenAPIClient
 
 
+@pytest.mark.integration
+@pytest.mark.skipif(
+    os.getenv("RUN_SEOUL_SYNC_INTEGRATION") != "1",
+    reason="실제 서울 Open API와 Supabase가 필요한 통합 테스트입니다.",
+)
 @pytest.mark.asyncio
 async def test_sales_sync_to_supabase():
     # 1. 실제 서울 API 데이터 수집

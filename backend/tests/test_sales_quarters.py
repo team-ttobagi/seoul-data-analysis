@@ -1,7 +1,8 @@
-from typing import List
+from typing import List, cast
 
+import httpx
 import pytest
-from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.domain.sales.repository import SalesRepository
 from backend.app.domain.sales.router import get_sales_service
@@ -32,7 +33,9 @@ class FakeQuarterSession:
 @pytest.mark.asyncio
 async def test_quarter_codes_are_unique_descending_and_formatted():
     session = FakeQuarterSession(["20262", "20261", "20254"])
-    service = SalesService(SalesRepository(session=session))
+    service = SalesService(
+        SalesRepository(session=cast(AsyncSession, session))
+    )
     quarters = await service.get_quarters()
 
     assert [quarter.code for quarter in quarters] == ["20262", "20261", "20254"]
@@ -46,7 +49,9 @@ async def test_quarter_codes_are_unique_descending_and_formatted():
 @pytest.mark.asyncio
 async def test_quarters_returns_empty_list_when_sales_data_is_empty():
     session = FakeQuarterSession([])
-    service = SalesService(SalesRepository(session=session))
+    service = SalesService(
+        SalesRepository(session=cast(AsyncSession, session))
+    )
 
     assert await service.get_quarters() == []
 
@@ -59,12 +64,16 @@ class FakeSalesService:
         return None
 
 
-def test_get_quarters_endpoint_uses_sales_service():
+@pytest.mark.asyncio
+async def test_get_quarters_endpoint_uses_sales_service():
     app.dependency_overrides[get_sales_service] = lambda: FakeSalesService()
 
     try:
-        with TestClient(app) as client:
-            response = client.get("/api/v1/sales/quarters")
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client:
+            response = await client.get("/api/v1/sales/quarters")
     finally:
         app.dependency_overrides.pop(get_sales_service, None)
 
@@ -72,16 +81,20 @@ def test_get_quarters_endpoint_uses_sales_service():
     assert response.json() == [{"code": "20262", "value": "2026 Q2"}]
 
 
-def test_sales_summary_accepts_quarter_code_and_rejects_display_value():
+@pytest.mark.asyncio
+async def test_sales_summary_accepts_quarter_code_and_rejects_display_value():
     app.dependency_overrides[get_sales_service] = lambda: FakeSalesService()
 
     try:
-        with TestClient(app) as client:
-            code_response = client.get(
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client:
+            code_response = await client.get(
                 "/api/v1/sales/summary",
                 params={"trade_area_code": "SEONGSU", "quarter": "20262"},
             )
-            display_response = client.get(
+            display_response = await client.get(
                 "/api/v1/sales/summary",
                 params={"trade_area_code": "SEONGSU", "quarter": "2026 Q2"},
             )
