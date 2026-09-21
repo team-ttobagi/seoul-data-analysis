@@ -257,7 +257,8 @@ async def get_district_overview_insight(
     """Gemini 종합 인사이트와 생성 출처·상태를 반환합니다.
 
     Gemini가 비활성화되었거나 호출·응답 검증에 실패하면 기존 결정론적 문장을
-    반환하며 source와 status를 모두 fallback으로 표시합니다.
+    반환하며 source와 status를 모두 fallback으로 표시합니다. extreme은 summary와
+    독립적인 주요 지표 변동 상태로, 생성 실패 여부와 관계없이 반환합니다.
     """
     return await service.get_overview_insight(trade_area_code, industry_code, quarter)
 

@@ -177,6 +177,62 @@ class SalesRepository:
             for day, amount in days
         ]
 
+    async def get_insight_pattern_facts(
+        self, trade_area_code: str, industry_code: str, quarter: str
+    ) -> dict:
+        """인사이트 후보 판정용 원천 분포를 반환한다.
+
+        기존 ``get_sales_by_*`` 메서드는 차트 계약을 유지해야 하므로, 후보 판정에
+        필요한 원천 금액과 연령 확인 매출 범위는 별도 경계로 제공한다.
+        """
+        row = await self._get_raw_row(trade_area_code, industry_code, quarter)
+        if not row:
+            return {
+                "age": {},
+                "day": {},
+                "time": {},
+                "age_identified_sales_coverage_pct": None,
+            }
+
+        age = {
+            "10대": row["agrde_10_selng_amt"],
+            "20대": row["agrde_20_selng_amt"],
+            "30대": row["agrde_30_selng_amt"],
+            "40대": row["agrde_40_selng_amt"],
+            "50대": row["agrde_50_selng_amt"],
+            "60대 이상": row["agrde_60_above_selng_amt"],
+        }
+        day = {
+            "월": row["mon_selng_amt"],
+            "화": row["tues_selng_amt"],
+            "수": row["wed_selng_amt"],
+            "목": row["thur_selng_amt"],
+            "금": row["fri_selng_amt"],
+            "토": row["sat_selng_amt"],
+            "일": row["sun_selng_amt"],
+        }
+        time = {
+            "새벽": row["tmzon_00_06_selng_amt"],
+            "오전": row["tmzon_06_11_selng_amt"],
+            "점심": row["tmzon_11_14_selng_amt"],
+            "오후": row["tmzon_14_17_selng_amt"],
+            "저녁": row["tmzon_17_21_selng_amt"],
+            "밤": row["tmzon_21_24_selng_amt"],
+        }
+        try:
+            total_sales = float(row["thsmon_selng_amt"])
+            age_sales = sum(float(value) for value in age.values())
+            coverage = age_sales / total_sales * 100 if total_sales > 0 else None
+        except (TypeError, ValueError, OverflowError):
+            coverage = None
+
+        return {
+            "age": age,
+            "day": day,
+            "time": time,
+            "age_identified_sales_coverage_pct": coverage,
+        }
+
     async def get_metrics_dataframe(
         self, quarter: str, industry_code: str
     ) -> pd.DataFrame:
