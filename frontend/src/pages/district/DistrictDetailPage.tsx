@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   useParams,
   useSearchParams,
@@ -21,7 +21,10 @@ import {
   AgeBarChart,
   DayBarChart,
 } from "../../shared/ui/Charts";
-import { useCompareStore } from "../../shared/lib/store";
+import {
+  useCompareStore,
+  useHeaderBreadcrumbStore,
+} from "../../shared/lib/store";
 import {
   formatNullable,
   formatQuarterLabel,
@@ -131,6 +134,40 @@ export const DistrictDetailPage: React.FC = () => {
     queryKey: ["trade-areas"],
     queryFn: ({ signal }) => api.getTradeAreas(signal),
   });
+
+  // 브레드크럼("서울 > OO > 업종 | 분기")이 스크롤로 헤더 밑에 가리면 헤더에 같은 내용을
+  // 노출하고, 다시 보이면 숨긴다. IntersectionObserver로 브레드크럼 자체의 노출 여부를
+  // 감지해 Header가 구독하는 전역 상태(useHeaderBreadcrumbStore)에 반영한다.
+  const breadcrumbRef = useRef<HTMLDivElement>(null);
+  const setHeaderBreadcrumb = useHeaderBreadcrumbStore((s) => s.setBreadcrumb);
+  const setHeaderBreadcrumbVisible = useHeaderBreadcrumbStore(
+    (s) => s.setVisible,
+  );
+
+  useEffect(() => {
+    if (!overview) return;
+
+    setHeaderBreadcrumb({
+      pathLabel: `서울 > ${overview.trade_area_name} > ${overview.industry_name}`,
+      quarterLabel: formatQuarterLabel(overview.quarter),
+    });
+
+    const el = breadcrumbRef.current;
+    if (!el) return;
+
+    // 헤더(h-16 = 64px) 밑으로 가리는 순간을 감지하도록 그만큼 rootMargin을 당겨준다.
+    const observer = new IntersectionObserver(
+      ([entry]) => setHeaderBreadcrumbVisible(!entry.isIntersecting),
+      { rootMargin: "-64px 0px 0px 0px" },
+    );
+    observer.observe(el);
+
+    return () => {
+      observer.disconnect();
+      setHeaderBreadcrumb(null);
+      setHeaderBreadcrumbVisible(false);
+    };
+  }, [overview, setHeaderBreadcrumb, setHeaderBreadcrumbVisible]);
 
   // Explore로 리다이렉트되는 동안 로딩/상세 화면이 잠깐 보이지 않도록 아무것도 그리지 않는다.
   if (shouldRedirectToExplore) {
@@ -251,7 +288,10 @@ export const DistrictDetailPage: React.FC = () => {
             어떻게 소비될까?
           </h1>
 
-          <div className="flex items-center gap-2 text-xs sm:text-sm font-mono text-gray-700 pt-1">
+          <div
+            ref={breadcrumbRef}
+            className="flex items-center gap-2 text-xs sm:text-sm font-mono text-gray-700 pt-1"
+          >
             <span className="font-bold text-black">
               서울 &gt; {overview.trade_area_name} &gt; {overview.industry_name}
             </span>
