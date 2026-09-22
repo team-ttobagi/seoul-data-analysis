@@ -958,16 +958,16 @@ class AnalyticsService:
                     transaction_count=scoring.none_if_nan_round(
                         row["transaction_count"]
                     ),
-                    sales_percentile=scoring.none_if_nan_round(
+                    sales_percentile=scoring.percentile_for_display(
                         row["sales_percentile"]
                     ),
-                    growth_percentile=scoring.none_if_nan_round(
+                    growth_percentile=scoring.percentile_for_display(
                         row["growth_percentile"]
                     ),
-                    volume_percentile=scoring.none_if_nan_round(
+                    volume_percentile=scoring.percentile_for_display(
                         row["volume_percentile"]
                     ),
-                    exploration_percentile=scoring.none_if_nan_round(
+                    exploration_percentile=scoring.percentile_for_display(
                         row["exploration_percentile"]
                     ),
                 )
