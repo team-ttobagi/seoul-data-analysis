@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   useParams,
   useSearchParams,
@@ -136,40 +136,6 @@ export const DistrictDetailPage: React.FC = () => {
     queryFn: ({ signal }) => api.getTradeAreas(signal),
   });
 
-  // 브레드크럼("서울 > OO > 업종 | 분기")이 스크롤로 헤더 밑에 가리면 헤더에 같은 내용을
-  // 노출하고, 다시 보이면 숨긴다. IntersectionObserver로 브레드크럼 자체의 노출 여부를
-  // 감지해 Header가 구독하는 전역 상태(useHeaderBreadcrumbStore)에 반영한다.
-  const breadcrumbRef = useRef<HTMLDivElement>(null);
-  const setHeaderBreadcrumb = useHeaderBreadcrumbStore((s) => s.setBreadcrumb);
-  const setHeaderBreadcrumbVisible = useHeaderBreadcrumbStore(
-    (s) => s.setVisible,
-  );
-
-  useEffect(() => {
-    if (!overview) return;
-
-    setHeaderBreadcrumb({
-      pathLabel: `서울 > ${overview.trade_area_name} > ${overview.industry_name}`,
-      quarterLabel: formatQuarterLabel(overview.quarter),
-    });
-
-    const el = breadcrumbRef.current;
-    if (!el) return;
-
-    // 헤더(h-16 = 64px) 밑으로 가리는 순간을 감지하도록 그만큼 rootMargin을 당겨준다.
-    const observer = new IntersectionObserver(
-      ([entry]) => setHeaderBreadcrumbVisible(!entry.isIntersecting),
-      { rootMargin: "-64px 0px 0px 0px" },
-    );
-    observer.observe(el);
-
-    return () => {
-      observer.disconnect();
-      setHeaderBreadcrumb(null);
-      setHeaderBreadcrumbVisible(false);
-    };
-  }, [overview, setHeaderBreadcrumb, setHeaderBreadcrumbVisible]);
-
   // Explore로 리다이렉트되는 동안 로딩/상세 화면이 잠깐 보이지 않도록 아무것도 그리지 않는다.
   if (shouldRedirectToExplore) {
     return null;
@@ -181,10 +147,7 @@ export const DistrictDetailPage: React.FC = () => {
   if (isOverviewLoading) {
     return (
       <div className="max-w-7xl mx-auto p-12">
-        <StatusBlock
-          kind="loading"
-          title="상권 데이터를 불러오는 중입니다..."
-        />
+        <StatusBlock kind="loading" title="상권 데이터를 불러오는 중입니다..." />
       </div>
     );
   }
@@ -424,9 +387,7 @@ export const DistrictDetailPage: React.FC = () => {
                 <span className="text-gray-300">매출 수준</span>
                 <span
                   className={`px-2 py-0.5 font-bold text-xs ${
-                    isCompError
-                      ? "bg-red-600 text-white"
-                      : "bg-white text-black"
+                    isCompError ? "bg-red-600 text-white" : "bg-white text-black"
                   }`}
                 >
                   {isCompLoading
@@ -441,9 +402,7 @@ export const DistrictDetailPage: React.FC = () => {
                 <span className="text-gray-300">거래량</span>
                 <span
                   className={`px-2 py-0.5 font-bold text-xs ${
-                    isCompError
-                      ? "bg-red-600 text-white"
-                      : "bg-white text-black"
+                    isCompError ? "bg-red-600 text-white" : "bg-white text-black"
                   }`}
                 >
                   {isCompLoading
@@ -455,20 +414,8 @@ export const DistrictDetailPage: React.FC = () => {
               </div>
 
               <div className="flex justify-between items-center py-2.5">
-                <span className="text-gray-300">경쟁 여건</span>
-                <span
-                  className={`px-2 py-0.5 font-bold text-xs ${
-                    !isCompLoading &&
-                    !isCompError &&
-                    competition?.competition_level === "좋음"
-                      ? "bg-[#4ade80] text-black"
-                      : !isCompLoading &&
-                          !isCompError &&
-                          competition?.competition_level === "보통"
-                        ? "bg-white text-black"
-                        : "bg-[#ff3b30] text-white"
-                  }`}
-                >
+                <span className="text-gray-300">경쟁 강도</span>
+                <span className="bg-[#ff3b30] text-white px-2 py-0.5 font-bold text-xs">
                   {isCompLoading
                     ? "…"
                     : isCompError
@@ -660,7 +607,9 @@ export const DistrictDetailPage: React.FC = () => {
             {/* [연동] patterns 는 소스 데이터가 없어도 404 없이 200 + 빈 배열로 내려온다.
                 loading / error / empty(slots=[])를 구분해서, 로딩/에러 중에 예시 문구가 정상
                 인사이트처럼 보이지 않게 한다. */}
-            {isPatternsLoading ? null : isPatternsError ? (
+            {isPatternsLoading ? (
+              <StatusInline kind="loading" message="시간대별 데이터를 불러오는 중입니다." />
+            ) : isPatternsError ? (
               <StatusInline
                 kind="error"
                 message={getApiErrorMessage(
@@ -681,10 +630,7 @@ export const DistrictDetailPage: React.FC = () => {
                 </div>
               </>
             ) : (
-              <StatusInline
-                kind="empty"
-                message="시간대별 데이터가 없습니다."
-              />
+              <StatusInline kind="empty" message="시간대별 데이터가 없습니다." />
             )}
           </div>
         </div>
@@ -703,7 +649,9 @@ export const DistrictDetailPage: React.FC = () => {
                 backend who.gender(female_ratio/male_ratio)는 화면에서 사용하지 않는다.
                 patterns 는 소스 데이터가 없어도 404 없이 200 + 빈 배열로 내려오므로
                 loading / error / empty(demographics=[])를 구분해서 표시한다. */}
-            {isPatternsLoading ? null : isPatternsError ? (
+            {isPatternsLoading ? (
+              <StatusInline kind="loading" message="연령대별 데이터를 불러오는 중입니다." />
+            ) : isPatternsError ? (
               <StatusInline
                 kind="error"
                 message={getApiErrorMessage(
@@ -734,10 +682,7 @@ export const DistrictDetailPage: React.FC = () => {
                 </div>
               </>
             ) : (
-              <StatusInline
-                kind="empty"
-                message="연령대별 데이터가 없습니다."
-              />
+              <StatusInline kind="empty" message="연령대별 데이터가 없습니다." />
             )}
           </div>
 
@@ -754,7 +699,9 @@ export const DistrictDetailPage: React.FC = () => {
 
             {/* [연동] patterns 는 소스 데이터가 없어도 404 없이 200 + 빈 배열로 내려온다.
                 loading / error / empty(days=[])를 구분해서 표시한다. */}
-            {isPatternsLoading ? null : isPatternsError ? (
+            {isPatternsLoading ? (
+              <StatusInline kind="loading" message="요일별 데이터를 불러오는 중입니다." />
+            ) : isPatternsError ? (
               <StatusInline
                 kind="error"
                 message={getApiErrorMessage(

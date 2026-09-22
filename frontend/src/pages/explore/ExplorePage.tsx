@@ -405,9 +405,7 @@ export const ExplorePage: React.FC = () => {
     queryKey: ["quarters"],
     queryFn: api.getQuarters,
   });
-  const selectedIndustry = industries.some(
-    (item) => item.code === industryChoice,
-  )
+  const selectedIndustry = industries.some((item) => item.code === industryChoice)
     ? industryChoice
     : ((industries.find((item) => item.code === "CS100010") ?? industries[0])
         ?.code ?? "");
@@ -415,59 +413,7 @@ export const ExplorePage: React.FC = () => {
     (item) => item.code === quarterChoice,
   )
     ? quarterChoice
-    : (quarterData[0]?.code ?? "");
-
-  const selectedCodes = useCompareStore((state) => state.selectedCodes);
-  const clearCompareDistricts = useCompareStore(
-    (state) => state.clearDistricts,
-  );
-  const [pendingCompareReset, setPendingCompareReset] = useState<{
-    filter: "industry" | "quarter";
-    value: string;
-  } | null>(null);
-
-  const requestFilterChange = (
-    filter: "industry" | "quarter",
-    value: string,
-    currentValue: string,
-  ) => {
-    if (value === currentValue) return;
-
-    if (selectedCodes.length > 0) {
-      setPendingCompareReset({ filter, value });
-      return;
-    }
-
-    if (filter === "industry") {
-      setSelectedIndustry(value);
-    } else {
-      setSelectedQuarter(value);
-    }
-  };
-
-  const handleIndustryChange = (code: string) => {
-    requestFilterChange("industry", code, selectedIndustry);
-  };
-
-  const handleQuarterChange = (code: string) => {
-    requestFilterChange("quarter", code, selectedQuarter);
-  };
-
-  const confirmCompareReset = () => {
-    if (!pendingCompareReset) return;
-
-    clearCompareDistricts();
-    if (pendingCompareReset.filter === "industry") {
-      setSelectedIndustry(pendingCompareReset.value);
-    } else {
-      setSelectedQuarter(pendingCompareReset.value);
-    }
-    setPendingCompareReset(null);
-  };
-
-  const cancelCompareReset = () => {
-    setPendingCompareReset(null);
-  };
+    : quarterData[0]?.code ?? "";
 
   // store(industryChoice/quarterChoice)가 비어있어 기본값(CS100010/최신 분기)으로 대체된
   // 경우에도, 실제로 조회에 쓰인 값을 store에 반영해둔다. ComparePage는 이 store 값을 그대로
@@ -485,9 +431,7 @@ export const ExplorePage: React.FC = () => {
     }
   }, [selectedQuarter, quarterChoice, setSelectedQuarter]);
 
-  const selectedRegion =
-    districts.find((item) => item.signgu_cd === selectedDistrictCode)
-      ?.signgu_cd_nm ?? "서울 전체";
+  const selectedRegion = districts.find((item) => item.signgu_cd === selectedDistrictCode)?.signgu_cd_nm ?? "서울 전체";
   const [activeItemCode, setActiveItemCode] = useState<string>("");
 
   const {

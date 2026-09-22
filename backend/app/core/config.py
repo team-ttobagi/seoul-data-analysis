@@ -8,7 +8,7 @@ ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "SEOUL DATA PLAYGROUND API"
+    PROJECT_NAME: str = "SPOT RADER"
     VERSION: str = "0.1.0"
     API_V1_STR: str = "/api/v1"
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/seouldata"
@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     SEOUL_API_KEY: str = ""
     SEOUL_API_BASE_URL: str = "http://openapi.seoul.go.kr:8088"
 
-    GEMINI_ENABLED: bool = False
+    GEMINI_ENABLED: bool = True
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-3.1-flash-lite"
     GEMINI_TIMEOUT_SECONDS: float = Field(default=6.0, ge=2.0, le=10)
