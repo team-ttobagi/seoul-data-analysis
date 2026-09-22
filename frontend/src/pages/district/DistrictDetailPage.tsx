@@ -636,6 +636,12 @@ export const DistrictDetailPage: React.FC = () => {
                   `상위 ${overview.kpis.sales_percentile}%`}
                 {rankTab === "volume" &&
                   `상위 ${overview.kpis.volume_percentile}%`}
+                {rankTab === "growth" &&
+                  overview.kpis.growth_percentile != null &&
+                  `상위 ${overview.kpis.growth_percentile}%`}
+                {/* {rankTab === "score" &&
+                  overview.kpis.exploration_percentile != null &&
+                  `상위 ${overview.kpis.exploration_percentile}%`} */}
               </span>
             </div>
           </div>
