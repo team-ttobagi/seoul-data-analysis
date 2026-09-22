@@ -49,10 +49,9 @@ async def get_summary(
     """선택한 상권·업종·분기의 매출 요약과 서울 비교 지표를 반환합니다.
 
     분기 추정 매출액, 거래건수, QoQ 매출 성장률, 서울 종합 순위와
-    매출·성장률·거래건수·ExplorationScore의 네 가지 Benchmark Percentile을 제공합니다.
-    순위와 Percentile은 동일 분기·동일 업종의 서울 상권을 비교하며,
-    상권 상세 개요 API와 같은 통합 점수 테이블을 사용합니다. CompetitionScore의
-    Percentile은 seoul_rank 산정용 내부 값이며 이 응답에는 포함하지 않습니다.
+    매출·거래건수의 Benchmark Percentile을 제공합니다. 순위와 Percentile은
+    동일 분기·동일 업종의 서울 상권을 비교하며, 상권 상세 개요 API와 같은
+    계산 결과를 사용합니다.
 
     조회 조건에 맞는 매출 데이터가 없거나 DB 연결 또는 매출 조회가 실패하면
     HTTP 200과 null을 반환합니다. 전분기 매출이 없거나 0 이하이면

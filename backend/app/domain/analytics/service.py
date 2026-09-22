@@ -816,6 +816,9 @@ class AnalyticsService:
             sales_percentile=round(row["sales_percentile"]),
             growth_percentile=scoring.none_if_nan_round(row["growth_percentile"]),
             volume_percentile=round(row["volume_percentile"]),
+            exploration_percentile=scoring.none_if_nan_round(
+                row["exploration_percentile"]
+            ),
             store_count=store_trend.store_count if store_trend else None,
             store_count_change=store_trend.store_count_change if store_trend else None,
             competition_level=scoring.competition_grade_from_score(
@@ -826,10 +829,12 @@ class AnalyticsService:
         )
 
         why_explore = {
+            "sales_percentile": kpis.sales_percentile,
             "growth_rate": kpis.qoq_growth_rate,
             "growth_percentile": kpis.growth_percentile,
             "volume_formatted": kpis.transaction_count_formatted,
             "volume_percentile": kpis.volume_percentile,
+            "exploration_percentile": kpis.exploration_percentile,
             "store_count": kpis.store_count,
             "competition_text": f"경쟁 여건 {kpis.competition_level or '정보 없음'}",
         }
@@ -948,6 +953,23 @@ class AnalyticsService:
                     sales_formatted=formatted,
                     sales_raw=float(raw),
                     is_current=(row["trdar_cd"] == current_code),
+                    score=scoring.none_if_nan_round(row["exploration_score"]),
+                    growth_rate=scoring.none_if_nan(row["growth_rate"]),
+                    transaction_count=scoring.none_if_nan_round(
+                        row["transaction_count"]
+                    ),
+                    sales_percentile=scoring.none_if_nan_round(
+                        row["sales_percentile"]
+                    ),
+                    growth_percentile=scoring.none_if_nan_round(
+                        row["growth_percentile"]
+                    ),
+                    volume_percentile=scoring.none_if_nan_round(
+                        row["volume_percentile"]
+                    ),
+                    exploration_percentile=scoring.none_if_nan_round(
+                        row["exploration_percentile"]
+                    ),
                 )
             )
         return items
