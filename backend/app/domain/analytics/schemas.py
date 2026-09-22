@@ -132,6 +132,14 @@ class DistrictKpis(BaseModel):
     volume_percentile: int = Field(
         description="동일 분기·업종의 서울 상권 중 거래건수 기준 상위 N%. 내림차순 최소 순위 / 비교 대상 수 × 100을 반올림하며 작을수록 거래건수 상위권이다."
     )
+    exploration_percentile: Optional[int] = Field(
+        default=None,
+        description=(
+            "동일 분기·업종의 서울 상권 중 ExplorationScore 기준 상위 N%. "
+            "내림차순 최소 순위 / 유효 비교 대상 수 × 100을 반올림하며 낮을수록 탐색점수 상위권이다. "
+            "성장률·거래건수 또는 CompetitionScore가 부족해 ExplorationScore를 산출할 수 없으면 null이다."
+        ),
+    )
     store_count: Optional[int] = Field(
         default=None,
         description="선택한 분기·상권·업종의 현재 분기 동일 업종 점포 수(개). 현재 분기 점포 데이터가 없으면 null이다.",
@@ -177,15 +185,31 @@ class DistrictRankingItem(BaseModel):
     )
     score: Optional[int] = Field(
         default=None,
-        description="별도 ExplorationScore 필드. 현재 순위 응답에서는 값을 채우지 않아 null이며, by_score의 점수는 sales_raw와 sales_formatted에 담긴다.",
+        description="해당 상권의 반올림한 ExplorationScore(점). by_score에서는 sales_raw와 sales_formatted에도 같은 값이 담긴다.",
     )
     growth_rate: Optional[float] = Field(
         default=None,
-        description="별도 QoQ 매출 성장률 필드. 현재 순위 응답에서는 값을 채우지 않아 null이며, by_growth의 성장률은 sales_raw와 sales_formatted에 담긴다.",
+        description="해당 상권의 QoQ 매출 성장률(%). by_growth에서는 sales_raw와 sales_formatted에도 같은 값이 담긴다.",
     )
     transaction_count: Optional[int] = Field(
         default=None,
-        description="별도 거래건수 필드. 현재 순위 응답에서는 값을 채우지 않아 null이며, by_volume의 거래건수는 sales_raw와 sales_formatted에 담긴다.",
+        description="해당 상권의 거래건수(건). by_volume에서는 sales_raw와 sales_formatted에도 같은 값이 담긴다.",
+    )
+    sales_percentile: Optional[int] = Field(
+        default=None,
+        description="해당 상권의 매출액 Benchmark Percentile. 낮을수록 매출 상위권이다.",
+    )
+    growth_percentile: Optional[int] = Field(
+        default=None,
+        description="해당 상권의 QoQ 매출 성장률 Benchmark Percentile. 성장률을 산출할 수 없으면 null이다.",
+    )
+    volume_percentile: Optional[int] = Field(
+        default=None,
+        description="해당 상권의 거래건수 Benchmark Percentile. 낮을수록 거래건수 상위권이다.",
+    )
+    exploration_percentile: Optional[int] = Field(
+        default=None,
+        description="해당 상권의 ExplorationScore Benchmark Percentile. 탐색 점수를 산출할 수 없으면 null이다.",
     )
 
 
@@ -303,8 +327,9 @@ class DistrictOverviewResponse(BaseModel):
     )
     why_explore: Dict[str, Any] = Field(
         description=(
-            "상세 화면의 탐색 이유. growth_rate는 QoQ 매출 성장률(%), growth_percentile은 성장률 상위 N%, "
-            "volume_formatted는 축약한 거래건수, volume_percentile은 거래건수 상위 N%이며 kpis와 같은 값이다. "
+            "상세 화면의 탐색 이유. sales_percentile, growth_percentile, volume_percentile, "
+            "exploration_percentile은 각각 매출·성장률·거래건수·ExplorationScore의 상위 N%이며 kpis와 같은 값이다. "
+            "growth_rate는 QoQ 매출 성장률(%), volume_formatted는 축약한 거래건수이다. "
             "store_count는 동일 업종 점포 수(개), competition_text는 경쟁 여건 등급 표시 문구이다. "
             "직전 분기 데이터가 없거나 매출이 0 이하이면 growth_rate와 growth_percentile은 null이다."
         ),
@@ -314,7 +339,8 @@ class DistrictOverviewResponse(BaseModel):
             "상세 화면 '어디가 강할까?'의 서울 전체 상권 순위표. 동일 분기·업종에서 by_sales는 매출액, "
             "by_volume은 거래건수, by_growth는 QoQ 매출 성장률, by_score는 ExplorationScore 내림차순으로 "
             "각각 최대 5개를 반환한다. 성장률·점수를 산출할 수 없는 상권은 해당 순위에서 제외하며 "
-            "유효 후보가 없으면 빈 목록이다. 현재 상권이 상위 5개 밖이면 별도 추가하지 않는다."
+            "유효 후보가 없으면 빈 목록이다. 현재 상권이 상위 5개 밖이면 별도 추가하지 않는다. "
+            "각 항목에는 매출·성장률·거래건수·ExplorationScore의 네 가지 Benchmark Percentile을 담는다."
         ),
     )
     takeaway: DistrictTakeaway = Field(

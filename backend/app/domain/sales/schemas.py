@@ -8,13 +8,6 @@ class QuarterOptionResponse(BaseModel):
 
 
 class SalesSummarySchema(BaseModel):
-    """상권 상세 개요 API와 동일한 통합 점수 테이블의 매출·비교 요약 응답.
-
-    서울 종합 순위는 매출·성장률·거래건수·CompetitionScore의 네 가지
-    내부 Benchmark Percentile 평균으로 산정한다. 응답에는 매출·성장률·거래건수와
-    ExplorationScore Percentile을 제공하며, CompetitionScore Percentile은 내부 계산 전용이다.
-    """
-
     quarter: str = Field(description="매출 조회 기준 분기. 요청한 quarter 문자열을 그대로 반환합니다.")
     trade_area_code: str = Field(description="매출을 조회한 상권 코드. 요청값의 영문을 대문자로 변환한 값입니다.")
     industry_code: str = Field(description="매출을 조회한 서비스 업종 코드(svc_induty_cd).")
@@ -42,7 +35,6 @@ class SalesSummarySchema(BaseModel):
         description=(
             "동일 분기·동일 업종의 서울 종합 순위. 매출·성장·거래건수·CompetitionScore의 "
             "4개 Benchmark Percentile 평균이 낮을수록 상위이며 동점은 같은 순위입니다. "
-            "상권 상세 개요 API와 동일한 통합 점수 테이블을 사용합니다. "
             "전분기 매출 부재 또는 0 이하, 점포 데이터·폐업률 부재, 점포 수 0 이하 등으로 "
             "필요한 Percentile을 산출하지 못하면 null입니다."
         ),
@@ -53,26 +45,10 @@ class SalesSummarySchema(BaseModel):
             "매출 내림차순 순위 / 비교 대상 수 × 100이며 낮을수록 상위권입니다."
         ),
     )
-    growth_percentile: Optional[int] = Field(
-        default=None,
-        description=(
-            "동일 분기·동일 업종 내 QoQ 매출 성장률이 유효한 상권 중 성장률의 Benchmark Percentile을 "
-            "정수 반올림한 값(%). 성장률 내림차순 순위 / 유효 비교 대상 수 × 100이며 낮을수록 상위권입니다. "
-            "전분기 매출이 없거나 0 이하이면 null입니다."
-        ),
-    )
     volume_percentile: int = Field(
         description=(
             "동일 분기·동일 업종 내 거래건수의 Benchmark Percentile을 정수 반올림한 값(%). "
             "거래건수 내림차순 순위 / 비교 대상 수 × 100이며 낮을수록 상위권입니다."
-        ),
-    )
-    exploration_percentile: Optional[int] = Field(
-        default=None,
-        description=(
-            "동일 분기·동일 업종 내 ExplorationScore의 Benchmark Percentile을 정수 반올림한 값(%). "
-            "ExplorationScore 내림차순 순위 / 유효 비교 대상 수 × 100이며 낮을수록 탐색 점수 상위권입니다. "
-            "성장률·거래건수 또는 경쟁 점수 구성 지표가 부족해 ExplorationScore를 계산할 수 없으면 null입니다."
         ),
     )
 

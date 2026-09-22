@@ -220,8 +220,9 @@ async def get_district_overview(
     null입니다. Percentile은 '상위 N%'를 뜻하므로 낮을수록 상위권입니다.
 
     rankings는 Sales, Transaction, GrowthRate, ExplorationScore별 내림차순
-    상위 5개를 제공합니다. 성장률·탐색 점수 산출 불가 상권은 해당 순위에서 제외합니다.
-    각 순위 항목의 sales_raw와 sales_formatted는 선택한 지표의 원본값과 표시값입니다.
+    상위 5개를 제공합니다. 성장률·탐색 점수 산출 불가 상권은 해당 순위에서 제외하며,
+    각 항목에는 매출·성장률·거래건수·ExplorationScore의 Benchmark Percentile을 제공합니다.
+    CompetitionScore Percentile은 seoul_rank 내부 산정에만 사용합니다.
 
     takeaway.score는 `GrowthScore × 0.40 + TransactionScore × 0.35 + CompetitionScore × 0.25`인
     ExplorationScore를 반올림한 값입니다.
