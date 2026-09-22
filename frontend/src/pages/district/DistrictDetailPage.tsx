@@ -639,9 +639,9 @@ export const DistrictDetailPage: React.FC = () => {
                 {rankTab === "growth" &&
                   overview.kpis.growth_percentile != null &&
                   `상위 ${overview.kpis.growth_percentile}%`}
-                {/* {rankTab === "score" &&
+                {rankTab === "score" &&
                   overview.kpis.exploration_percentile != null &&
-                  `상위 ${overview.kpis.exploration_percentile}%`} */}
+                  `상위 ${overview.kpis.exploration_percentile}%`}
               </span>
             </div>
           </div>
