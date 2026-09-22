@@ -159,6 +159,19 @@ def none_if_nan_round(value) -> Optional[int]:
     return None if value is None else round(value)
 
 
+def percentile_for_display(value: Optional[float]) -> Optional[int | float]:
+    """0%로 반올림되는 양수 백분위만 소수점 첫째 자리까지 반환한다."""
+    if value is None or pd.isna(value):
+        return None
+
+    rounded = round(value)
+
+    if value > 0 and rounded == 0:
+        return round(value, 1)
+
+    return rounded
+
+
 def signal_from_score(score: Optional[float]) -> Optional[str]:
     """산출 정의서 7.1 — signals.* 필드에 사용할 영문 등급."""
     if score is None or pd.isna(score):

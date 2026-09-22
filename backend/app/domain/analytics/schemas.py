@@ -195,19 +195,23 @@ class DistrictRankingItem(BaseModel):
         default=None,
         description="해당 상권의 거래건수(건). by_volume에서는 sales_raw와 sales_formatted에도 같은 값이 담긴다.",
     )
-    sales_percentile: Optional[int] = Field(
+    # 백분위
+    sales_percentile: Optional[int | float] = Field(
         default=None,
         description="해당 상권의 매출액 Benchmark Percentile. 낮을수록 매출 상위권이다.",
     )
-    growth_percentile: Optional[int] = Field(
+
+    growth_percentile: Optional[int | float] = Field(
         default=None,
         description="해당 상권의 QoQ 매출 성장률 Benchmark Percentile. 성장률을 산출할 수 없으면 null이다.",
     )
-    volume_percentile: Optional[int] = Field(
+
+    volume_percentile: Optional[int | float] = Field(
         default=None,
         description="해당 상권의 거래건수 Benchmark Percentile. 낮을수록 거래건수 상위권이다.",
     )
-    exploration_percentile: Optional[int] = Field(
+
+    exploration_percentile: Optional[int | float] = Field(
         default=None,
         description="해당 상권의 ExplorationScore Benchmark Percentile. 탐색 점수를 산출할 수 없으면 null이다.",
     )
