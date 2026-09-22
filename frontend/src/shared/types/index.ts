@@ -82,6 +82,7 @@ export interface DistrictKpis {
   sales_percentile: number; // e.g. 18 (상위 18%)
   growth_percentile: number | null; // e.g. 24 (상위 24%). 직전 분기 데이터가 없어 성장률을 구할 수 없으면 null.
   volume_percentile: number; // e.g. 12 (상위 12%)
+  exploration_percentile: number | null;
   competition_level: string | null; // 실제 값: "높음" | "보통" | "낮음"
   sales_level: string | null;
   volume_level: string | null;
