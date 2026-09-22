@@ -1,8 +1,10 @@
 import logging
 from typing import Any, List, Mapping, Optional
 import pandas as pd
+from asyncpg import PostgresError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
+from sqlalchemy.exc import SQLAlchemyError
 
 from backend.app.domain.sales import scoring
 from backend.app.domain.sales.models import SalesDataModel
@@ -35,9 +37,9 @@ class SalesRepository:
             )
             result = await self.session.execute(stmt)
             return list(result.scalars().all())
-        except Exception:
+        except (SQLAlchemyError, PostgresError):
             logger.exception("Failed to load sales quarter codes from DB")
-            return []
+            raise
 
     async def get_sales_summary(
         self, trade_area_code: str, industry_code: str, quarter: str
@@ -290,9 +292,9 @@ class SalesRepository:
                 },
             )
             return [dict(row) for row in result.mappings().all()]
-        except Exception:
+        except (SQLAlchemyError, PostgresError):
             logger.exception("Failed to load sales metrics from DB")
-            return []
+            raise
 
     async def _get_raw_row(
         self, trade_area_code: str, industry_code: str, quarter: str
@@ -314,9 +316,9 @@ class SalesRepository:
                 },
             )
             return result.mappings().first()
-        except Exception:
+        except (SQLAlchemyError, PostgresError):
             logger.exception("Failed to load sales data row from DB")
-            return None
+            raise
 
 
 def _format_amount(amount: int) -> str:
