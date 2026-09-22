@@ -108,6 +108,7 @@ def get_analytics_service(
         sales_repo=sales_repo,
         industry_repo=industry_repo,
         store_service=store_service,
+        db_session=db,
     )
 
 
@@ -128,6 +129,7 @@ def get_insight_analytics_service(
         store_service=store_service,
         insight_generator=insight_generator,
         insight_timeout_seconds=settings.GEMINI_TIMEOUT_SECONDS,
+        db_session=db,
     )
 
 

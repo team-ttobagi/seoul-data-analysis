@@ -12,17 +12,22 @@ from backend.app.core.config import settings
 def create_database_engine(database_url: str) -> AsyncEngine:
     """Create the application engine with PostgreSQL connection safeguards."""
     if database_url.startswith("postgresql://"):
-        database_url = database_url.replace(
-            "postgresql://", "postgresql+asyncpg://", 1
+        database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+    engine_options = {
+        "echo": False,
+        "future": True,
+        "pool_pre_ping": True,
+        "pool_recycle": 1800,
+    }
+    if database_url.startswith("postgresql"):
+        engine_options.update(
+            pool_size=2,
+            max_overflow=3,
+            pool_timeout=10,
         )
 
-    return create_async_engine(
-        database_url,
-        echo=False,
-        future=True,
-        pool_pre_ping=True,
-        pool_recycle=1800,
-    )
+    return create_async_engine(database_url, **engine_options)
 
 
 engine = create_database_engine(settings.DATABASE_URL)
