@@ -15,6 +15,9 @@ from typing import (
 )
 
 import pandas as pd
+from asyncpg import PostgresError
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.domain.analytics.schemas import (
     RecommendationItemResponse,
@@ -222,6 +225,7 @@ class AnalyticsService:
         store_service: StoreService,
         insight_generator: Optional[OverviewInsightGenerator] = None,
         insight_timeout_seconds: float = 6.0,
+        db_session: Optional[AsyncSession] = None,
     ):
         if not 0 < insight_timeout_seconds <= 10:
             raise ValueError(
@@ -233,6 +237,7 @@ class AnalyticsService:
         self.store_service = store_service
         self.insight_generator = insight_generator
         self.insight_timeout_seconds = insight_timeout_seconds
+        self.db_session = db_session
 
     async def _get_overview_data(
         self,
@@ -329,7 +334,7 @@ class AnalyticsService:
         industry_code: str,
         quarter: str,
     ) -> Optional[dict]:
-        """원천 패턴 facts를 조회하고, 조회 실패는 None으로 구분한다."""
+        """원천 패턴 facts를 조회하고, 비DB 오류만 None으로 격리한다."""
         try:
             facts = await self.sales_repo.get_insight_pattern_facts(
                 trade_area_code, industry_code, quarter
@@ -337,6 +342,18 @@ class AnalyticsService:
             if not isinstance(facts, dict):
                 raise TypeError("pattern facts must be a dictionary")
             return facts
+        except (SQLAlchemyError, PostgresError):
+            logger.exception(
+                "인사이트 패턴 원천 데이터 조회 중 DB 오류가 발생했다",
+                extra={
+                    "event": "analytics.overview_insight_data_failed",
+                    "reason": "patterns_database_error",
+                    "trade_area_code": trade_area_code,
+                    "industry_code": industry_code,
+                    "quarter": quarter,
+                },
+            )
+            raise
         except Exception:
             logger.exception(
                 "인사이트 패턴 원천 데이터 조회에 실패했다 (reason=patterns_error)",
@@ -356,13 +373,25 @@ class AnalyticsService:
         industry_code: str,
         quarter: str,
     ) -> Optional[StoreSummarySchema]:
-        """점포 요약을 조회하고 실패 시 결측으로 격리한다."""
+        """점포 요약을 조회하고 비DB 오류만 결측으로 격리한다."""
         try:
             return await self.store_service.get_summary(
                 trade_area_code=trade_area_code,
                 industry_code=industry_code,
                 quarter=quarter,
             )
+        except (SQLAlchemyError, PostgresError):
+            logger.exception(
+                "인사이트 점포 원천 데이터 조회 중 DB 오류가 발생했다",
+                extra={
+                    "event": "analytics.overview_insight_data_failed",
+                    "reason": "store_summary_database_error",
+                    "trade_area_code": trade_area_code,
+                    "industry_code": industry_code,
+                    "quarter": quarter,
+                },
+            )
+            raise
         except Exception:
             logger.exception(
                 "인사이트 점포 원천 데이터 조회에 실패했다 (reason=store_summary_error)",
@@ -382,13 +411,25 @@ class AnalyticsService:
         industry_code: str,
         quarter: str,
     ) -> Optional[StoreTrendSchema]:
-        """인사이트용 점포 추이를 조회하고 실패 시 결측으로 격리한다."""
+        """인사이트용 점포 추이를 조회하고 비DB 오류만 결측으로 격리한다."""
         try:
             return await self.store_service.get_store_trend(
                 trade_area_code=trade_area_code,
                 industry_code=industry_code,
                 quarter=quarter,
             )
+        except (SQLAlchemyError, PostgresError):
+            logger.exception(
+                "인사이트 점포 추이 조회 중 DB 오류가 발생했다",
+                extra={
+                    "event": "analytics.overview_insight_data_failed",
+                    "reason": "store_trend_database_error",
+                    "trade_area_code": trade_area_code,
+                    "industry_code": industry_code,
+                    "quarter": quarter,
+                },
+            )
+            raise
         except Exception:
             logger.exception(
                 "인사이트 점포 추이 원천 데이터 조회에 실패했다 (reason=store_trend_error)",
@@ -519,6 +560,9 @@ class AnalyticsService:
             store_summary=store_summary,
             store_trend=store_trend,
         )
+        if self.db_session is not None:
+            # DB 읽기 트랜잭션을 외부 Gemini 호출 동안 유지하지 않는다.
+            await self.db_session.rollback()
         return await self._generate_overview_insight(
             trade_area_code=trade_area_code,
             industry_name=industry_name,

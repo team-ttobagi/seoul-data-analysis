@@ -18,16 +18,13 @@ from .prompts import SYSTEM_INSTRUCTION, build_overview_input
 from .schemas import OverviewTakeawayInsight
 
 _NUMBER = re.compile(r"[+-]?\d+(?:,\d{3})*(?:\.\d+)?")
-_AMOUNT_PART_PATTERN = (
-    r"[+-]?\d+(?:,\d{3})*(?:\.\d+)?\s*(?:억|만|천|원)"
-)
+_AMOUNT_PART_PATTERN = r"[+-]?\d+(?:,\d{3})*(?:\.\d+)?\s*(?:억|만|천|원)"
 _AMOUNT_EXPRESSION = re.compile(
     rf"(?P<expression>{_AMOUNT_PART_PATTERN}"
     rf"(?:\s*{_AMOUNT_PART_PATTERN})*)(?:\s*원)?"
 )
 _AMOUNT_PART = re.compile(
-    r"(?P<number>[+-]?\d+(?:,\d{3})*(?:\.\d+)?)\s*"
-    r"(?P<unit>억|만|천|원)"
+    r"(?P<number>[+-]?\d+(?:,\d{3})*(?:\.\d+)?)\s*" r"(?P<unit>억|만|천|원)"
 )
 _AMOUNT_MULTIPLIERS = {
     "억": Decimal("100000000"),
@@ -35,6 +32,16 @@ _AMOUNT_MULTIPLIERS = {
     "천": Decimal("1000"),
     "원": Decimal("1"),
 }
+_COUNT_UNIT_PART_PATTERN = r"[+-]?\d+(?:,\d{3})*(?:\.\d+)?\s*(?:억|만|천)"
+_COUNT_EXPRESSION = re.compile(
+    rf"(?P<expression>{_COUNT_UNIT_PART_PATTERN}"
+    rf"(?:\s*{_COUNT_UNIT_PART_PATTERN})*"
+    rf"(?:\s*[+-]?\d+(?:,\d{{3}})*(?:\.\d+)?)?"
+    rf"\s*(?:건|개|곳|명|회))"
+)
+_COUNT_PART = re.compile(
+    r"(?P<number>[+-]?\d+(?:,\d{3})*(?:\.\d+)?)\s*" r"(?P<unit>억|만|천)?"
+)
 _AMOUNT_FIELDS = (
     "current_sales",
     "previous_sales",
@@ -130,7 +137,11 @@ def _category_value_level(value: str, field: str) -> str | None:
             return "좋음"
         if normalized == "보통":
             return "보통"
-        if normalized == "나쁨" or normalized.startswith("나쁘") or "불리" in normalized:
+        if (
+            normalized == "나쁨"
+            or normalized.startswith("나쁘")
+            or "불리" in normalized
+        ):
             return "나쁨"
         return None
     if "유리" in normalized:
@@ -283,13 +294,44 @@ def _parse_amount_expression(expression: str) -> tuple[Decimal, Decimal]:
         decimal_places = max(0, -number.as_tuple().exponent)
         part_precision = multiplier / (Decimal("10") ** decimal_places)
         precision = (
-            part_precision
-            if precision is None
-            else min(precision, part_precision)
+            part_precision if precision is None else min(precision, part_precision)
         )
     if precision is None:
         raise ValueError(f"금액 표현을 해석할 수 없습니다: {expression!r}")
     return total, precision
+
+
+def _parse_count_expression(expression: str) -> Decimal:
+    """한국어 단위가 포함된 거래건수 표현을 실제 건수로 환산한다."""
+    total = Decimal("0")
+    for part in _COUNT_PART.finditer(expression):
+        number = Decimal(_normalize_number(part.group("number")))
+        multiplier = _AMOUNT_MULTIPLIERS.get(part.group("unit"), Decimal("1"))
+        total += number * multiplier
+    return total
+
+
+def _count_spans(summary: str) -> list[tuple[int, int]]:
+    return [match.span() for match in _COUNT_EXPRESSION.finditer(summary)]
+
+
+def _validate_count_grounding(
+    summary: str, context: dict[str, Any]
+) -> list[tuple[int, int]]:
+    """거래건수의 복합 한국어 숫자 표현을 전체 값으로 검증한다."""
+    count_spans = _count_spans(summary)
+    for match in _COUNT_EXPRESSION.finditer(summary):
+        displayed_count = _parse_count_expression(match.group("expression"))
+        if not any(
+            displayed_count == Decimal(str(abs(source)))
+            for field in _COUNT_FIELDS
+            if (source := _as_numeric(context.get(field))) is not None
+        ):
+            raise GeminiInsightResponseError(
+                "거래건수 근거 검증에 실패했습니다: "
+                f"expression={match.group('expression')!r}, summary={summary!r}"
+            )
+    return count_spans
 
 
 def _amount_matches_source(
@@ -298,11 +340,9 @@ def _amount_matches_source(
     source: float,
 ) -> bool:
     source_amount = Decimal(str(abs(source)))
-    rounded_source = (
-        (source_amount / display_precision)
-        .quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-        * display_precision
-    )
+    rounded_source = (source_amount / display_precision).quantize(
+        Decimal("1"), rounding=ROUND_HALF_UP
+    ) * display_precision
     return abs(displayed_amount) == rounded_source
 
 
@@ -311,7 +351,13 @@ def _validate_amount_grounding(
 ) -> list[tuple[int, int]]:
     """한국어 금액 표현을 해석해 입력 금액과 반올림 기준을 검증한다."""
     amount_spans: list[tuple[int, int]] = []
+    count_spans = _count_spans(summary)
     for match in _AMOUNT_EXPRESSION.finditer(summary):
+        if any(
+            count_start <= match.start() and match.end() <= count_end
+            for count_start, count_end in count_spans
+        ):
+            continue
         expression = match.group("expression")
         displayed_amount, display_precision = _parse_amount_expression(expression)
         if not any(
@@ -379,14 +425,15 @@ def _numeric_grounding_error(
 def _validate_numeric_whitelist(summary: str, context: dict[str, Any]) -> None:
     """요약의 숫자가 입력 컨텍스트의 허용 숫자 목록에 포함되는지 확인한다."""
     whitelist = _build_numeric_whitelist(context)
+    count_spans = _validate_count_grounding(summary, context)
     amount_spans = _validate_amount_grounding(summary, context)
     period_spans = [match.span() for match in _PERIOD_LITERAL.finditer(summary)]
     for number in _NUMBER.finditer(summary):
         if any(
             number.start() >= start and number.end() <= end
-            for start, end in amount_spans
+            for start, end in [*amount_spans, *count_spans]
         ):
-            # 금액 표현은 이미 단위 조합 전체를 환산해 검증했다.
+            # 금액·거래건수 표현은 이미 단위 조합 전체를 환산해 검증했다.
             continue
         if any(
             number.start() >= start and number.end() <= end

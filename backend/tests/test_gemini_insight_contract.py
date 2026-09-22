@@ -131,6 +131,28 @@ def test_numeric_grounding_accepts_korean_amount_units_and_rounded_rate():
         )
 
 
+def test_numeric_grounding_accepts_full_korean_transaction_count_expressions():
+    count_context = _context(
+        transaction_count=182576,
+        transaction_change_count=82520,
+    )
+
+    _ensure_grounding(
+        "거래건수가 8만 2,520건 증가했고 거래건수도 18만 2,576건입니다.",
+        build_overview_input(count_context),
+    )
+
+
+def test_numeric_grounding_rejects_ungrounded_full_korean_transaction_count():
+    count_context = _context(transaction_count=82520)
+
+    with pytest.raises(GeminiInsightResponseError):
+        _ensure_grounding(
+            "거래건수는 8만 2,521건입니다.",
+            build_overview_input(count_context),
+        )
+
+
 def test_tag_is_omitted_when_candidates_are_empty():
     prompt = build_overview_input(_context(tag_candidates=[]))
 
