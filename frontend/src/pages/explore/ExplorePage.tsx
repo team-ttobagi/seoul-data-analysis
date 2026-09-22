@@ -978,16 +978,14 @@ function TradeAreaResults({
                   <button
                     type="button"
                     onClick={() => onSelect(area)}
-                    className="flex w-full items-center justify-between gap-3 bg-white p-3 text-left focus:outline-2 focus:outline-black hover:bg-[#F8F7F2]"
+                    className="flex w-full items-center bg-white p-3 text-left focus:outline-2 focus:outline-black hover:bg-[#F8F7F2]"
                   >
-                    <span>
+                    <span className="min-w-0 truncate whitespace-nowrap">
                       <span className="font-bold">{area.name}</span>
                       <span className="ml-2 text-gray-600">
                         {area.district_name ?? "자치구 정보 없음"}
                       </span>
                     </span>
-
-                    <span className="shrink-0 text-xs font-bold">선택</span>
                   </button>
                 </li>
               );
