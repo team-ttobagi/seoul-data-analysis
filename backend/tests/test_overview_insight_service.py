@@ -4,6 +4,7 @@ from typing import cast
 
 import pandas as pd
 import pytest
+from asyncpg.exceptions import InternalServerError
 
 from backend.app.domain.analytics.service import AnalyticsService
 from backend.app.domain.sales.repository import SalesRepository
@@ -53,7 +54,7 @@ def _metrics_repo(row: dict, pattern_facts: dict | None = None):
     )
 
 
-def _service(row: dict, generator=None, sales_repo=None):
+def _service(row: dict, generator=None, sales_repo=None, db_session=None):
     trade_area_repo = cast(
         TradeAreaRepository,
         SimpleNamespace(
@@ -86,6 +87,7 @@ def _service(row: dict, generator=None, sales_repo=None):
         sales_repo=resolved_sales_repo,
         store_service=store_service,
         insight_generator=generator,
+        db_session=db_session,
     )
 
 
@@ -105,9 +107,7 @@ async def test_extreme_survives_generator_unavailable_fallback():
         "store_count_change": 0,
     }
 
-    response = await _service(row).get_overview_insight(
-        "3110729", "CS300021", "20262"
-    )
+    response = await _service(row).get_overview_insight("3110729", "CS300021", "20262")
 
     assert response.extreme is True
     assert response.source == "fallback"
@@ -130,9 +130,7 @@ async def test_fallback_includes_verified_pattern_tags():
         "store_count_change": 0,
     }
 
-    response = await _service(row).get_overview_insight(
-        "3111067", "CS200029", "20262"
-    )
+    response = await _service(row).get_overview_insight("3111067", "CS200029", "20262")
 
     assert response.source == "fallback"
     assert response.status == "fallback"
@@ -154,8 +152,28 @@ class _FailingGenerator:
         raise RuntimeError("provider unavailable")
 
 
+class _SessionAwareGenerator:
+    def __init__(self, session):
+        self.session = session
+
+    async def generate(self, context):
+        assert self.session.rollback_called is True
+        return "[40대·저녁 중심] 거래건수는 유지됐지만 거래당 추정 매출액이 16.6% 증가했습니다."
+
+
+class _TrackingSession:
+    rollback_called = False
+
+    async def rollback(self):
+        self.rollback_called = True
+
+
 async def _raise_pattern_lookup_error(*_):
     raise RuntimeError("pattern facts unavailable")
+
+
+async def _raise_pattern_db_error(*_):
+    raise InternalServerError("EMAXCONNSESSION max clients reached")
 
 
 class _TwoSentenceGenerator:
@@ -191,8 +209,37 @@ async def test_context_contains_verified_relationship_metrics_and_allowed_candid
     assert generator.context.current_sales == 3271104
     assert generator.context.transaction_count == 76
     assert generator.context.transaction_qoq_rate == 0
-    assert generator.context.sales_per_transaction_qoq_rate == pytest.approx(16.59, rel=1e-3)
+    assert generator.context.sales_per_transaction_qoq_rate == pytest.approx(
+        16.59, rel=1e-3
+    )
     assert generator.context.tag_candidates == ["40대", "저녁"]
+
+
+@pytest.mark.asyncio
+async def test_overview_insight_releases_read_transaction_before_external_generation():
+    row = {
+        "trdar_cd": "3111067",
+        "sales": 3271104,
+        "transaction_count": 76,
+        "prev_sales": 2805601,
+        "prev_transaction_count": 76,
+        "growth_rate": 16.59191738240755,
+        "growth_score": 30.0,
+        "transaction_score": 20.0,
+        "competition_score": 50.0,
+        "store_count": 8,
+        "store_count_change": 0,
+    }
+    session = _TrackingSession()
+
+    response = await _service(
+        row,
+        _SessionAwareGenerator(session),
+        db_session=session,
+    ).get_overview_insight("3111067", "CS200029", "20262")
+
+    assert response.source == "gemini"
+    assert session.rollback_called is True
 
 
 @pytest.mark.asyncio
@@ -251,6 +298,32 @@ async def test_pattern_lookup_failure_is_not_logged_as_no_candidates(caplog):
 
 
 @pytest.mark.asyncio
+async def test_pattern_db_error_is_not_treated_as_missing_pattern_data():
+    row = {
+        "trdar_cd": "3111067",
+        "sales": 3271104,
+        "transaction_count": 76,
+        "prev_sales": 2805601,
+        "prev_transaction_count": 76,
+        "growth_rate": 16.59191738240755,
+        "growth_score": 30.0,
+        "transaction_score": 20.0,
+        "competition_score": 50.0,
+        "store_count": 8,
+        "store_count_change": 0,
+    }
+    sales_repo = _metrics_repo(row)
+    sales_repo.get_insight_pattern_facts = _raise_pattern_db_error
+
+    with pytest.raises(InternalServerError, match="EMAXCONNSESSION"):
+        await _service(
+            row,
+            _CaptureGenerator(),
+            sales_repo=sales_repo,
+        ).get_overview_insight("3111067", "CS200029", "20262")
+
+
+@pytest.mark.asyncio
 async def test_no_tag_candidates_is_logged_separately_from_lookup_failure(caplog):
     row = {
         "trdar_cd": "3111067",
@@ -266,9 +339,14 @@ async def test_no_tag_candidates_is_logged_separately_from_lookup_failure(caplog
         "store_count_change": 0,
     }
     pattern_facts = {
-        "age": {label: 16.67 for label in ("10대", "20대", "30대", "40대", "50대", "60대 이상")},
+        "age": {
+            label: 16.67
+            for label in ("10대", "20대", "30대", "40대", "50대", "60대 이상")
+        },
         "day": {label: 14.29 for label in ("월", "화", "수", "목", "금", "토", "일")},
-        "time": {label: 16.67 for label in ("새벽", "오전", "점심", "오후", "저녁", "밤")},
+        "time": {
+            label: 16.67 for label in ("새벽", "오전", "점심", "오후", "저녁", "밤")
+        },
         "age_identified_sales_coverage_pct": 100.0,
     }
     generator = _CaptureGenerator()
