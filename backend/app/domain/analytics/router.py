@@ -108,6 +108,7 @@ def get_analytics_service(
         sales_repo=sales_repo,
         industry_repo=industry_repo,
         store_service=store_service,
+        db_session=db,
     )
 
 
@@ -128,6 +129,7 @@ def get_insight_analytics_service(
         store_service=store_service,
         insight_generator=insight_generator,
         insight_timeout_seconds=settings.GEMINI_TIMEOUT_SECONDS,
+        db_session=db,
     )
 
 
@@ -181,7 +183,7 @@ async def get_recommendations(
     ExplorationScore를 산출할 수 없는 상권은 후보에서 제외하고, 산출 가능한
     점수의 내림차순·상권 코드 오름차순으로 순위(1부터 시작)를 부여합니다.
     조회된 데이터나 조건에 맞는 후보가 없으면 404 대신 빈 목록을 반환합니다.
-    warning은 경쟁 여건이 '낮음'일 때만 제공하며 그 외에는 null입니다.
+    warning은 경쟁 여건이 '나쁨'일 때만 제공하며 그 외에는 null입니다.
     점수는 실제 창업 성공 가능성을 의미하지 않습니다.
     """
     return await service.get_recommendations(industry_code, quarter, region, keyword)
@@ -220,8 +222,9 @@ async def get_district_overview(
     null입니다. Percentile은 '상위 N%'를 뜻하므로 낮을수록 상위권입니다.
 
     rankings는 Sales, Transaction, GrowthRate, ExplorationScore별 내림차순
-    상위 5개를 제공합니다. 성장률·탐색 점수 산출 불가 상권은 해당 순위에서 제외합니다.
-    각 순위 항목의 sales_raw와 sales_formatted는 선택한 지표의 원본값과 표시값입니다.
+    상위 5개를 제공합니다. 성장률·탐색 점수 산출 불가 상권은 해당 순위에서 제외하며,
+    각 항목에는 매출·성장률·거래건수·ExplorationScore의 Benchmark Percentile을 제공합니다.
+    CompetitionScore Percentile은 seoul_rank 내부 산정에만 사용합니다.
 
     takeaway.score는 `GrowthScore × 0.40 + TransactionScore × 0.35 + CompetitionScore × 0.25`인
     ExplorationScore를 반올림한 값입니다.
@@ -257,7 +260,8 @@ async def get_district_overview_insight(
     """Gemini 종합 인사이트와 생성 출처·상태를 반환합니다.
 
     Gemini가 비활성화되었거나 호출·응답 검증에 실패하면 기존 결정론적 문장을
-    반환하며 source와 status를 모두 fallback으로 표시합니다.
+    반환하며 source와 status를 모두 fallback으로 표시합니다. extreme은 summary와
+    독립적인 주요 지표 변동 상태로, 생성 실패 여부와 관계없이 반환합니다.
     """
     return await service.get_overview_insight(trade_area_code, industry_code, quarter)
 
@@ -328,11 +332,11 @@ async def get_district_competition(
     계산합니다. 점포 수와 폐업률은 역 Min-Max, 점포당 거래건수는 정 Min-Max하며,
     같은 업종 점포가 적고 점포당 거래건수가 많으며 폐업률이 낮을수록 점수가 높습니다.
 
-    competition_level은 CompetitionScore가 70 이상이면 '높음',
-    40 이상 70 미만이면 '보통', 40 미만이면 '낮음'입니다.
+    competition_level은 CompetitionScore가 70 이상이면 '좋음',
+    40 이상 70 미만이면 '보통', 40 미만이면 '나쁨'입니다.
     sales_level과 volume_level은 각각 100 - Sales Percentile,
     100 - Transaction Volume Percentile에 같은 구간 기준을 적용합니다.
-    warning_text는 competition_level이 '낮음'일 때만 제공하고 그 외에는 null입니다.
+    warning_text는 competition_level이 '나쁨'일 때만 제공하고 그 외에는 null입니다.
 
     매출 데이터가 조회되지 않으면 404 대신 상권 코드와 나머지 필드가 null인
     객체를 반환합니다. 매출은 있어도 점포 데이터·폐업률이 없거나 점포 수가 0 이하여

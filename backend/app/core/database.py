@@ -1,18 +1,36 @@
 from typing import AsyncGenerator
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import DeclarativeBase
 from backend.app.core.config import settings
 
-# Engine setup with fallback compatibility
-db_url = settings.DATABASE_URL
-if db_url.startswith("postgresql://"):
-    db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-engine = create_async_engine(
-    db_url,
-    echo=False,
-    future=True,
-)
+def create_database_engine(database_url: str) -> AsyncEngine:
+    """Create the application engine with PostgreSQL connection safeguards."""
+    if database_url.startswith("postgresql://"):
+        database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+    engine_options = {
+        "echo": False,
+        "future": True,
+        "pool_pre_ping": True,
+        "pool_recycle": 1800,
+    }
+    if database_url.startswith("postgresql"):
+        engine_options.update(
+            pool_size=2,
+            max_overflow=3,
+            pool_timeout=10,
+        )
+
+    return create_async_engine(database_url, **engine_options)
+
+
+engine = create_database_engine(settings.DATABASE_URL)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,

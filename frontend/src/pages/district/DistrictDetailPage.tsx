@@ -13,6 +13,7 @@ import {
   Square,
   Layers,
   ChevronDown,
+  Loader2,
 } from "lucide-react";
 import { api } from "../../shared/api/client";
 import {
@@ -21,7 +22,10 @@ import {
   AgeBarChart,
   DayBarChart,
 } from "../../shared/ui/Charts";
-import { useCompareStore } from "../../shared/lib/store";
+import {
+  useCompareStore,
+  useHeaderBreadcrumbStore,
+} from "../../shared/lib/store";
 import {
   formatNullable,
   formatQuarterLabel,
@@ -83,7 +87,12 @@ export const DistrictDetailPage: React.FC = () => {
   // [연동] Gemini 인사이트는 별도 /overview/insight 호출로 받아온다(최대 수 초 소요, 나머지 화면을 막지 않음).
   // 응답 전까지는 overview.takeaway.summary 의 고정 문구("AI 인사이트 생성 중입니다.")를 그대로 보여준다.
   const { data: overviewInsight } = useQuery({
-    queryKey: ["district-overview-insight", tradeAreaCode, industryCode, quarter],
+    queryKey: [
+      "district-overview-insight",
+      tradeAreaCode,
+      industryCode,
+      quarter,
+    ],
     queryFn: () =>
       api.getDistrictOverviewInsight(tradeAreaCode, {
         industry_code: industryCode,
@@ -180,6 +189,23 @@ export const DistrictDetailPage: React.FC = () => {
 
   return (
     <div className="w-full bg-[#f5f5f0] min-h-[calc(100vh-4rem)] pb-12">
+      {/* [연동] patterns(WHEN/WHO/DAY) 조회의 isLoading 동안 화면 중앙에 액티비티 인디케이터를
+          띄운다 — Compare 화면과 동일한 스타일. 각 섹션(WHEN/WHO/DAY)은 이미 즉시 그려지므로
+          이 인디케이터는 보조 안내이며, 세 섹션이 각자 로딩 배너를 중복으로 띄우지 않는다. */}
+      {isPatternsLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="flex flex-col items-center gap-3 bg-[#f5f5f0] border-2 border-black px-8 py-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+            <span className="bg-[#d4ff00] text-black px-2 py-0.5 font-mono text-[10px] font-bold border border-black uppercase tracking-widest">
+              Loading
+            </span>
+            <Loader2 className="w-6 h-6 animate-spin text-black" />
+            <p className="font-mono text-sm font-bold text-black text-center">
+              소비 패턴 데이터를 가져오는 중입니다.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Top Breadcrumb & Switcher Bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex flex-wrap items-center justify-between gap-4">
         <Link
@@ -243,7 +269,10 @@ export const DistrictDetailPage: React.FC = () => {
             어떻게 소비될까?
           </h1>
 
-          <div className="flex items-center gap-2 text-xs sm:text-sm font-mono text-gray-700 pt-1">
+          <div
+            ref={breadcrumbRef}
+            className="flex items-center gap-2 text-xs sm:text-sm font-mono text-gray-700 pt-1"
+          >
             <span className="font-bold text-black">
               서울 &gt; {overview.trade_area_name} &gt; {overview.industry_name}
             </span>
@@ -266,8 +295,11 @@ export const DistrictDetailPage: React.FC = () => {
               {/* Giant Score */}
               {/* [연동] score 는 성장률/거래량/경쟁 구성 지표 부족 시 null → "-" 폴백, score_note 로 사유 안내 */}
               <div className="flex items-baseline gap-2 mt-2">
-                <span className="text-5xl sm:text-7xl font-black text-[#d4ff00] tracking-tighter">
-                  SCORE {formatNullable(overview.takeaway.score)}
+                <span className="text-5xl sm:text-7xl font-black text-gray-500 tracking-tighter">
+                  SCORE{" "}
+                  <span className="text-white">
+                    {formatNullable(overview.takeaway.score)}
+                  </span>
                 </span>
                 <span className="text-xl sm:text-2xl font-mono text-gray-500 font-bold">
                   /100
@@ -288,7 +320,15 @@ export const DistrictDetailPage: React.FC = () => {
                 <span className="bg-[#d4ff00] text-black px-2.5 py-1 font-bold">
                   {overview.takeaway.volume_tag}
                 </span>
-                <span className="border border-red-500 text-red-400 px-2.5 py-1 font-bold">
+                <span
+                  className={`border px-2.5 py-1 font-bold ${
+                    overview.takeaway.competition_tag === "경쟁 여건 좋음"
+                      ? "border-[#4ade80] text-[#4ade80]"
+                      : overview.takeaway.competition_tag === "경쟁 여건 보통"
+                        ? "border-white text-white"
+                        : "border-red-500 text-red-400"
+                  }`}
+                >
                   {overview.takeaway.competition_tag}
                 </span>
               </div>
@@ -539,7 +579,16 @@ export const DistrictDetailPage: React.FC = () => {
                 {formatNullable(overview.kpis.seoul_rank, "위")}
               </span>
               <span className="text-gray-500">
-                상위 {overview.kpis.sales_percentile}%
+                {rankTab === "sales" &&
+                  `상위 ${overview.kpis.sales_percentile}%`}
+                {rankTab === "volume" &&
+                  `상위 ${overview.kpis.volume_percentile}%`}
+                {rankTab === "growth" &&
+                  overview.kpis.growth_percentile != null &&
+                  `상위 ${overview.kpis.growth_percentile}%`}
+                {rankTab === "score" &&
+                  overview.kpis.exploration_percentile != null &&
+                  `상위 ${overview.kpis.exploration_percentile}%`}
               </span>
             </div>
           </div>

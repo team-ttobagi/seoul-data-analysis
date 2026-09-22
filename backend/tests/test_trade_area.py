@@ -1,13 +1,17 @@
 import math
 from types import SimpleNamespace
+from typing import cast
 
 import pandas as pd
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.domain.analytics.service import AnalyticsService
 from backend.app.domain.sales import scoring
+from backend.app.domain.sales.repository import SalesRepository
 from backend.app.domain.store.repository import StoreRepository
 from backend.app.domain.store.service import StoreService
+from backend.app.domain.trade_area.repository import TradeAreaRepository
 from backend.app.domain.trade_area.service import TradeAreaService
 
 
@@ -29,16 +33,20 @@ async def test_trade_area_search_excludes_areas_without_exploration_score():
             "signgu_cd_nm": "강서구",
         },
     ]
-    trade_area_repo = SimpleNamespace(
-        get_by_filters=lambda **_: _async_return(trade_areas),
+    trade_area_repo = cast(
+        TradeAreaRepository,
+        SimpleNamespace(get_by_filters=lambda **_: _async_return(trade_areas)),
     )
-    metrics_repo = SimpleNamespace(
-        get_metrics_dataframe=lambda *_: _async_return(
-            pd.DataFrame(
-                [
-                    {"trdar_cd": "SCORABLE", "exploration_score": 72.0},
-                    {"trdar_cd": "MISSING_SCORE", "exploration_score": float("nan")},
-                ]
+    metrics_repo = cast(
+        SalesRepository,
+        SimpleNamespace(
+            get_metrics_dataframe=lambda *_: _async_return(
+                pd.DataFrame(
+                    [
+                        {"trdar_cd": "SCORABLE", "exploration_score": 72.0},
+                        {"trdar_cd": "MISSING_SCORE", "exploration_score": float("nan")},
+                    ]
+                )
             )
         ),
     )
@@ -75,16 +83,20 @@ async def test_all_trade_areas_preserves_metadata_without_exploration_score():
             "signgu_cd_nm": "강서구",
         },
     ]
-    trade_area_repo = SimpleNamespace(
-        get_all=lambda: _async_return(trade_areas),
+    trade_area_repo = cast(
+        TradeAreaRepository,
+        SimpleNamespace(get_all=lambda: _async_return(trade_areas)),
     )
-    metrics_repo = SimpleNamespace(
-        get_metrics_dataframe=lambda *_: _async_return(
-            pd.DataFrame(
-                [
-                    {"trdar_cd": "SCORABLE", "exploration_score": 72.0},
-                    {"trdar_cd": "MISSING_SCORE", "exploration_score": float("nan")},
-                ]
+    metrics_repo = cast(
+        SalesRepository,
+        SimpleNamespace(
+            get_metrics_dataframe=lambda *_: _async_return(
+                pd.DataFrame(
+                    [
+                        {"trdar_cd": "SCORABLE", "exploration_score": 72.0},
+                        {"trdar_cd": "MISSING_SCORE", "exploration_score": float("nan")},
+                    ]
+                )
             )
         ),
     )
@@ -142,12 +154,16 @@ async def test_3110679_is_excluded_while_scoreable_area_is_kept_everywhere():
             },
         ]
     )
-    trade_area_repo = SimpleNamespace(
-        get_all=lambda: _async_return(trade_areas),
-        get_by_filters=lambda **_: _async_return(trade_areas),
+    trade_area_repo = cast(
+        TradeAreaRepository,
+        SimpleNamespace(
+            get_all=lambda: _async_return(trade_areas),
+            get_by_filters=lambda **_: _async_return(trade_areas),
+        ),
     )
-    metrics_repo = SimpleNamespace(
-        get_metrics_dataframe=lambda *_: _async_return(metrics),
+    metrics_repo = cast(
+        SalesRepository,
+        SimpleNamespace(get_metrics_dataframe=lambda *_: _async_return(metrics)),
     )
     trade_area_service = TradeAreaService(
         repository=trade_area_repo,
@@ -156,7 +172,9 @@ async def test_3110679_is_excluded_while_scoreable_area_is_kept_everywhere():
     analytics_service = AnalyticsService(
         trade_area_repo=trade_area_repo,
         sales_repo=metrics_repo,
-        store_service=StoreService(repository=StoreRepository(session=None)),
+        store_service=StoreService(
+            repository=StoreRepository(session=cast(AsyncSession, None))
+        ),
     )
 
     search_results = await trade_area_service.get_trade_areas_by_filters(

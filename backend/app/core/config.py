@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "SPOT RADER"
     VERSION: str = "0.1.0"
     API_V1_STR: str = "/api/v1"
-    DATABASE_URL: str = "sqlite+aiosqlite:///./seouldata.db"
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/seouldata"
     SUPABASE_URL: str = ""
     SUPABASE_KEY: str = ""
     CORS_ORIGINS: str = (

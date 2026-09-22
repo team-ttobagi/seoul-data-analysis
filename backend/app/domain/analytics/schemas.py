@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
-from backend.app.domain.sales.scoring import ScoreLevel
+from backend.app.domain.sales.scoring import CompetitionLevel, ScoreLevel
 
 
 class ScoreComponent(BaseModel):
@@ -78,18 +78,18 @@ class RecommendationItemResponse(BaseModel):
         description=(
             "추천 카드의 세 가지 신호. growth는 GrowthScore, transaction은 TransactionScore, "
             "competition은 CompetitionScore의 등급이며 70 이상 high, 40 이상 70 미만 medium, 40 미만 low이다. "
-            "competition의 high는 같은 업종 점포 수·점포당 거래건수·폐업률을 종합한 경쟁 여건이 상대적으로 우수하다는 뜻이다."
+            "competition의 high는 프론트 계약상 영문 신호이며, 경쟁 등급 '좋음'에 해당한다."
         ),
     )
     components: RecommendationComponents = Field(
         description="추천 점수의 근거인 성장성·거래 활성도·경쟁 여건별 원본 값, 정규화 점수, 서울 비교 집단 내 상위 비율."
     )
     insight: str = Field(
-        description="GrowthScore·TransactionScore·CompetitionScore의 높음/보통/낮음 등급을 조합한 추천 카드의 규칙 기반 요약 문장."
+        description="GrowthScore·TransactionScore의 높음/보통/낮음 등급과 CompetitionScore의 좋음/보통/나쁨 등급을 조합한 추천 카드의 규칙 기반 요약 문장."
     )
     warning: Optional[str] = Field(
         default=None,
-        description="CompetitionScore가 40 미만(경쟁 여건 낮음)이면 표시하는 경쟁 압박 경고. 해당 조건에 해당하지 않으면 null이다.",
+        description="CompetitionScore가 40 미만(경쟁 여건 나쁨)이면 표시하는 경쟁 압박 경고. 해당 조건에 해당하지 않으면 null이다.",
     )
 
 
@@ -132,6 +132,14 @@ class DistrictKpis(BaseModel):
     volume_percentile: int = Field(
         description="동일 분기·업종의 서울 상권 중 거래건수 기준 상위 N%. 내림차순 최소 순위 / 비교 대상 수 × 100을 반올림하며 작을수록 거래건수 상위권이다."
     )
+    exploration_percentile: Optional[int] = Field(
+        default=None,
+        description=(
+            "동일 분기·업종의 서울 상권 중 ExplorationScore 기준 상위 N%. "
+            "내림차순 최소 순위 / 유효 비교 대상 수 × 100을 반올림하며 낮을수록 탐색점수 상위권이다. "
+            "성장률·거래건수 또는 CompetitionScore가 부족해 ExplorationScore를 산출할 수 없으면 null이다."
+        ),
+    )
     store_count: Optional[int] = Field(
         default=None,
         description="선택한 분기·상권·업종의 현재 분기 동일 업종 점포 수(개). 현재 분기 점포 데이터가 없으면 null이다.",
@@ -140,11 +148,11 @@ class DistrictKpis(BaseModel):
         default=None,
         description="동일 업종 점포 수의 전분기 대비 증감 수(개). 현재 또는 직전 분기 점포 데이터가 없으면 null이다.",
     )
-    competition_level: Optional[str] = Field(
+    competition_level: Optional[CompetitionLevel] = Field(
         default=None,
         description=(
-            "CompetitionScore 기준 경쟁 여건 등급. 70 이상 높음, 40 이상 70 미만 보통, 40 미만 낮음이며 "
-            "높음은 상대적으로 점포 수·폐업률이 낮고 점포당 거래건수가 높은 여건을 뜻한다. "
+            "CompetitionScore 기준 경쟁 여건 등급. 70 이상 좋음, 40 이상 70 미만 보통, 40 미만 나쁨이며 "
+            "좋음은 상대적으로 점포 수·폐업률이 낮고 점포당 거래건수가 높은 여건을 뜻한다. "
             "점포 데이터·폐업률이 없거나 점포 수가 0 이하이면 null이다."
         ),
     )
@@ -177,15 +185,35 @@ class DistrictRankingItem(BaseModel):
     )
     score: Optional[int] = Field(
         default=None,
-        description="별도 ExplorationScore 필드. 현재 순위 응답에서는 값을 채우지 않아 null이며, by_score의 점수는 sales_raw와 sales_formatted에 담긴다.",
+        description="해당 상권의 반올림한 ExplorationScore(점). by_score에서는 sales_raw와 sales_formatted에도 같은 값이 담긴다.",
     )
     growth_rate: Optional[float] = Field(
         default=None,
-        description="별도 QoQ 매출 성장률 필드. 현재 순위 응답에서는 값을 채우지 않아 null이며, by_growth의 성장률은 sales_raw와 sales_formatted에 담긴다.",
+        description="해당 상권의 QoQ 매출 성장률(%). by_growth에서는 sales_raw와 sales_formatted에도 같은 값이 담긴다.",
     )
     transaction_count: Optional[int] = Field(
         default=None,
-        description="별도 거래건수 필드. 현재 순위 응답에서는 값을 채우지 않아 null이며, by_volume의 거래건수는 sales_raw와 sales_formatted에 담긴다.",
+        description="해당 상권의 거래건수(건). by_volume에서는 sales_raw와 sales_formatted에도 같은 값이 담긴다.",
+    )
+    # 백분위
+    sales_percentile: Optional[int | float] = Field(
+        default=None,
+        description="해당 상권의 매출액 Benchmark Percentile. 낮을수록 매출 상위권이다.",
+    )
+
+    growth_percentile: Optional[int | float] = Field(
+        default=None,
+        description="해당 상권의 QoQ 매출 성장률 Benchmark Percentile. 성장률을 산출할 수 없으면 null이다.",
+    )
+
+    volume_percentile: Optional[int | float] = Field(
+        default=None,
+        description="해당 상권의 거래건수 Benchmark Percentile. 낮을수록 거래건수 상위권이다.",
+    )
+
+    exploration_percentile: Optional[int | float] = Field(
+        default=None,
+        description="해당 상권의 ExplorationScore Benchmark Percentile. 탐색 점수를 산출할 수 없으면 null이다.",
     )
 
 
@@ -203,11 +231,27 @@ class OverviewInsightContext(BaseModel):
     district_name: str = Field(min_length=1, max_length=50, pattern=r"^[^\r\n]+$")
     industry_name: str = Field(min_length=1, max_length=100, pattern=r"^[^\r\n]+$")
     quarter: str = Field(pattern=r"^\d{4}[1-4]$")
-    # 진단: 기존 patterns endpoint가 계산한 대표 연령대·시간대·요일
+    # 하위 호환용 필드. Gemini 입력에는 원본 대표 패턴을 전달하지 않는다.
     strongest_age_group: Optional[str] = Field(default=None, max_length=50)
     peak_slot: Optional[str] = Field(default=None, max_length=50)
     peak_day: Optional[str] = Field(default=None, max_length=20)
-    # 리스크: 점포 요약 원천값과 관측된 QoQ 성장률. 값이 없으면 null을 유지한다.
+    # Gemini가 관계를 선택할 수 있도록 백엔드가 검증한 현재·직전 집계값과 파생값.
+    current_sales: Optional[float] = None
+    previous_sales: Optional[float] = None
+    transaction_count: Optional[float] = None
+    previous_transaction_count: Optional[float] = None
+    sales_change_amount: Optional[float] = None
+    transaction_change_count: Optional[float] = None
+    transaction_qoq_rate: Optional[float] = None
+    sales_per_transaction_current: Optional[float] = None
+    sales_per_transaction_previous: Optional[float] = None
+    sales_per_transaction_qoq_rate: Optional[float] = None
+    transactions_per_store_current: Optional[float] = None
+    transactions_per_store_previous: Optional[float] = None
+    transactions_per_store_qoq_rate: Optional[float] = None
+    store_count: Optional[float] = None
+    previous_store_count: Optional[float] = None
+    # 점포 요약 원천값과 관측된 QoQ 성장률. 값이 없으면 null을 유지한다.
     closing_rate: Optional[float] = None
     opening_rate: Optional[float] = None
     franchise_ratio_percent: Optional[float] = None
@@ -215,21 +259,30 @@ class OverviewInsightContext(BaseModel):
     qoq_growth_rate: Optional[float] = None
     growth_level: Optional[ScoreLevel] = None
     transaction_level: Optional[ScoreLevel] = None
-    competition_level: Optional[ScoreLevel] = None
+    competition_level: Optional[CompetitionLevel] = None
+    tag_candidates: List[str] = Field(
+        default_factory=list,
+        max_length=3,
+        description="백엔드가 대표성을 검증해 Gemini에 허용한 소비 패턴 태그 후보.",
+    )
 
 
 class OverviewInsightResponse(BaseModel):
-    # Gemini 프롬프트·외부 출력은 100자 이내로 제한하지만, 내부 fallback과 기존 응답 호환을 위해 120자까지 허용한다.
+    # Gemini prompt는 100자 이내를 목표로 하며, 응답 검증과 fallback은
+    # 120자까지 허용한다.
     summary: str = Field(
         min_length=1,
         max_length=120,
-        description="Gemini 또는 결정론적 fallback으로 생성한 상권 종합 인사이트 한 문장.",
+        description="Gemini 또는 결정론적 fallback으로 생성한 태그 포함 120자 이내의 상권 종합 인사이트.",
     )
     source: Literal["gemini", "fallback"] = Field(
         description="summary의 생성 출처. Gemini 성공이면 gemini, 그 외에는 fallback이다."
     )
     status: Literal["generated", "fallback"] = Field(
         description="summary 생성 상태. Gemini 성공이면 generated, 그 외에는 fallback이다."
+    )
+    extreme: bool = Field(
+        description="주요 분석 지표의 변동 폭이 이례적이어서 별도 현장 확인이 필요한지 여부."
     )
 
 
@@ -252,7 +305,7 @@ class DistrictTakeaway(BaseModel):
         max_length=120,
         description=(
             "기존 overview 응답과의 호환을 위해 반환하는 결정론적 일반 텍스트. "
-            "Gemini 프롬프트·외부 출력은 100자 이내지만 내부 응답은 120자까지 허용한다."
+            "Gemini prompt는 100자 이내를 목표로 하며, 내부 응답은 120자까지 허용한다."
         ),
     )
     disclaimer: str = Field(description="탐색 지표의 한계를 알리는 고정 안내 문구.")
@@ -278,8 +331,9 @@ class DistrictOverviewResponse(BaseModel):
     )
     why_explore: Dict[str, Any] = Field(
         description=(
-            "상세 화면의 탐색 이유. growth_rate는 QoQ 매출 성장률(%), growth_percentile은 성장률 상위 N%, "
-            "volume_formatted는 축약한 거래건수, volume_percentile은 거래건수 상위 N%이며 kpis와 같은 값이다. "
+            "상세 화면의 탐색 이유. sales_percentile, growth_percentile, volume_percentile, "
+            "exploration_percentile은 각각 매출·성장률·거래건수·ExplorationScore의 상위 N%이며 kpis와 같은 값이다. "
+            "growth_rate는 QoQ 매출 성장률(%), volume_formatted는 축약한 거래건수이다. "
             "store_count는 동일 업종 점포 수(개), competition_text는 경쟁 여건 등급 표시 문구이다. "
             "직전 분기 데이터가 없거나 매출이 0 이하이면 growth_rate와 growth_percentile은 null이다."
         ),
@@ -289,7 +343,8 @@ class DistrictOverviewResponse(BaseModel):
             "상세 화면 '어디가 강할까?'의 서울 전체 상권 순위표. 동일 분기·업종에서 by_sales는 매출액, "
             "by_volume은 거래건수, by_growth는 QoQ 매출 성장률, by_score는 ExplorationScore 내림차순으로 "
             "각각 최대 5개를 반환한다. 성장률·점수를 산출할 수 없는 상권은 해당 순위에서 제외하며 "
-            "유효 후보가 없으면 빈 목록이다. 현재 상권이 상위 5개 밖이면 별도 추가하지 않는다."
+            "유효 후보가 없으면 빈 목록이다. 현재 상권이 상위 5개 밖이면 별도 추가하지 않는다. "
+            "각 항목에는 매출·성장률·거래건수·ExplorationScore의 네 가지 Benchmark Percentile을 담는다."
         ),
     )
     takeaway: DistrictTakeaway = Field(
@@ -406,10 +461,10 @@ class DistrictCompetitionResponse(BaseModel):
         default=None,
         description="동일 업종 점포 수의 전분기 대비 증감 수(개). 현재 또는 직전 분기 점포 데이터가 없으면 null이다.",
     )
-    competition_level: Optional[str] = Field(
+    competition_level: Optional[CompetitionLevel] = Field(
         default=None,
         description=(
-            "CompetitionScore 기준 경쟁 여건. 70 이상 높음, 40 이상 70 미만 보통, 40 미만 낮음이다. "
+            "CompetitionScore 기준 경쟁 여건. 70 이상 좋음, 40 이상 70 미만 보통, 40 미만 나쁨이다. "
             "같은 업종 점포가 적고 점포당 거래건수가 많으며 폐업률이 낮을수록 점수가 높다. "
             "동일 분기·업종 상권의 점포 수·점포당 거래건수·폐업률을 Min-Max 비교한 상대 점수이다. "
             "해당 분기·상권·업종의 점포 데이터·폐업률이 없거나 점포 수가 0 이하이면 null이다."
@@ -425,7 +480,7 @@ class DistrictCompetitionResponse(BaseModel):
     )
     warning_text: Optional[str] = Field(
         default=None,
-        description="CompetitionScore가 40 미만(경쟁 여건 낮음)이면 표시하는 경쟁 압박 경고. 경쟁 여건이 보통/높음이거나 분석 데이터 또는 구성 지표가 없어 등급을 구할 수 없으면 null이다.",
+        description="CompetitionScore가 40 미만(경쟁 여건 나쁨)이면 표시하는 경쟁 압박 경고. 경쟁 여건이 보통/좋음이거나 분석 데이터 또는 구성 지표가 없어 등급을 구할 수 없으면 null이다.",
     )
 
 
@@ -478,14 +533,14 @@ class CompareDistrictData(BaseModel):
     strongest_day: str = Field(
         description="최대 매출 요일(PeakDay)과 월~일 평균 대비 증감률(DayDiff)을 '금 (+21%)'처럼 표시한 값. 동률이면 월~일 순서상 첫 항목이며, 요일 데이터를 조회할 수 없으면 '-'이다."
     )
-    competition_level: Optional[str] = Field(
+    competition_level: Optional[CompetitionLevel] = Field(
         default=None,
         description=(
-            "CompetitionScore 기준 경쟁 여건 등급. 70 이상 높음, 40 이상 70 미만 보통, 40 미만 낮음이며 "
-            "높음은 점포 수·폐업률이 상대적으로 낮고 점포당 거래건수가 높은 여건을 뜻한다. "
+            "CompetitionScore 기준 경쟁 여건 등급. 70 이상 좋음, 40 이상 70 미만 보통, 40 미만 나쁨이며 "
+            "좋음은 점포 수·폐업률이 상대적으로 낮고 점포당 거래건수가 높은 여건을 뜻한다. "
             "점포 데이터·폐업률이 없거나 점포 수가 0 이하이면 CompetitionScore를 산출할 수 없어 null이다."
         ),
     )
     key_insight: str = Field(
-        description="비교표의 상권별 핵심 요약. GrowthScore·TransactionScore·CompetitionScore 중 산출 가능한 지표의 높음/보통/낮음 등급을 조합한 문장이다."
+        description="비교표의 상권별 핵심 요약. GrowthScore·TransactionScore는 높음/보통/낮음, CompetitionScore는 좋음/보통/나쁨 등급을 조합한 문장이다."
     )

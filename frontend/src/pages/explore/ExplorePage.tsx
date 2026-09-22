@@ -389,18 +389,29 @@ export const ExplorePage: React.FC = () => {
     queryFn: () => api.getDistricts(),
   });
 
-  const { data: industries = [], isPending: industriesPending, isError: industriesError } = useQuery({
+  const {
+    data: industries = [],
+    isPending: industriesPending,
+    isError: industriesError,
+  } = useQuery({
     queryKey: ["industries"],
     queryFn: api.getIndustries,
   });
-  const { data: quarterData = [], isPending: quartersPending, isError: quartersError } = useQuery({
+  const {
+    data: quarterData = [],
+    isPending: quartersPending,
+    isError: quartersError,
+  } = useQuery({
     queryKey: ["quarters"],
     queryFn: api.getQuarters,
   });
   const selectedIndustry = industries.some((item) => item.code === industryChoice)
     ? industryChoice
-    : (industries.find((item) => item.code === "CS100010") ?? industries[0])?.code ?? "";
-  const selectedQuarter = quarterData.some((item) => item.code === quarterChoice)
+    : ((industries.find((item) => item.code === "CS100010") ?? industries[0])
+        ?.code ?? "");
+  const selectedQuarter = quarterData.some(
+    (item) => item.code === quarterChoice,
+  )
     ? quarterChoice
     : quarterData[0]?.code ?? "";
 
@@ -464,8 +475,7 @@ export const ExplorePage: React.FC = () => {
     }
   };
 
-  const { isDistrictSelected, toggleDistrict, selectedCodes } =
-    useCompareStore();
+  const { isDistrictSelected, toggleDistrict } = useCompareStore();
 
   const {
     data: recommendations = [],
@@ -551,7 +561,6 @@ export const ExplorePage: React.FC = () => {
             먼저 살펴볼 상권을 찾았습니다.
           </p>
         </div>
-
       </section>
 
       <div
@@ -577,7 +586,7 @@ export const ExplorePage: React.FC = () => {
                   : "등록된 분기 없음"
             }
             selectedIndustry={selectedIndustry}
-            setSelectedIndustry={setSelectedIndustry}
+            setSelectedIndustry={handleIndustryChange}
             districts={districts}
             selectedDistrictCode={selectedDistrictCode}
             setDistrict={setDistrict}
@@ -603,7 +612,7 @@ export const ExplorePage: React.FC = () => {
               }
             }}
             selectedQuarter={selectedQuarter}
-            setSelectedQuarter={setSelectedQuarter}
+            setSelectedQuarter={handleQuarterChange}
             recommendations={recommendations}
             selectedCodes={selectedCodes}
             toggleDistrict={toggleDistrict}
@@ -783,7 +792,7 @@ export const ExplorePage: React.FC = () => {
                 </div>
                 <div className="flex justify-between py-3">
                   <span className="text-black font-medium">
-                    경쟁 강도 (Competition Intensity)
+                    경쟁 여건 (Competition Intensity)
                   </span>
                   <span className="font-extrabold text-black">25%</span>
                 </div>
@@ -816,11 +825,60 @@ export const ExplorePage: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {pendingCompareReset && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="compare-reset-title"
+          aria-describedby="compare-reset-description"
+        >
+          <div className="w-full max-w-lg border-2 border-black bg-[#f5f5f0] p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+            <div className="flex items-center gap-2 border-b border-black pb-3">
+              <Info className="h-5 w-5 shrink-0" aria-hidden="true" />
+              <h2 id="compare-reset-title" className="text-lg font-extrabold">
+                비교 조건 변경 안내
+              </h2>
+            </div>
+
+            <p
+              id="compare-reset-description"
+              className="py-5 text-sm font-medium leading-relaxed text-gray-800"
+            >
+              비교 상권 트레이의 상권은 동일 업종, 기준 분기만 담을 수 있습니다.
+              업종 또는 분기가 변경되면 비교 상권 트레이는 초기화 됩니다. 초기화
+              하시겠습니까?
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={cancelCompareReset}
+                className="border border-black bg-white py-2.5 text-sm font-bold text-black transition-colors hover:bg-gray-200"
+                autoFocus
+              >
+                아니오
+              </button>
+              <button
+                type="button"
+                onClick={confirmCompareReset}
+                className="border border-black bg-black py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#d4ff00] hover:text-black"
+              >
+                예
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-function TradeAreaResults({ areas, onSelect }: {
+function TradeAreaResults({
+  areas,
+  onSelect,
+}: {
   areas: TradeArea[];
   onSelect: (area: TradeArea) => void;
 }) {
@@ -833,13 +891,13 @@ function TradeAreaResults({ areas, onSelect }: {
   };
 
   return (
-    <div>
-      <p className="mb-2">
+    <div className="border border-gray-300 bg-white">
+      <p className="mb-0 border-b border-gray-300 bg-white py-3 pl-3.5 pr-3 text-left">
         전체 {areas.length}개 중 {visibleAreas.length}개 표시
       </p>
 
       <div
-        className="max-h-80 overflow-y-auto border border-black bg-white"
+        className="max-h-80 overflow-y-auto bg-white"
         onScroll={(event) => {
           const element = event.currentTarget;
           const nearBottom =
@@ -859,22 +917,18 @@ function TradeAreaResults({ areas, onSelect }: {
               return (
                 <li
                   key={area.code}
-                  className="border-b border-black last:border-b-0"
+                  className="border-b border-gray-300 last:border-b-0"
                 >
                   <button
                     type="button"
                     onClick={() => onSelect(area)}
-                    className="flex w-full items-center justify-between gap-3 p-3 text-left focus:outline-2 focus:outline-black bg-white hover:bg-[#F8F7F2]"
+                    className="flex w-full items-center bg-white p-3 text-left focus:outline-2 focus:outline-black hover:bg-[#F8F7F2]"
                   >
-                    <span>
+                    <span className="min-w-0 truncate whitespace-nowrap">
                       <span className="font-bold">{area.name}</span>
                       <span className="ml-2 text-gray-600">
                         {area.district_name ?? "자치구 정보 없음"}
                       </span>
-                    </span>
-
-                    <span className="shrink-0 text-xs font-bold">
-                      검색어 선택
                     </span>
                   </button>
                 </li>
@@ -887,7 +941,7 @@ function TradeAreaResults({ areas, onSelect }: {
           <button
             type="button"
             onClick={showMore}
-            className="w-full border-t border-black p-3 font-bold hover:bg-[#CCFF00]"
+            className="w-full border-t border-gray-300 p-3 font-bold hover:bg-[#CCFF00]"
           >
             결과 더 보기
           </button>

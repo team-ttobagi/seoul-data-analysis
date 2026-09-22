@@ -1,36 +1,72 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, Layers, ArrowUpRight, Info } from "lucide-react";
-import { useCompareStore } from "../lib/store";
+import {
+  Menu,
+  X,
+  Layers,
+  ArrowUpRight,
+  Info,
+  BadgeInfo,
+} from "lucide-react";
+import { useCompareStore, useHeaderBreadcrumbStore } from "../lib/store";
+import { PageGuideModal } from "./PageGuideModal";
+import { MethodologyModal } from "./MethodologyModal";
 
 export const Header: React.FC = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [methodologyOpen, setMethodologyOpen] = useState(false);
   const { selectedCodes } = useCompareStore();
+  const { breadcrumb, visible: breadcrumbVisible } = useHeaderBreadcrumbStore();
 
   const isExplore =
     location.pathname.startsWith("/explore") || location.pathname === "/";
   const isCompare = location.pathname.startsWith("/compare");
 
+  // 헤더 nav의 "?" 아이콘을 누르면 현재 보고 있는 화면(탐색/상세/비교)에 맞는 사용법
+  // 안내 모달을 띄운다. 내용/드래그 위치 등 모달 자체 로직은 PageGuideModal에 있다.
+  const [guideOpen, setGuideOpen] = useState(false);
+  // 순수 CSS :hover 툴팁은, 클릭으로 모달이 열려 마우스 위치를 덮어버리면 마우스가
+  // 실제로 움직이기 전까지 브라우저가 :hover를 재계산하지 않아 잔상처럼 남는다.
+  // 그래서 hover 상태를 직접 관리하고, 클릭 시점에 명시적으로 꺼준다.
+  const [guideIconHovered, setGuideIconHovered] = useState(false);
+
   return (
     <>
       <header className="sticky top-0 z-40 bg-[#f5f5f0] border-b-2 border-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          {/* Brand */}
-          <Link
-            to="/explore"
-            className="flex items-center gap-2 text-xl font-extrabold tracking-tight font-display hover:opacity-85 transition-opacity"
-          >
-            <span className="bg-black text-white px-2 py-0.5 text-xs font-mono tracking-widest mr-1">
-              {/* SDP */}
-              SR
-            </span>
-            <span className="tracking-tighter font-black text-lg sm:text-xl">
-              {/* SEOUL DATA PLAYGROUND */}
-              SPOT RADAR
-            </span>
-          </Link>
+          <div className="flex items-center gap-6 min-w-0">
+            {/* Brand */}
+            <Link
+              to="/explore"
+              className="flex shrink-0 items-center gap-2 transition-opacity hover:opacity-85"
+              aria-label="스팟 레이더 홈"
+            >
+              <img
+                src="/brand/spot-radar-loupe-icon-light.svg"
+                alt=""
+                className="h-9 w-9 shrink-0 sm:h-10 sm:w-10"
+                aria-hidden="true"
+              />
+              <span className="whitespace-nowrap font-display text-lg font-black tracking-tighter text-black sm:text-xl">
+                SPOT RADAR
+              </span>
+            </Link>
+
+            {/* 상권 상세 화면의 브레드크럼이 스크롤로 헤더 밑에 가리면 여기 같은 내용을 보여준다.
+                DistrictDetailPage.tsx의 원본과 동일한 폰트/사이즈(text-xs sm:text-sm font-mono)를 쓴다. */}
+            {breadcrumbVisible && breadcrumb && (
+              <div className="hidden md:flex items-center gap-2 text-xs sm:text-sm font-mono text-gray-700 min-w-0">
+                <span className="font-bold text-black truncate">
+                  {breadcrumb.pathLabel}
+                </span>
+                <span>|</span>
+                <span className="whitespace-nowrap">
+                  {breadcrumb.quarterLabel}
+                </span>
+              </div>
+            )}
+          </div>
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center space-x-8 font-mono text-sm font-bold">
@@ -69,6 +105,24 @@ export const Header: React.FC = () => {
             >
               <Info className="w-3.5 h-3.5" />
               <span>산출 로직</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setGuideIconHovered(false);
+                setGuideOpen(true);
+              }}
+              onMouseEnter={() => setGuideIconHovered(true)}
+              onMouseLeave={() => setGuideIconHovered(false)}
+              className="relative inline-flex"
+            >
+              <BadgeInfo className="w-4 h-4 text-gray-500 hover:text-black cursor-pointer transition-colors" />
+              {guideIconHovered && (
+                <span className="pointer-events-none absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap bg-black text-white text-[11px] font-mono px-2 py-1 z-10">
+                  상권탐색을 도와드려요
+                  <span className="absolute left-1/2 bottom-full -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-b-4 border-b-black" />
+                </span>
+              )}
             </button>
           </nav>
 
@@ -132,64 +186,17 @@ export const Header: React.FC = () => {
         )}
       </header>
 
-      {/* Methodology Modal */}
-      {methodologyOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-[#f5f5f0] border-2 border-black w-full max-w-lg p-6 space-y-4 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-            <div className="flex items-center justify-between border-b border-black pb-3">
-              <h3 className="font-extrabold text-lg flex items-center gap-2">
-                <span className="bg-[#d4ff00] text-black px-2 py-0.5 font-mono text-xs border border-black">
-                  METHODOLOGY
-                </span>
-                데이터 기반 탐색 점수 산출 로직
-              </h3>
-              <button
-                onClick={() => setMethodologyOpen(false)}
-                className="p-1 hover:bg-black hover:text-white transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* METHODOLOGY(가중치 요약) + DETAIL(산출 로직 자세히 보기) 모달 — 두 모달 모두
+          별도 파일(MethodologyModal)에서 관리하고, 여기서는 열림 여부만 소유한다. */}
+      <MethodologyModal
+        open={methodologyOpen}
+        onClose={() => setMethodologyOpen(false)}
+      />
 
-            <p className="text-sm text-gray-800 leading-relaxed">
-              본 서비스는{" "}
-              <strong>서울시 상권분석서비스(Seoul Open Data)</strong>의
-              추정매출, 점포 수, 유동 인구 통계를 기반으로 창업자가 우선적으로
-              현장 조사할 가치가 높은 상권을 정량화합니다.
-            </p>
-
-            <div className="space-y-2 font-mono text-xs border border-black p-3 bg-white">
-              <div className="flex justify-between py-1 border-b border-gray-200">
-                <span>1. 매출 성장률 (Sales Growth)</span>
-                <span className="font-bold">가중치 40%</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-gray-200">
-                <span>2. 거래 활성도 (Transaction Volume)</span>
-                <span className="font-bold">가중치 35%</span>
-              </div>
-              <div className="flex justify-between py-1 text-red-600 font-medium">
-                <span>3. 경쟁 강도 (Competition Intensity - 역산)</span>
-                <span className="font-bold">가중치 25%</span>
-              </div>
-            </div>
-
-            <div className="bg-[#121212] text-white p-3 text-xs flex gap-2">
-              <Info className="w-4 h-4 text-[#d4ff00] shrink-0 mt-0.5" />
-              <span className="text-gray-300">
-                <strong>주의</strong>: 이 점수는 창업 성공 확률이나 수익 보증이
-                아니며, 추가 조사 및 현장 실사를 위한 탐색 지표입니다.
-              </span>
-            </div>
-
-            <button
-              onClick={() => setMethodologyOpen(false)}
-              className="w-full py-2.5 bg-black text-white font-bold text-sm hover:bg-[#d4ff00] hover:text-black border border-black transition-colors"
-            >
-              닫기
-            </button>
-          </div>
-        </div>
-      )}
+      {/* 화면 사용법 안내 모달 — 헤더 nav의 "?" 아이콘을 누르면, 지금 보고 있는 화면
+          (탐색/상세/비교)에 맞는 안내가 뜬다. 모달 자체는 별도 파일(PageGuideModal)에서
+          관리하고, 여기서는 열림 여부만 소유한다. */}
+      <PageGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />
     </>
   );
 };
@@ -198,9 +205,14 @@ export const Footer: React.FC = () => {
   return (
     <footer className="border-t-2 border-black bg-[#121212] text-white py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 font-mono text-xs">
-        <div className="flex items-center gap-2">
-          <span className="font-extrabold text-sm sm:text-base tracking-tighter text-[#d4ff00]">
-            {/* SEOUL DATA PLAYGROUND */}
+        <div className="flex items-center gap-3">
+          <img
+            src="/brand/spot-radar-loupe-icon-dark.svg"
+            alt=""
+            className="h-11 w-11 shrink-0 sm:h-12 sm:w-12"
+            aria-hidden="true"
+          />
+          <span className="whitespace-nowrap font-mono text-sm font-extrabold tracking-tighter text-[#d4ff00] sm:text-base">
             SPOT RADAR
           </span>
         </div>

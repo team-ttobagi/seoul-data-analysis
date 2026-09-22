@@ -74,6 +74,27 @@ interface ExploreState {
   setQuarter: (code: string) => void;
 }
 
+// 상권 상세 화면의 브레드크럼("서울 > OO > 업종 | 분기")이 스크롤로 헤더 밑에 가리면
+// 헤더에 같은 내용을 그대로 노출한다. DistrictDetailPage가 IntersectionObserver로
+// visible을 갱신하고, Header는 이 값을 구독해 표시 여부만 결정한다.
+interface HeaderBreadcrumbState {
+  breadcrumb: { pathLabel: string; quarterLabel: string } | null;
+  visible: boolean;
+  setBreadcrumb: (
+    breadcrumb: { pathLabel: string; quarterLabel: string } | null,
+  ) => void;
+  setVisible: (visible: boolean) => void;
+}
+
+export const useHeaderBreadcrumbStore = create<HeaderBreadcrumbState>(
+  (set) => ({
+    breadcrumb: null,
+    visible: false,
+    setBreadcrumb: (breadcrumb) => set({ breadcrumb }),
+    setVisible: (visible) => set({ visible }),
+  }),
+);
+
 export const useExploreStore = create<ExploreState>((set) => ({
   selectedDistrictCode: "",
   keyword: "",
