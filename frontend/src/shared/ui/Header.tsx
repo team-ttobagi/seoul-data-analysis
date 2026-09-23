@@ -182,6 +182,15 @@ export const Header: React.FC = () => {
             >
               산출 로직 & 데이터 설명서
             </button>
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setGuideOpen(true);
+              }}
+              className="block w-full text-left py-2 text-sm text-gray-700 underline"
+            >
+              화면 사용법 도움말
+            </button>
           </div>
         )}
       </header>
