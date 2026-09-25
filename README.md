@@ -91,17 +91,17 @@ python -m backend.app.seed
 uvicorn backend.app.main:app --reload --port 8000
 ```
 
-### 3. Backend 테스트 실행
-```bash
-cd backend
-pytest
-```
-
 ```bash
 uv run --project backend uvicorn backend.app.main:app \
   --host 0.0.0.0 \
   --port 8000 \
   --reload
+```
+
+### 3. Backend 테스트 실행
+```bash
+cd backend
+pytest
 ```
 
 ---
