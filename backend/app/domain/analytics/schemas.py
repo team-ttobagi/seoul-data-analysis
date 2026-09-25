@@ -118,25 +118,33 @@ class DistrictKpis(BaseModel):
         default=None,
         description="QoQ 매출 성장률(%). (현재 분기 매출 - 직전 분기 매출) / 직전 분기 매출 × 100이며, 직전 분기 데이터가 없거나 매출이 0 이하이면 null이다.",
     )
-    sales_percentile: int = Field(
-        description="동일 분기·업종의 서울 상권 중 매출액 기준 상위 N%. 내림차순 최소 순위 / 비교 대상 수 × 100을 반올림하며 작을수록 매출 상위권이다."
+    sales_percentile: int | float = Field(
+        description=(
+            "동일 분기·업종의 서울 상권 중 매출액 기준 상위 N%. 내림차순 최소 순위 / 비교 대상 수 × 100을 표시한다. "
+            "정수 반올림 결과가 0이 되는 양수 백분위는 소수점 첫째 자리까지 표시하며, 작을수록 매출 상위권이다."
+        )
     )
-    growth_percentile: Optional[int] = Field(
+    growth_percentile: Optional[int | float] = Field(
         default=None,
         description=(
             "동일 분기·업종에서 QoQ 매출 성장률이 유효한 서울 상권 중 성장률 기준 상위 N%. "
-            "내림차순 최소 순위 / 유효 비교 대상 수 × 100을 반올림하며 작을수록 상위권이다. "
+            "내림차순 최소 순위 / 유효 비교 대상 수 × 100을 표시하며, 정수 반올림 결과가 0이 되는 양수 백분위는 "
+            "소수점 첫째 자리까지 표시한다. 작을수록 상위권이다. "
             "직전 분기 데이터가 없거나 매출이 0 이하여서 성장률을 구할 수 없으면 null이다."
         ),
     )
-    volume_percentile: int = Field(
-        description="동일 분기·업종의 서울 상권 중 거래건수 기준 상위 N%. 내림차순 최소 순위 / 비교 대상 수 × 100을 반올림하며 작을수록 거래건수 상위권이다."
+    volume_percentile: int | float = Field(
+        description=(
+            "동일 분기·업종의 서울 상권 중 거래건수 기준 상위 N%. 내림차순 최소 순위 / 비교 대상 수 × 100을 표시한다. "
+            "정수 반올림 결과가 0이 되는 양수 백분위는 소수점 첫째 자리까지 표시하며, 작을수록 거래건수 상위권이다."
+        )
     )
-    exploration_percentile: Optional[int] = Field(
+    exploration_percentile: Optional[int | float] = Field(
         default=None,
         description=(
             "동일 분기·업종의 서울 상권 중 ExplorationScore 기준 상위 N%. "
-            "내림차순 최소 순위 / 유효 비교 대상 수 × 100을 반올림하며 낮을수록 탐색점수 상위권이다. "
+            "내림차순 최소 순위 / 유효 비교 대상 수 × 100을 표시하며, 정수 반올림 결과가 0이 되는 양수 백분위는 "
+            "소수점 첫째 자리까지 표시한다. 낮을수록 탐색점수 상위권이다. "
             "성장률·거래건수 또는 CompetitionScore가 부족해 ExplorationScore를 산출할 수 없으면 null이다."
         ),
     )

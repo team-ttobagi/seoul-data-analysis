@@ -857,10 +857,10 @@ class AnalyticsService:
             transaction_count_formatted=_fmt_count(row["transaction_count"]),
             seoul_rank=scoring.none_if_nan_round(row["seoul_rank"]),
             qoq_growth_rate=scoring.none_if_nan(row["growth_rate"]),
-            sales_percentile=round(row["sales_percentile"]),
-            growth_percentile=scoring.none_if_nan_round(row["growth_percentile"]),
-            volume_percentile=round(row["volume_percentile"]),
-            exploration_percentile=scoring.none_if_nan_round(
+            sales_percentile=scoring.percentile_for_display(row["sales_percentile"]),
+            growth_percentile=scoring.percentile_for_display(row["growth_percentile"]),
+            volume_percentile=scoring.percentile_for_display(row["volume_percentile"]),
+            exploration_percentile=scoring.percentile_for_display(
                 row["exploration_percentile"]
             ),
             store_count=store_trend.store_count if store_trend else None,
