@@ -1,4 +1,4 @@
-# Frontend Agent Guidelines (SEOUL DATA PLAYGROUND)
+# Frontend Agent Guidelines (SPOT RADAR)
 
 ## Structure
 - `src/pages/explore/ExplorePage.tsx`: Explore / Before selecting district (Reference Image 1).
