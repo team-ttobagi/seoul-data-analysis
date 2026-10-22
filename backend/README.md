@@ -1,6 +1,6 @@
-# SEOUL DATA PLAYGROUND Backend
+# SPOT RADAR Backend
 
-FastAPI backend for the Seoul Data Playground project.
+FastAPI backend for the SPOT RADAR project.
 
 ## Overview
 

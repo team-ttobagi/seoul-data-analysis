@@ -1,4 +1,4 @@
-# Backend Agent Guidelines (SEOUL DATA PLAYGROUND)
+# Backend Agent Guidelines (SPOT RADAR)
 
 ## Structure
 
